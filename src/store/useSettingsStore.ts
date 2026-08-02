@@ -77,22 +77,27 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     }
   },
 
-  // 🚀 ২. অ্যাডমিন প্যানেল থেকে সেভ করার সাথে সাথে ক্লাউড ডাটাবেসে সেভ ও লাইভ ব্রডকাস্ট
+  // 🚀 ২. ক্লাউড ডাটাবেসে সেভ করার পর ১০০% কনফার্মেশন পাওয়ার পর স্টেট আপডেট করা
   updateSettings: async (newSettings: Partial<SiteSettings>) => {
-    const updated = { ...get().settings, ...newSettings };
-    set({ settings: updated });
-    localStorage.setItem('mo_fashion_settings', JSON.stringify(updated));
+    const current = get().settings;
+    const updated = { ...current, ...newSettings };
 
-    // সমস্ত ডিভাইসে লাইভ আপডেটের জন্য গ্লোবাল ইভেন্ট ডিসপ্যাচ
+    // ক্লাউড ডাটাবেসে রিকোয়েস্ট পাঠানো (PUT Method)
+    const cloudResponse = await apiRequest('/settings', {
+      method: 'PUT',
+      body: JSON.stringify(updated)
+    });
+
+    // ক্লাউড থেকে কনফার্ম হওয়া অরিজিনাল ডাটা দিয়ে স্টেট আপডেট
+    const finalSettings = (cloudResponse && Object.keys(cloudResponse).length > 0)
+      ? { ...initialSettings, ...cloudResponse }
+      : updated;
+
+    set({ settings: finalSettings });
+    localStorage.setItem('mo_fashion_settings', JSON.stringify(finalSettings));
+
+    // সমস্ত ডিভাইসে রিয়েল-টাইম আপডেটের জন্য গ্লোবাল ইভেন্ট ডিসপ্যাচ
     window.dispatchEvent(new Event('settingsUpdated'));
-
-    try {
-      await apiRequest('/settings', {
-        method: 'POST',
-        body: JSON.stringify(updated)
-      });
-    } catch (error) {
-      console.error("Failed to sync settings to MongoDB Cloud Server:", error);
-    }
+    window.dispatchEvent(new Event('storage'));
   }
 }));
