@@ -116,7 +116,7 @@ export default function CheckoutPage() {
 
   // রিয়েল-টাইম সাবটোটাল হিসাব
   let subtotalAfterProductDiscount = 0;
-  const enrichedCartItems = items.map((cartItem: any) => {
+    const enrichedCartItems = items.map((cartItem: any) => {
     const dbProduct = dbProducts.find(p => String(p.id || p._id) === String(cartItem.id));
     const originalPrice = dbProduct ? Number(dbProduct.price) : Number(cartItem.price);
     const discountPercent = dbProduct ? Number(dbProduct.discount) || 0 : 0;

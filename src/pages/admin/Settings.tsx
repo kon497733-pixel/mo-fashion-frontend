@@ -6,16 +6,11 @@ import {
   Settings as SettingsIcon, CreditCard, HelpCircle, Plus, Trash2, Image as ImageIcon, Upload, Type
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getLiveSettings, apiRequest } from '../../config/api';
 
 export default function Settings() {
   const logoFileInputRef = useRef<HTMLInputElement>(null);
   const aboutFileInputRef = useRef<HTMLInputElement>(null);
-
-  // 🚀 ডায়নামিক API ইউআরএল (যাতে মোবাইল বা পিসি যেকোনো ডিভাইস থেকে ক্লাউড ডাটাবেসে সেভ হয়)
-  const getApiUrl = () => {
-    const hostname = window.location.hostname || 'localhost';
-    return `http://${hostname}:5000/api/settings`;
-  };
 
   // ডিফল্ট সেটিংস ডাটা
   const defaultSettings = {
@@ -45,7 +40,7 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState('General');
   const [loading, setLoading] = useState(true);
 
-  // 🚀 ১. ক্লাউড ডাটাবেস (MongoDB API) থেকে রিয়েল-টাইম সেটিংস লোড করা
+  // 🚀 ১. সেন্ট্রাল এপিআই দিয়ে ক্লাউড ডাটাবেস (MongoDB API) থেকে রিয়েল-টাইম সেটিংস লোড করা
   useEffect(() => {
     const fetchCloudSettings = async () => {
       // ১. প্রথমে লোকাল মেমোরি থেকে ইনস্ট্যান্ট লোড
@@ -60,14 +55,11 @@ export default function Settings() {
 
       // ২. ক্লাউড ডাটাবেস (MongoDB Backend) থেকে সিঙ্ক করা
       try {
-        const response = await fetch(getApiUrl());
-        if (response.ok) {
-          const cloudData = await response.json();
-          if (cloudData && Object.keys(cloudData).length > 0) {
-            const merged = { ...defaultSettings, ...cloudData };
-            setLocalSettings(merged);
-            localStorage.setItem('mo_fashion_settings', JSON.stringify(merged));
-          }
+        const cloudData = await getLiveSettings();
+        if (cloudData && Object.keys(cloudData).length > 0) {
+          const merged = { ...defaultSettings, ...cloudData };
+          setLocalSettings(merged);
+          localStorage.setItem('mo_fashion_settings', JSON.stringify(merged));
         }
       } catch (error) {
         console.warn("Cloud DB offline, loaded from local cache.");
@@ -171,7 +163,7 @@ export default function Settings() {
     setLocalSettings({ ...localSettings, faqs: updatedFaqs });
   };
 
-  // 🚀 ৪. ক্লাউড ডাটাবেসে সেভ (PUT Request)
+  // 🚀 ৪. সেন্ট্রাল এপিআই দিয়ে লাইভ ক্লাউড ডাটাবেসে সেভ (POST/PUT Request)
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -182,17 +174,12 @@ export default function Settings() {
     const toastId = toast.loading("Saving settings LIVE to MongoDB Cloud Database...");
 
     try {
-      const response = await fetch(getApiUrl(), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+      await apiRequest('/settings', {
+        method: 'POST',
         body: JSON.stringify(localSettings)
       });
 
-      if (response.ok) {
-        toast.success('Settings saved LIVE in Cloud Database! 🎉', { id: toastId });
-      } else {
-        toast.success('Settings saved successfully!', { id: toastId });
-      }
+      toast.success('Settings saved LIVE in Cloud Database! 🎉', { id: toastId });
     } catch (err) {
       console.warn("Cloud Sync warning: Saved locally.");
       toast.success('Settings saved locally!', { id: toastId });
