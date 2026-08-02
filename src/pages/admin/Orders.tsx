@@ -1,0 +1,349 @@
+import { useState, useEffect } from 'react';
+import { Search, X, Package, Clock, CheckCircle, Truck, MapPin, Trash2, Tag } from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
+import toast from 'react-hot-toast';
+import { getLiveOrders, apiRequest } from '../../config/api';
+
+export default function Orders() {
+  const [orders, setOrders] = useState<any[]>(() => {
+    const saved = localStorage.getItem('mo_fashion_orders');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  // 🚀 ১. সেন্ট্রাল এপিআই দিয়ে ক্লাউড ডাটাবেজ (MongoDB API) থেকে রিয়েল-টাইম সব অর্ডার ফেচ করা
+  const fetchOrders = async () => {
+    // ১. লোকালস্টোরেজ থেকে ইনস্ট্যান্ট লোড
+    const savedLocal = localStorage.getItem('mo_fashion_orders');
+    if (savedLocal) {
+      try {
+        setOrders(JSON.parse(savedLocal));
+      } catch (e) {}
+    }
+
+    // ২. ক্লাউড ডাটাবেস থেকে রিয়েল-টাইম সিঙ্ক
+    try {
+      setLoading(true);
+      const data = await getLiveOrders();
+      if (Array.isArray(data)) {
+        setOrders(data);
+        localStorage.setItem('mo_fashion_orders', JSON.stringify(data));
+      }
+    } catch (error) {
+      console.warn("Backend API offline, using cached local orders.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const handleViewOrder = (order: any) => {
+    setSelectedOrder(order);
+    setIsModalOpen(true);
+  };
+
+  // 🚀 ২. সেন্ট্রাল এপিআই দিয়ে ক্লাউড ডাটাবেসে অর্ডারের স্ট্যাটাস আপডেট করা (PUT)
+  const handleUpdateStatus = async (newStatus: string) => {
+    const orderId = selectedOrder._id || selectedOrder.id;
+
+    // ১. লোকাল ইনস্ট্যান্ট আপডেট
+    const updatedOrders = orders.map((o: any) => 
+      (o._id || o.id) === orderId ? { ...o, status: newStatus } : o
+    );
+    setOrders(updatedOrders);
+    localStorage.setItem('mo_fashion_orders', JSON.stringify(updatedOrders));
+    setSelectedOrder({ ...selectedOrder, status: newStatus });
+    toast.success(`Order status updated to ${newStatus}!`);
+
+    // ২. ক্লাউড ডাটাবেস আপডেট
+    try {
+      await apiRequest(`/orders/${orderId}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: newStatus })
+      });
+    } catch (error) {
+      console.warn("Cloud status update failed, saved locally.");
+    }
+  };
+
+  // 🚀 ৩. সেন্ট্রাল এপিআই দিয়ে ক্লাউড ডাটাবেস থেকে অর্ডার ডিলিট করা (DELETE)
+  const handleDeleteOrder = async (id: string) => {
+    if (window.confirm("Are you sure you want to delete this order completely? This action cannot be undone.")) {
+      // ১. লোকাল ইনস্ট্যান্ট ডিলিট
+      const remainingOrders = orders.filter((order: any) => (order._id || order.id) !== id);
+      setOrders(remainingOrders);
+      localStorage.setItem('mo_fashion_orders', JSON.stringify(remainingOrders));
+      setIsModalOpen(false);
+      toast.success("Order deleted successfully!");
+
+      // ২. ক্লাউড ডাটাবেস থেকে ডিলিট
+      try {
+        await apiRequest(`/orders/${id}`, {
+          method: 'DELETE',
+        });
+      } catch (error) {
+        console.warn("Cloud delete failed, deleted locally.");
+      }
+    }
+  };
+
+  // সার্চ এবং স্ট্যাটাস ফিল্টার লজিক
+  const validOrders = Array.isArray(orders) ? orders : [];
+  const filteredOrders = validOrders.filter((order: any) => {
+    const customerName = order.customerInfo ? `${order.customerInfo.firstName} ${order.customerInfo.lastName}` : (order.customer || 'Unknown');
+    const orderId = String(order._id || order.id || '');
+
+    const matchesSearch = orderId.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          customerName.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = filterStatus === 'All' || order.status === filterStatus;
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  return (
+    <div className="text-white pb-10">
+      <Helmet>
+        <title>Admin - Orders | MO FASHION</title>
+      </Helmet>
+
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+        <div>
+          <h1 className="text-2xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase">Orders Management</h1>
+          <p className="text-sm text-gray-400 mt-1">Track, process, and manage live customer orders from Cloud DB</p>
+        </div>
+      </div>
+
+      {/* Search and Filters Section */}
+      <div className="bg-[#1A1A1A] p-4 rounded-xl border border-[#D4AF37]/20 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center shadow-lg">
+        <div className="relative w-full max-w-md">
+          <input 
+            type="text" 
+            placeholder="Search by Order ID or Customer Name..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-lg px-10 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] placeholder-gray-500 transition-colors"
+          />
+          <Search className="absolute left-3 top-3 text-gray-500" size={18} />
+        </div>
+        <div className="w-full md:w-auto">
+          <select 
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] cursor-pointer"
+          >
+            <option value="All">All Status</option>
+            <option value="Pending">Pending</option>
+            <option value="Processing">Processing</option>
+            <option value="Shipped">Shipped</option>
+            <option value="Delivered">Delivered</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Orders Table */}
+      <div className="bg-[#1A1A1A] rounded-xl border border-[#D4AF37]/20 overflow-hidden shadow-lg">
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left whitespace-nowrap">
+            <thead className="bg-[#111111] border-b border-[#D4AF37]/20">
+              <tr>
+                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Order ID</th>
+                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Customer</th>
+                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Date</th>
+                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Total</th>
+                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Status</th>
+                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800">
+              {filteredOrders.map((order: any) => {
+                const customerName = order.customerInfo ? `${order.customerInfo.firstName} ${order.customerInfo.lastName}` : (order.customer || 'Unknown Customer');
+                const customerEmail = order.customerInfo ? order.customerInfo.email : (order.email || 'N/A');
+                
+                let orderDate = 'Unknown Date';
+                if (order.createdAt) orderDate = new Date(order.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+                else if (order.date) orderDate = order.date;
+
+                const orderTotal = order.orderSummary ? order.orderSummary.total : (order.total || 0);
+                const orderId = order._id || order.id || '';
+
+                return (
+                  <tr key={orderId || Math.random()} className="hover:bg-[#111111]/50 transition-colors">
+                    <td className="px-6 py-4 font-bold text-[#D4AF37] uppercase">...{String(orderId).slice(-6)}</td>
+                    <td className="px-6 py-4">
+                      <p className="font-medium text-white">{customerName}</p>
+                      <p className="text-xs text-gray-400">{customerEmail}</p>
+                    </td>
+                    <td className="px-6 py-4 text-gray-400 text-sm">{orderDate}</td>
+                    <td className="px-6 py-4 font-bold text-[#D4AF37]">৳{Number(orderTotal).toFixed(2)}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center w-max border ${
+                        order.status === 'Delivered' ? 'text-green-400 bg-green-500/10 border-green-500/20' : 
+                        order.status === 'Shipped' ? 'text-blue-400 bg-blue-500/10 border-blue-500/20' : 
+                        (order.status === 'Processing' || order.status === 'Pending') ? 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20' :
+                        order.status === 'Cancelled' ? 'text-red-400 bg-red-500/10 border-red-500/20' :
+                        'text-orange-400 bg-orange-500/10 border-orange-500/20'
+                      }`}>
+                        {order.status === 'Delivered' && <CheckCircle size={12} className="mr-1" />}
+                        {order.status === 'Shipped' && <Truck size={12} className="mr-1" />}
+                        {(order.status === 'Processing' || order.status === 'Pending') && <Clock size={12} className="mr-1" />}
+                        {order.status === 'Cancelled' && <X size={12} className="mr-1" />}
+                        {order.status || 'Pending'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end space-x-3">
+                        <button 
+                          onClick={() => handleViewOrder(order)}
+                          className="px-4 py-1.5 text-sm bg-[#D4AF37]/10 text-[#D4AF37] hover:bg-[#D4AF37] hover:text-black transition-colors rounded-md font-medium border border-[#D4AF37]/20"
+                        >
+                          View
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteOrder(orderId)}
+                          className="p-1.5 text-gray-400 hover:text-red-500 transition-colors bg-[#111111] rounded-md border border-gray-800 hover:border-red-500/50"
+                          title="Delete Order"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filteredOrders.length === 0 && !loading && (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                    No orders found in database. When a customer places an order, it will appear here live!
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* View Order Modal */}
+      {isModalOpen && selectedOrder && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#1A1A1A] border border-[#D4AF37]/30 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            
+            <div className="flex justify-between items-center p-6 border-b border-[#D4AF37]/20 bg-[#111111]">
+              <h2 className="text-xl font-serif font-bold text-[#D4AF37] uppercase flex items-center">
+                <Package className="mr-2" size={24} />
+                Order ID: ...{String(selectedOrder._id || selectedOrder.id).slice(-6).toUpperCase()}
+              </h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="overflow-y-auto custom-scrollbar p-6 space-y-6">
+              
+              {/* Customer Info */}
+              <div className="bg-[#111111] p-5 rounded-xl border border-gray-800">
+                <h3 className="text-[#D4AF37] font-bold mb-4 uppercase tracking-wide text-sm border-b border-gray-800 pb-2">Customer Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-gray-500 text-xs">Name</p>
+                    <p className="text-white font-medium">
+                      {selectedOrder.customerInfo ? `${selectedOrder.customerInfo.firstName} ${selectedOrder.customerInfo.lastName}` : selectedOrder.customer}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-xs">Email</p>
+                    <p className="text-white font-medium">{selectedOrder.customerInfo ? selectedOrder.customerInfo.email : selectedOrder.email}</p>
+                  </div>
+                  <div className="md:col-span-2 flex items-start space-x-2 mt-2">
+                    <MapPin size={16} className="text-gray-500 mt-0.5" />
+                    <div>
+                      <p className="text-gray-500 text-xs">Shipping Address</p>
+                      <p className="text-white font-medium">
+                        {selectedOrder.customerInfo 
+                          ? `${selectedOrder.customerInfo.address}, ${selectedOrder.customerInfo.city} - ${selectedOrder.customerInfo.postalCode}, ${selectedOrder.customerInfo.country}` 
+                          : selectedOrder.address}
+                      </p>
+                      <p className="text-gray-400 text-sm mt-1">Phone: {selectedOrder.customerInfo ? selectedOrder.customerInfo.phone : selectedOrder.phone}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Order Info */}
+              <div className="bg-[#111111] p-5 rounded-xl border border-gray-800">
+                <h3 className="text-[#D4AF37] font-bold mb-4 uppercase tracking-wide text-sm border-b border-gray-800 pb-2">Order Summary</h3>
+                
+                <div className="space-y-3 mb-4">
+                  {(selectedOrder.orderItems || selectedOrder.items || []).map((item: any, idx: number) => (
+                    <div key={idx} className="flex justify-between items-center text-sm border-b border-gray-800 pb-2 last:border-0 last:pb-0">
+                      <div>
+                        <span className="text-white font-medium">{item.name || 'Premium Item'}</span>
+                        <span className="text-gray-500 ml-2">x{item.quantity || 1}</span>
+                      </div>
+                      <span className="text-white font-medium">৳{(Number(item.price) * Number(item.quantity || 1)).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-between items-center mb-2 text-sm pt-2">
+                  <span className="text-gray-400">Payment Method:</span>
+                  <span className="text-white font-medium">{selectedOrder.paymentDetails?.method || selectedOrder.paymentMethod || 'N/A'}</span>
+                </div>
+                
+                <div className="flex justify-between items-center mb-3 text-sm">
+                  <span className="text-gray-400">Shipping:</span>
+                  <span className="text-white font-medium">৳{Number(selectedOrder.orderSummary?.shipping || 0).toFixed(2)}</span>
+                </div>
+
+                {selectedOrder.orderSummary?.couponCode && (
+                  <div className="flex justify-between items-center mb-3 text-sm text-green-400 bg-green-500/10 p-2 rounded border border-green-500/20">
+                    <span className="flex items-center">
+                      <Tag size={14} className="mr-1" />
+                      Coupon Applied ({selectedOrder.orderSummary.couponCode})
+                    </span>
+                    <span className="font-bold">-৳{Number(selectedOrder.orderSummary.discount || 0).toFixed(2)}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center pt-3 border-t border-gray-800">
+                  <span className="text-white font-bold">Total Amount:</span>
+                  <span className="text-[#D4AF37] font-bold text-xl">৳{Number(selectedOrder.orderSummary?.total || selectedOrder.total || 0).toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* Status Update Action */}
+              <div>
+                <label className="block text-gray-300 text-sm mb-3 font-medium">Update Order Status</label>
+                <div className="flex flex-wrap gap-3">
+                  {['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'].map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => handleUpdateStatus(status)}
+                      className={`px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${
+                        selectedOrder.status === status
+                        ? 'bg-[#D4AF37] text-black border-[#D4AF37]'
+                        : 'bg-[#111111] text-gray-400 border-gray-700 hover:border-[#D4AF37] hover:text-[#D4AF37]'
+                      }`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+      
+    </div>
+  );
+}
