@@ -163,7 +163,7 @@ export default function Settings() {
     setLocalSettings({ ...localSettings, faqs: updatedFaqs });
   };
 
-  // 🚀 ৪. সেন্ট্রাল এপিআই দিয়ে লাইভ ক্লাউড ডাটাবেসে সেভ (POST/PUT Request)
+  // 🚀 ৪. সেন্ট্রাল এপিআই দিয়ে লাইভ ক্লাউড ডাটাবেসে সেভ (PUT Request)
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -175,7 +175,7 @@ export default function Settings() {
 
     try {
       await apiRequest('/settings', {
-        method: 'POST',
+        method: 'PUT',
         body: JSON.stringify(localSettings)
       });
 
