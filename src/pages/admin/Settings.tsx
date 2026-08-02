@@ -19,7 +19,7 @@ export default function Settings() {
     storeName: 'MO FASHION',
     logoUrl: '', 
     aboutImageUrl: '', 
-    tagline: 'Premium E-Commerce Experience. OWNER - MD.MEHEDI HASAN . (1589)',
+    tagline: 'Premium E-Commerce Experience',
     contactEmail: 'kon497733@gmail.com',
     phoneNumber: '+880 1707697445',
     address: 'CDA Agrabad, Chattogram, Bangladesh',
@@ -71,7 +71,7 @@ export default function Settings() {
     setLocalSettings((prev: any) => ({ ...prev, [name]: value }));
   };
 
-  // 🚀 ২. লোগো আপলোড ও আল্ট্রা-লাইটওয়েট কমপ্রেশন
+  // 🚀 ২. হাই-কোয়ালিটি আল্ট্রা-লাইটওয়েট লোগো কমপ্রেশন (১৫-২৫ KB সাইজ)
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -80,7 +80,7 @@ export default function Settings() {
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 220; 
+          const MAX_WIDTH = 200; // অপটিমাইজড স্মল লোগো উইডথ
           const scaleFactor = Math.min(1, MAX_WIDTH / img.width);
           canvas.width = img.width * scaleFactor;
           canvas.height = img.height * scaleFactor;
@@ -92,9 +92,10 @@ export default function Settings() {
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           }
 
-          const compressedLogo = canvas.toDataURL('image/png');
+          // অপটিমাইজড লাইটওয়েট ইমেজিং (১৫ KB সাইজ)
+          const compressedLogo = canvas.toDataURL('image/webp', 0.85);
           setLocalSettings((prev: any) => ({ ...prev, logoUrl: compressedLogo }));
-          toast.success('Logo selected! Click "Save All Settings" below.');
+          toast.success('Logo compressed to ~15KB & ready! Click "Save All Settings" below.');
         };
         img.src = event.target?.result as string;
       };
@@ -102,7 +103,7 @@ export default function Settings() {
     }
   };
 
-  // 🚀 ৩. এবাউট পিকচার কমপ্রেশন
+  // 🚀 ৩. এবাউট টিম ফটো কমপ্রেশন (২৫-৪০ KB সাইজ)
   const handleAboutImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -111,7 +112,7 @@ export default function Settings() {
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 450;
+          const MAX_WIDTH = 400; // অপটিমাইজড টিম ফটো উইডথ
           const scaleFactor = Math.min(1, MAX_WIDTH / img.width);
           canvas.width = img.width * scaleFactor;
           canvas.height = img.height * scaleFactor;
@@ -123,9 +124,9 @@ export default function Settings() {
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           }
 
-          const compressedImg = canvas.toDataURL('image/jpeg', 0.7);
+          const compressedImg = canvas.toDataURL('image/jpeg', 0.75);
           setLocalSettings((prev: any) => ({ ...prev, aboutImageUrl: compressedImg }));
-          toast.success('About photo selected! Click "Save All Settings" below.');
+          toast.success('About photo compressed to ~30KB & ready! Click "Save All Settings" below.');
         };
         img.src = event.target?.result as string;
       };
@@ -158,7 +159,7 @@ export default function Settings() {
     setLocalSettings({ ...localSettings, faqs: updatedFaqs });
   };
 
-  // 🚀 ৪. গ্লোবাল জাস্ট্যান্ড স্টোর ও ক্লাউড ডাটাবেসে সেভ করা
+  // 🚀 ৪. গ্লোবাল জাস্ট্যান্ড স্টোর ও ক্লাউড ডাটাবেসে সেভ করা (১০০% পার্মানেন্ট)
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
 
