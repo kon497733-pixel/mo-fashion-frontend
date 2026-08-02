@@ -1,23 +1,20 @@
 // 🚀 MO FASHION Centralized Dynamic API Client Service
 // Single Source of Truth for Real-time Cloud MongoDB Database Sync across all devices.
 
-// 🌐 ১. ডায়নামিক এপিআই বেজ ইউআরএল রেজলভার (মোবাইল, পিসি ও লাইভ হোস্টিংয়ের জন্য)
+// 🌐 ১. ডায়নামিক এপিআই বেজ ইউআরএল রেজলভার (লাইভ সার্ভার কানেকশন ফিক্স)
 export const getApiBaseUrl = (): string => {
-  // ১. mo-fashion/.env ফাইলে সেট করা VITE_API_URL চেক করা
-  const envApiUrl = import.meta.env.VITE_API_URL;
-  
-  if (envApiUrl && !envApiUrl.includes('localhost')) {
-    return envApiUrl;
+  // ১. mo-fashion/.env ফাইলে VITE_API_URL সেট করা থাকলে সেটি আগে রিড করবে
+  if (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.trim() !== '') {
+    return import.meta.env.VITE_API_URL;
   }
 
-  // ২. লোকাল নেটওয়ার্কে মোবাইল বা অন্য ডিভাইস থেকে ঢুকলে ডাইনামিকালি আইপি রেজলভ করা
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname || 'localhost';
-    const protocol = window.location.protocol || 'http:';
-    return `${protocol}//${hostname}:5000/api`;
+  // ২. পিসির লোকালহোস্টে রানিং থাকলে লোকাল ব্যাকএন্ড ব্যবহার করবে
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return 'http://localhost:5000/api';
   }
 
-  return 'http://localhost:5000/api';
+  // ৩. লাইভ ওয়েবসাইট (Vercel) ও বিশ্বের সমস্ত ডিভাইসের জন্য অনলাইনের আসল ব্যাকএন্ড
+  return 'https://mo-fashion-backend.vercel.app/api';
 };
 
 // 🚀 ২. সেন্ট্রালাইজড ফেচ রিকোয়েস্ট সার্ভিস (জিরো ব্রাউজার ক্যাশ / ১০০% লাইভ সিঙ্ক)
@@ -52,7 +49,7 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}): P
   }
 };
 
-// 📦 ৩. ক্লাউড ডাটাবেস লাইভ ফেচিং সার্ভিসেস (জিরো ডিফল্ট)
+// 📦 ৩. ক্লাউড ডাটাবেস লাইভ ফেচিং সার্ভিসেস
 
 // অ্যাডমিন সেটিংস (লোগো, স্টোর নেম, ট্যাগলাইন, শিপিং চার্জ)
 export const getLiveSettings = async () => {
