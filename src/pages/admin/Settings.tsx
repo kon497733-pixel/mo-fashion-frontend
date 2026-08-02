@@ -6,11 +6,13 @@ import {
   Settings as SettingsIcon, CreditCard, HelpCircle, Plus, Trash2, Image as ImageIcon, Upload, Type
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getLiveSettings, apiRequest } from '../../config/api';
+import { useSettingsStore } from '../../store/useSettingsStore';
 
 export default function Settings() {
   const logoFileInputRef = useRef<HTMLInputElement>(null);
   const aboutFileInputRef = useRef<HTMLInputElement>(null);
+
+  const { settings, fetchSettings, updateSettings } = useSettingsStore();
 
   // ডিফল্ট সেটিংস ডাটা
   const defaultSettings = {
@@ -36,47 +38,40 @@ export default function Settings() {
     ]
   };
 
-  const [localSettings, setLocalSettings] = useState<any>(defaultSettings);
+  const [localSettings, setLocalSettings] = useState<any>({ ...defaultSettings, ...settings });
   const [activeTab, setActiveTab] = useState('General');
   const [loading, setLoading] = useState(true);
 
-  // 🚀 ১. সেন্ট্রাল এপিআই দিয়ে ক্লাউড ডাটাবেস (MongoDB API) থেকে রিয়েল-টাইম সেটিংস লোড করা
+  // 🚀 ১. সেন্ট্রাল ক্লাউড ডাটাবেস থেকে রিয়েল-টাইম সেটিংস সিঙ্ক করা
   useEffect(() => {
-    const fetchCloudSettings = async () => {
-      // ১. প্রথমে লোকাল মেমোরি থেকে ইনস্ট্যান্ট লোড
-      const savedSettings = localStorage.getItem('mo_fashion_settings');
-      if (savedSettings) {
-        try {
-          setLocalSettings({ ...defaultSettings, ...JSON.parse(savedSettings) });
-        } catch (e) {
-          console.error("Error reading local settings", e);
-        }
-      }
-
-      // ২. ক্লাউড ডাটাবেস (MongoDB Backend) থেকে সিঙ্ক করা
+    const loadSettings = async () => {
       try {
-        const cloudData = await getLiveSettings();
-        if (cloudData && Object.keys(cloudData).length > 0) {
-          const merged = { ...defaultSettings, ...cloudData };
-          setLocalSettings(merged);
-          localStorage.setItem('mo_fashion_settings', JSON.stringify(merged));
-        }
-      } catch (error) {
-        console.warn("Cloud DB offline, loaded from local cache.");
+        await fetchSettings();
+        const currentSettings = useSettingsStore.getState().settings;
+        setLocalSettings({ ...defaultSettings, ...currentSettings });
+      } catch (e) {
+        console.warn("Failed to load settings from cloud, using cached settings.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchCloudSettings();
+    loadSettings();
   }, []);
+
+  // স্টোর চেঞ্জ হলে লোকাল ফর্মে সিঙ্ক করা
+  useEffect(() => {
+    if (settings && Object.keys(settings).length > 0) {
+      setLocalSettings((prev: any) => ({ ...defaultSettings, ...prev, ...settings }));
+    }
+  }, [settings]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setLocalSettings((prev: any) => ({ ...prev, [name]: value }));
   };
 
-  // 🚀 ২. লোগো আপলোড ও লাইটওয়েট কমপ্রেশন
+  // 🚀 ২. লোগো আপলোড ও আল্ট্রা-লাইটওয়েট কমপ্রেশন
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -163,22 +158,14 @@ export default function Settings() {
     setLocalSettings({ ...localSettings, faqs: updatedFaqs });
   };
 
-  // 🚀 ৪. সেন্ট্রাল এপিআই দিয়ে লাইভ ক্লাউড ডাটাবেসে সেভ (PUT Request)
+  // 🚀 ৪. গ্লোবাল জাস্ট্যান্ড স্টোর ও ক্লাউড ডাটাবেসে সেভ করা
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    localStorage.setItem('mo_fashion_settings', JSON.stringify(localSettings));
-    window.dispatchEvent(new Event('storage'));
-    window.dispatchEvent(new Event('settingsUpdated'));
 
     const toastId = toast.loading("Saving settings LIVE to MongoDB Cloud Database...");
 
     try {
-      await apiRequest('/settings', {
-        method: 'PUT',
-        body: JSON.stringify(localSettings)
-      });
-
+      await updateSettings(localSettings);
       toast.success('Settings saved LIVE in Cloud Database! 🎉', { id: toastId });
     } catch (err) {
       console.warn("Cloud Sync warning: Saved locally.");
