@@ -4,6 +4,7 @@ import {
   Users, Sparkles, Award, ShieldCheck, Truck, 
   Headphones, Lock, CheckCircle2, RotateCcw 
 } from 'lucide-react';
+import { getLiveSettings } from '../../config/api';
 
 export default function About() {
   const [siteSettings, setSiteSettings] = useState<any>({
@@ -11,13 +12,7 @@ export default function About() {
     aboutImageUrl: ''
   });
 
-  // 🚀 ডায়নামিক API ইউআরএল (যাতে যেকোনো মোবাইল বা পিসি থেকে ক্লাউড সেটিং লোড হয়)
-  const getApiUrl = () => {
-    const hostname = window.location.hostname || 'localhost';
-    return `http://${hostname}:5000/api/settings`;
-  };
-
-  // 🚀 ১. ক্লাউড ডাটাবেস (MongoDB API) থেকে রিয়েল-টাইম এবাউট সেটিং লোড করা
+  // 🚀 ১. সেন্ট্রাল এপিআই দিয়ে ক্লাউড ডাটাবেস (MongoDB API) থেকে রিয়েল-টাইম এবাউট সেটিং লোড করা
   useEffect(() => {
     const fetchAboutSettings = async () => {
       // ১. প্রথমে লোকাল মেমোরি থেকে ইনস্ট্যান্ট ডাটা লোড
@@ -32,13 +27,10 @@ export default function About() {
 
       // ২. ক্লাউড ডাটাবেস (MongoDB Backend) থেকে সিঙ্ক করা
       try {
-        const response = await fetch(getApiUrl());
-        if (response.ok) {
-          const cloudData = await response.json();
-          if (cloudData && Object.keys(cloudData).length > 0) {
-            setSiteSettings((prev: any) => ({ ...prev, ...cloudData }));
-            localStorage.setItem('mo_fashion_settings', JSON.stringify(cloudData));
-          }
+        const cloudData = await getLiveSettings();
+        if (cloudData && Object.keys(cloudData).length > 0) {
+          setSiteSettings((prev: any) => ({ ...prev, ...cloudData }));
+          localStorage.setItem('mo_fashion_settings', JSON.stringify(cloudData));
         }
       } catch (err) {
         console.warn("Backend API offline, using cached about settings.");

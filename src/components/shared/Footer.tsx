@@ -2,16 +2,11 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, CreditCard, Smartphone, Banknote, HelpCircle, ShieldCheck, Truck, Globe } from 'lucide-react';
 import { useSettingsStore } from '../../store/useSettingsStore';
+import { getLiveSettings } from '../../config/api';
 
 export default function Footer() {
   const { settings } = useSettingsStore();
   const safeSettings = settings as any;
-
-  // 🚀 ডায়নামিক API ইউআরএল (যাতে যেকোনো মোবাইল বা পিসি থেকে সেভড সেটিংস লোড হয়)
-  const getApiUrl = () => {
-    const hostname = window.location.hostname || 'localhost';
-    return `http://${hostname}:5000/api/settings`;
-  };
 
   const [siteSettings, setSiteSettings] = useState<any>({
     storeName: 'MO FASHION',
@@ -31,7 +26,7 @@ export default function Footer() {
     twitter: 'https://twitter.com'
   });
 
-  // 🚀 ১. ক্লাউড ডাটাবেস (MongoDB API) থেকে রিয়েল-টাইম সেটিংস লোড করা
+  // 🚀 ১. সেন্ট্রাল এপিআই দিয়ে ক্লাউড ডাটাবেস (MongoDB API) থেকে রিয়েল-টাইম সেটিংস লোড করা
   useEffect(() => {
     const fetchFooterSettings = async () => {
       // ১. প্রথমে লোকাল মেমোরি থেকে ইনস্ট্যান্ট ডাটা লোড
@@ -44,15 +39,12 @@ export default function Footer() {
         }
       }
 
-      // ২. লাইভ ক্লাউড ডাটাবেস (MongoDB Backend) থেকে সিঙ্ক করা
+      // ২. সেন্ট্রাল এপিআই দিয়ে লাইভ ক্লাউড ডাটাবেস (MongoDB Backend) থেকে সিঙ্ক করা
       try {
-        const response = await fetch(getApiUrl());
-        if (response.ok) {
-          const cloudData = await response.json();
-          if (cloudData && Object.keys(cloudData).length > 0) {
-            setSiteSettings((prev: any) => ({ ...prev, ...cloudData }));
-            localStorage.setItem('mo_fashion_settings', JSON.stringify(cloudData));
-          }
+        const cloudData = await getLiveSettings();
+        if (cloudData && Object.keys(cloudData).length > 0) {
+          setSiteSettings((prev: any) => ({ ...prev, ...cloudData }));
+          localStorage.setItem('mo_fashion_settings', JSON.stringify(cloudData));
         }
       } catch (e) {
         console.warn("Backend API offline, using cached footer settings.");

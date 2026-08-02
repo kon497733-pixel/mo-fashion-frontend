@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ShoppingBag, User, Menu, X, Search, Home as HouseIcon, Layers, Sparkles } from 'lucide-react';
 import { useCartStore } from '../../store/useCartStore';
+import { getLiveSettings } from '../../config/api';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -9,12 +10,6 @@ export default function Navbar() {
 
   const items = useCartStore((state) => state.items);
   const cartCount = items.reduce((total: number, item: any) => total + (item.quantity || 1), 0);
-
-  // 🚀 ডায়নামিক API ইউআরএল (যাতে যেকোনো মোবাইল বা পিসি থেকে সেভড লোগো লোড হয়)
-  const getApiUrl = () => {
-    const hostname = window.location.hostname || 'localhost';
-    return `http://${hostname}:5000/api/settings`;
-  };
 
   const [siteSettings, setSiteSettings] = useState<any>({
     storeName: 'MO FASHION',
@@ -26,7 +21,7 @@ export default function Navbar() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // 🚀 ১. ক্লাউড ডাটাবেস (MongoDB API) থেকে লাইভ লোগো ও স্টোর নেম সিঙ্ক করা
+  // 🚀 ১. সেন্ট্রাল এপিআই দিয়ে ক্লাউড ডাটাবেস (MongoDB API) থেকে লাইভ লোগো ও স্টোর নেম সিঙ্ক করা
   useEffect(() => {
     const fetchNavbarSettings = async () => {
       // ১. প্রথমে লোকাল মেমোরি থেকে ইনস্ট্যান্ট ডাটা লোড করা
@@ -41,13 +36,10 @@ export default function Navbar() {
 
       // ২. লাইভ ক্লাউড ডাটাবেস (MongoDB Backend) থেকে রিয়েল-টাইম লোগো সিঙ্ক করা
       try {
-        const response = await fetch(getApiUrl());
-        if (response.ok) {
-          const cloudData = await response.json();
-          if (cloudData && Object.keys(cloudData).length > 0) {
-            setSiteSettings(cloudData);
-            localStorage.setItem('mo_fashion_settings', JSON.stringify(cloudData));
-          }
+        const cloudData = await getLiveSettings();
+        if (cloudData && Object.keys(cloudData).length > 0) {
+          setSiteSettings(cloudData);
+          localStorage.setItem('mo_fashion_settings', JSON.stringify(cloudData));
         }
       } catch (err) {
         console.warn("Backend API offline, using cached navbar settings.");
