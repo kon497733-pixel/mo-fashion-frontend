@@ -11,7 +11,9 @@ import {
   getSupabaseProducts, 
   saveSupabaseProduct, 
   deleteSupabaseProduct,
-  moveToRecycleBin
+  moveToRecycleBin,
+  saveSupabaseCategory,
+  getSupabaseCategories
 } from '../../lib/supabase';
 
 export default function Products() {
@@ -29,8 +31,7 @@ export default function Products() {
                           nameLower.includes('classic denim jacket') || 
                           nameLower.includes('luxury golden watch') ||
                           nameLower.includes('premium signature t-shirt') ||
-                          nameLower.includes('dummy') ||
-                          nameLower.includes('sample');
+                          nameLower.includes('dummy sample');
       return !isOldDummy;
     });
   };
@@ -63,6 +64,34 @@ export default function Products() {
     variants: [] as { name: string, options: string }[]
   });
 
+  // 🚀 ক্যাটাগরির প্রোডাক্ট সংখ্যা (Count) ক্লাউড ডাটাবেস ও লোকালস্টোরেজে আপডেট করার ফাংশন
+  const updateCategoryProductCounts = async (currentProductsList: any[]) => {
+    try {
+      const activeCategories = await getSupabaseCategories();
+      if (Array.isArray(activeCategories) && activeCategories.length > 0) {
+        const updatedCategories = activeCategories.map((cat: any) => {
+          const count = currentProductsList.filter((p: any) => 
+            p && p.category && cat.name && 
+            String(p.category).trim().toLowerCase() === String(cat.name).trim().toLowerCase()
+          ).length;
+          return { ...cat, count };
+        });
+
+        localStorage.setItem('mo_fashion_categories', JSON.stringify(updatedCategories));
+
+        // Supabase-এ ক্যাটাগরি প্রোডাক্ট সংখ্যা আপডেট
+        for (const cat of updatedCategories) {
+          await saveSupabaseCategory(cat).catch(() => null);
+        }
+
+        window.dispatchEvent(new Event('categoryUpdated'));
+        window.dispatchEvent(new Event('storage'));
+      }
+    } catch (err) {
+      console.warn("Failed to update category product count:", err);
+    }
+  };
+
   // 🚀 ২. রিয়েল-টাইম ক্লাউড সিঙ্ক ও লোকাল ডাটা মার্জ (রিলোড দিলেও গায়েব হবে না)
   const fetchProducts = async () => {
     setLoading(true);
@@ -82,7 +111,7 @@ export default function Products() {
 
         // 🚀 লোকাল ডাটা ও ক্লাউড ডাটা ইউনিক ID দিয়ে মার্জ করা (যাতে লোকাল প্রোডাক্ট ক্লাউডে না পৌঁছালেও গায়েব না হয়)
         const mergedMap = new Map();
-        [...cleanCloud, ...localList].forEach((item: any) => {
+        [...localList, ...cleanCloud].forEach((item: any) => {
           const key = String(item.id || item._id);
           if (key && !mergedMap.has(key)) {
             mergedMap.set(key, item);
@@ -92,6 +121,7 @@ export default function Products() {
         const finalMergedList = Array.from(mergedMap.values());
         setProducts(finalMergedList);
         localStorage.setItem('mo_fashion_products', JSON.stringify(finalMergedList));
+        updateCategoryProductCounts(finalMergedList);
       } else {
         setProducts(localList);
       }
@@ -106,9 +136,12 @@ export default function Products() {
   useEffect(() => {
     fetchProducts();
 
+    const savedCats = JSON.parse(localStorage.getItem('mo_fashion_categories') || '[]');
+    setCategories(savedCats.length > 0 ? savedCats : [{ name: "Men's Collection" }]);
+
     // 🚀 ৩. Supabase Realtime WebSocket Listener (সব ডিভাইসে রিয়েল-টাইম ব্রডকাস্ট)
     const channel = supabase
-      .channel('public:products')
+      .channel('public:products:management')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'products' },
@@ -117,9 +150,6 @@ export default function Products() {
         }
       )
       .subscribe();
-
-    const savedCategories = JSON.parse(localStorage.getItem('mo_fashion_categories') || '[]');
-    setCategories(savedCategories.length > 0 ? savedCategories : [{ name: "Men's Collection" }]);
 
     return () => {
       supabase.removeChannel(channel);
@@ -225,18 +255,19 @@ export default function Products() {
     setFormData({ ...formData, variants: updatedVariants });
   };
 
-  // 🗑️ ডিলিট প্রোডাক্ট (লাইভ স্টোর থেকে রিমুভ, রিসাইকেল বিনে প্রেরণ ও ক্যাটাগরি কাউন্ট আপডেট)
+  // 🗑️ ডিলিট প্রোডাক্ট (রিসাইকেল বিনে প্রেরণ ও ক্যাটাগরি কাউন্ট অটো-কমানো)
   const handleDelete = async (product: any) => {
     const pId = String(product._id || product.id);
     const pName = product.name || 'Product';
 
     if (window.confirm(`Are you sure you want to move "${pName}" to Recycle Bin?`)) {
-      // ১. একটিভ লিস্ট থেকে রিমুভ
       const remaining = products.filter(p => String(p._id || p.id) !== pId);
       setProducts(remaining);
       localStorage.setItem('mo_fashion_products', JSON.stringify(remaining));
 
-      // ২. সফট-ডিলিট ক্লাউড ও লোকাল রিসাইকেল বিন সার্ভিস
+      // ক্যাটাগরি থেকে প্রোডাক্টের সংখ্যা কমানো
+      updateCategoryProductCounts(remaining);
+
       try {
         await moveToRecycleBin('products', product);
         await deleteSupabaseProduct(pId);
@@ -252,7 +283,7 @@ export default function Products() {
     }
   };
 
-  // 🚀 ৪. সেভ প্রোডাক্ট লজিক (পার্মানেন্ট সেভ ও অল-ডিভাইস সিঙ্ক)
+  // 🚀 ৪. সেভ প্রোডাক্ট লজিক (পার্মানেন্ট সেভ, ক্যাটাগরি কাউন্ট বাড়ান ও অল-ডিভাইস সিঙ্ক)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -294,7 +325,7 @@ export default function Products() {
       sizes: sizeVar ? sizeVar.options : []     
     };
 
-    // 🚀 ১. ইন্সট্যান্ট লোকাল আপডেট (যাতে কোনো অবস্থায় গায়েব না হয়)
+    // 🚀 ১. পার্মানেন্ট ইন্সট্যান্ট লোকাল আপডেট (যাতে কোনো অবস্থায় রিফ্রেশ দিলে গায়েব না হয়)
     const currentList = sanitizeProducts(JSON.parse(localStorage.getItem('mo_fashion_products') || '[]'));
     let updatedList = [];
     
@@ -308,15 +339,17 @@ export default function Products() {
     setProducts(cleanList);
     localStorage.setItem('mo_fashion_products', JSON.stringify(cleanList));
     
-    // উইন্ডো ইভেন্ট ট্রিগার
+    // 🚀 ২. ক্যাটাগরি প্রোডাক্ট কাউন্ট বাড়ানো ও সিঙ্ক
+    updateCategoryProductCounts(cleanList);
+
     window.dispatchEvent(new Event('storage'));
     window.dispatchEvent(new Event('productUpdated'));
 
     setIsSaving(true);
     setIsModalOpen(false);
-    const toastId = toast.loading("Saving permanently to Cloud Database...");
+    const toastId = toast.loading("Saving permanently to Supabase Cloud Database...");
 
-    // 🚀 ২. ক্লাউড ডাটাবেসে সেভ করা (All-Device Live Broadcast)
+    // 🚀 ৩. ক্লাউড ডাটাবেসে সেভ করা (All-Device Live Broadcast)
     try {
       await saveSupabaseProduct(productPayload);
       toast.success("Product saved LIVE on Supabase Cloud! 🎉", { id: toastId });
