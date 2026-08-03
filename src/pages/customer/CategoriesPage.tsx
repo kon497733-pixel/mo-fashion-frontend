@@ -3,19 +3,39 @@ import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Layers, ShoppingBag, Search, Sparkles } from 'lucide-react';
 import { useSettingsStore } from '../../store/useSettingsStore';
-import { getLiveCategories, getLiveProducts } from '../../config/api';
+import { 
+  supabase, 
+  getSupabaseCategories, 
+  getSupabaseProducts 
+} from '../../lib/supabase';
 
 export default function CategoriesPage() {
   const { settings } = useSettingsStore();
   const safeSettings = settings as any;
 
-  // 🚀 ১. ইনস্ট্যান্ট সুপার-ফাস্ট ক্যাস লোডিং (ক্লিক করার সাথে সাথে লোড হয়ে যাবে)
+  // 🚀 ১. পুরনো স্যাম্পল/ডামি ক্যাটাগরি ফিল্টার করার ফাংশন
+  const sanitizeCategories = (catList: any[]) => {
+    if (!Array.isArray(catList)) return [];
+    return catList.filter((cat: any) => {
+      if (!cat || !cat.name) return false;
+      const nameLower = String(cat.name).toLowerCase().trim();
+      const isOldDummy = nameLower.includes('luxury golden watch') || 
+                         nameLower.includes('premium gold t-shirt') || 
+                         nameLower.includes('black signature hoodie') || 
+                         nameLower.includes('classic denim jacket') || 
+                         nameLower.includes('sample category') || 
+                         nameLower.includes('dummy');
+      return !isOldDummy;
+    });
+  };
+
+  // 🚀 ২. ইনস্ট্যান্ট ০-মিলিমিটার ক্যাস লোডিং (লোকাল ক্যাশ থাকলে ইনস্ট্যান্ট লোড হবে)
   const [categories, setCategories] = useState<any[]>(() => {
     try {
       const cachedCat = localStorage.getItem('mo_fashion_categories');
       const cachedProd = localStorage.getItem('mo_fashion_products');
       if (cachedCat) {
-        const parsedCat = JSON.parse(cachedCat);
+        const parsedCat = sanitizeCategories(JSON.parse(cachedCat));
         const parsedProd = cachedProd ? JSON.parse(cachedProd) : [];
         return parsedCat.map((cat: any) => {
           const count = Array.isArray(parsedProd) 
@@ -42,64 +62,83 @@ export default function CategoriesPage() {
     return !localStorage.getItem('mo_fashion_categories');
   });
 
-  // 🚀 ছবিগুলো অটোমেটিক স্লাইড হওয়ার টাইমার
+  // 🚀 ছবিগুলো অটোমেটিক স্লাইড হওয়ার টাইমার (২.৫ সেকেন্ড পর পর)
   const [imageIndex, setImageIndex] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setImageIndex((prev) => prev + 1);
-    }, 2500); // ২.৫ সেকেন্ড পর পর স্লাইড হবে
+    }, 2500);
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    const fetchLiveCategoriesAndProducts = async () => {
-      try {
-        if (categories.length === 0) setLoading(true);
+  // 🚀 ৩. Supabase ক্লাউড ডাটাবেস থেকে রিয়েল-টাইম ক্যাটাগরি ও প্রোডাক্ট ফেচিং
+  const fetchLiveCategoriesAndProducts = async (isSilent = false) => {
+    try {
+      if (!isSilent && categories.length === 0) setLoading(true);
 
-        // ১. সেন্ট্রাল এপিআই দিয়ে ডাটাবেস থেকে রিয়েল-টাইম ক্যাটাগরি ও প্রোডাক্ট ফেচ
-        const [fetchedCategories, fetchedProducts] = await Promise.all([
-          getLiveCategories().catch(() => []),
-          getLiveProducts().catch(() => [])
-        ]);
+      const [fetchedCategories, fetchedProducts] = await Promise.all([
+        getSupabaseCategories().catch(() => []),
+        getSupabaseProducts().catch(() => [])
+      ]);
 
-        if (Array.isArray(fetchedCategories) && fetchedCategories.length > 0) {
-          const enrichedCategories = fetchedCategories.map((cat: any) => {
-            // 🚀 Smart Case-Insensitive Matching: অক্ষরের ছোট-বড় হাত বা স্পেসের অমিল থাকলেও সঠিক সংখ্যা গুনে বের করবে
-            const count = Array.isArray(fetchedProducts) 
-              ? fetchedProducts.filter((p: any) => {
-                  if (!p || !p.category || !cat.name) return false;
-                  return String(p.category).trim().toLowerCase() === String(cat.name).trim().toLowerCase();
-                }).length 
-              : 0;
-            
-            // 🚀 স্লাইডশোর জন্য সব ভ্যালিড ইমেজ বের করা
-            let imagesArray: string[] = [];
-            if (Array.isArray(cat.images) && cat.images.length > 0) {
-              imagesArray = cat.images.filter((url: string) => url && url.trim() !== '');
-            }
+      if (Array.isArray(fetchedCategories)) {
+        const cleanCategories = sanitizeCategories(fetchedCategories);
+        const cleanProducts = Array.isArray(fetchedProducts) ? fetchedProducts : [];
 
-            return {
-              ...cat,
-              count,
-              imagesArray
-            };
-          });
-
-          setCategories(enrichedCategories);
-          localStorage.setItem('mo_fashion_categories', JSON.stringify(fetchedCategories));
-          if (Array.isArray(fetchedProducts)) {
-            localStorage.setItem('mo_fashion_products', JSON.stringify(fetchedProducts));
+        const enrichedCategories = cleanCategories.map((cat: any) => {
+          // Smart Case-Insensitive Matching
+          const count = cleanProducts.filter((p: any) => {
+            if (!p || !p.category || !cat.name) return false;
+            return String(p.category).trim().toLowerCase() === String(cat.name).trim().toLowerCase();
+          }).length;
+          
+          let imagesArray: string[] = [];
+          if (Array.isArray(cat.images) && cat.images.length > 0) {
+            imagesArray = cat.images.filter((url: string) => url && url.trim() !== '');
           }
-        }
-      } catch (error) {
-        console.error("Error fetching live collections:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
 
+          return {
+            ...cat,
+            count,
+            imagesArray
+          };
+        });
+
+        setCategories(enrichedCategories);
+        localStorage.setItem('mo_fashion_categories', JSON.stringify(cleanCategories));
+        localStorage.setItem('mo_fashion_products', JSON.stringify(cleanProducts));
+      }
+    } catch (error) {
+      console.error("Error fetching live collections:", error);
+    } finally {
+      if (!isSilent) setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchLiveCategoriesAndProducts();
+
+    // 🚀 ৪. Supabase WebSocket Realtime Listener (সব ডিভাইসে রিয়েল-টাইম ব্রডকাস্ট)
+    const catChannel = supabase
+      .channel('public:categories:page')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
+        fetchLiveCategoriesAndProducts(true);
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+        fetchLiveCategoriesAndProducts(true);
+      })
+      .subscribe();
+
+    const handleStorageChange = () => fetchLiveCategoriesAndProducts(true);
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('categoryUpdated', handleStorageChange);
+
+    return () => {
+      supabase.removeChannel(catChannel);
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('categoryUpdated', handleStorageChange);
+    };
   }, []);
 
   const filteredCategories = categories.filter(cat => 
@@ -141,7 +180,7 @@ export default function CategoriesPage() {
           </div>
         )}
 
-        {loading ? (
+        {loading && categories.length === 0 ? (
           <div className="text-center py-20 text-[#D4AF37] animate-pulse font-medium text-xl font-serif flex flex-col items-center justify-center space-y-3">
             <Sparkles size={36} className="animate-spin text-[#D4AF37]" />
             <span>Syncing live collections from database...</span>
