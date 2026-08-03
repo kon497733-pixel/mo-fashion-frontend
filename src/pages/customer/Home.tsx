@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
-import { ShoppingBag, Image as ImageIcon, Search, Tag, RefreshCw } from 'lucide-react';
+import { ShoppingBag, Image as ImageIcon, Search, Tag, RefreshCw, Sparkles, ArrowDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCartStore } from '../../store/useCartStore';
 import { supabase, getSupabaseProducts, getSupabaseSettings } from '../../lib/supabase';
@@ -9,16 +9,47 @@ import { supabase, getSupabaseProducts, getSupabaseSettings } from '../../lib/su
 export default function Home() {
   const addToCart = useCartStore((state) => state.addToCart);
 
-  const [allProducts, setAllProducts] = useState<any[]>([]);
-  const [displayProducts, setDisplayProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  // 🚀 ১. ইনস্ট্যান্ট সুপার-ফাস্ট ক্যাস লোডিং (০ মিলি-সেকেন্ডে স্ক্রিনে প্রোডাক্ট লোড হয়ে যাবে)
+  const [allProducts, setAllProducts] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('mo_fashion_products');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const [displayProducts, setDisplayProducts] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('mo_fashion_products');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const [loading, setLoading] = useState<boolean>(() => {
+    return !localStorage.getItem('mo_fashion_products');
+  });
+
   const [searchQuery, setSearchQuery] = useState('');
 
-  // 🚀 লাইভ ক্লাউড সেটিংস স্টেট
-  const [siteSettings, setSiteSettings] = useState<any>({
-    storeName: 'MO FASHION',
-    tagline: 'Premium E-Commerce Experience',
-    currency: '৳'
+  // 🚀 লাইভ ক্লাউড সেটিংস স্টেট (ক্যাস ব্যাকআপ সহ)
+  const [siteSettings, setSiteSettings] = useState<any>(() => {
+    try {
+      const saved = localStorage.getItem('mo_fashion_settings');
+      return saved ? JSON.parse(saved) : {
+        storeName: 'MO FASHION',
+        tagline: 'Premium E-Commerce Experience',
+        currency: '৳'
+      };
+    } catch (e) {
+      return {
+        storeName: 'MO FASHION',
+        tagline: 'Premium E-Commerce Experience',
+        currency: '৳'
+      };
+    }
   });
 
   // 🚀 ছবিগুলো প্রতি ২ সেকেন্ডে অটো-স্লাইড হওয়ার জন্য স্টেট
@@ -31,36 +62,39 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
-  // 🚀 ১. সরাসরি Supabase ক্লাউড ডাটাবেস থেকে রিয়েল-টাইম প্রোডাক্ট ও সেটিংস ফেচ করা
+  // 🚀 মাউস স্ক্রল রিভিল অ্যানিমেশন লজিক (Scroll Trigger Effect)
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('opacity-100', 'translate-y-0');
+            entry.target.classList.remove('opacity-0', 'translate-y-12');
+          }
+        });
+      },
+      { threshold: 0.08 }
+    );
+
+    const elements = document.querySelectorAll('.reveal-on-scroll');
+    elements.forEach((el) => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, [displayProducts, loading]);
+
+  // 🚀 ২. সরাসরি Supabase ক্লাউড ডাটাবেস থেকে রিয়েল-টাইম প্রোডাক্ট ও সেটিংস সিঙ্ক করা
   const fetchLiveHomeData = async (isSilent = false) => {
-    if (!isSilent) {
-      const savedProducts = localStorage.getItem('mo_fashion_products');
-      if (savedProducts) {
-        try {
-          const parsed = JSON.parse(savedProducts);
-          setAllProducts(parsed);
-          setDisplayProducts(parsed);
-        } catch (e) {}
-      }
-
-      const savedSettings = localStorage.getItem('mo_fashion_settings');
-      if (savedSettings) {
-        try {
-          setSiteSettings(JSON.parse(savedSettings));
-        } catch (e) {}
-      }
-    }
-
     try {
-      if (!isSilent) setLoading(true);
+      if (!isSilent && allProducts.length === 0) setLoading(true);
+
       const [data, settingsData] = await Promise.all([
         getSupabaseProducts(),
         getSupabaseSettings()
       ]);
 
-      if (Array.isArray(data)) {
+      if (Array.isArray(data) && data.length > 0) {
         setAllProducts(data);
-        setDisplayProducts(data);
+        if (searchQuery.trim() === '') setDisplayProducts(data);
         localStorage.setItem('mo_fashion_products', JSON.stringify(data));
       }
 
@@ -78,7 +112,7 @@ export default function Home() {
   useEffect(() => {
     fetchLiveHomeData();
 
-    // 🚀 Supabase Realtime WebSocket Listeners for Instant Cross-Device Sync
+    // 🚀 Supabase Realtime WebSocket Listeners for Instant Cross-Device Sync (এডমিন থেকে সাথে সাথে সিঙ্ক হবে)
     const productsChannel = supabase
       .channel('public:products:home')
       .on(
@@ -148,52 +182,63 @@ export default function Home() {
     };
 
     addToCart(cartItem as any);
-    toast.success(`${product.name} added to cart!`);
+    toast.success(`${product.name} added to cart! 🛒`);
   };
 
   return (
-    <main className="min-h-screen bg-[#111111] pb-12 text-white">
+    <main className="min-h-screen bg-[#111111] pb-12 text-white transition-all duration-300">
       <Helmet>
         <title>{siteSettings?.storeName || 'MO FASHION'} | Home</title>
       </Helmet>
 
-      {/* Hero Section */}
-      <section className="bg-[#1A1A1A] py-20 text-center border-b border-[#D4AF37]/20 relative overflow-hidden">
-        <div className="container mx-auto px-4 relative z-10">
-          <h1 className="text-4xl md:text-6xl font-serif font-bold text-white mb-6 uppercase tracking-widest leading-tight">
-            Welcome to <span className="text-[#D4AF37]">{siteSettings?.storeName || 'MO FASHION'}</span>
+      {/* 🚀 Hero Section with Glassmorphic Animations */}
+      <section className="bg-gradient-to-b from-[#1A1A1A] via-[#151515] to-[#111111] py-20 text-center border-b border-[#D4AF37]/20 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.08)_0,transparent_70%)] pointer-events-none"></div>
+        
+        <div className="container mx-auto px-4 relative z-10 max-w-5xl reveal-on-scroll opacity-0 translate-y-12 transition-all duration-700 ease-out">
+          <span className="inline-flex items-center space-x-2 text-xs font-bold uppercase tracking-widest text-[#D4AF37] bg-[#D4AF37]/10 px-4 py-1.5 rounded-full border border-[#D4AF37]/30 mb-6 backdrop-blur-md shadow-lg">
+            <Sparkles size={14} className="animate-spin-slow text-[#D4AF37]" />
+            <span>Exclusive Luxury Fashion</span>
+          </span>
+
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold text-white mb-6 uppercase tracking-widest leading-tight drop-shadow-2xl">
+            Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] via-[#f3e5ab] to-[#D4AF37]">{siteSettings?.storeName || 'MO FASHION'}</span>
           </h1>
-          <p className="text-gray-400 mb-10 max-w-2xl mx-auto text-lg md:text-xl font-light">
+
+          <p className="text-gray-400 mb-10 max-w-2xl mx-auto text-lg md:text-xl font-light leading-relaxed">
             {siteSettings?.tagline || 'Premium E-Commerce Experience'}
           </p>
-          <Link to="/categories">
-            <button className="bg-[#D4AF37] text-black px-10 py-4 rounded-lg hover:bg-white transition-all font-bold uppercase tracking-wider shadow-lg">
-              Shop Now
-            </button>
-          </Link>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link to="/categories">
+              <button className="bg-gradient-to-r from-[#D4AF37] to-[#f3e5ab] text-black px-10 py-4 rounded-xl hover:scale-105 font-bold uppercase tracking-wider shadow-xl shadow-[#D4AF37]/20 transition-all duration-300 active:scale-95 text-sm">
+                Shop Collection
+              </button>
+            </Link>
+          </div>
         </div>
       </section>
 
-      {/* Search Bar */}
-      <section className="pt-16 container mx-auto px-4">
-        <div className="max-w-2xl mx-auto mb-10 relative group">
+      {/* 🔎 Search Bar */}
+      <section className="pt-16 container mx-auto px-4 max-w-6xl">
+        <div className="max-w-2xl mx-auto mb-10 relative group reveal-on-scroll opacity-0 translate-y-12 transition-all duration-700 ease-out">
           <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
             <Search className="text-gray-500 group-focus-within:text-[#D4AF37] transition-colors" size={20} />
           </div>
           <input 
             type="text" 
-            placeholder="Search premium products..." 
+            placeholder="Search premium products or categories..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#1A1A1A] border border-gray-800 rounded-full pl-14 pr-6 py-4 text-white focus:outline-none focus:border-[#D4AF37] transition-colors shadow-2xl"
+            className="w-full bg-[#1A1A1A] border border-gray-800 rounded-full pl-14 pr-6 py-4 text-white focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]/30 transition-all duration-300 shadow-2xl text-sm sm:text-base"
           />
         </div>
       </section>
 
-      {/* New Arrivals Section */}
-      <section className="py-10 container mx-auto px-4">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#D4AF37] tracking-wider mb-2 uppercase">
+      {/* 📦 New Arrivals Section with Mouse Scroll Reveal Animations */}
+      <section className="py-10 container mx-auto px-4 max-w-7xl">
+        <div className="text-center mb-12 reveal-on-scroll opacity-0 translate-y-12 transition-all duration-700 ease-out">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif font-bold text-[#D4AF37] tracking-wider mb-2 uppercase flex items-center justify-center">
             NEW ARRIVALS
           </h2>
           
@@ -203,19 +248,19 @@ export default function Home() {
             </p>
           )}
 
-          <div className="w-24 h-1 bg-[#D4AF37] mx-auto opacity-50 rounded-full mt-4"></div>
+          <div className="w-24 h-1 bg-[#D4AF37] mx-auto opacity-60 rounded-full mt-4 shadow-[0_0_10px_#D4AF37]"></div>
         </div>
 
         {loading && displayProducts.length === 0 ? (
-          <div className="text-center text-[#D4AF37] font-medium animate-pulse py-20 text-xl flex items-center justify-center gap-3">
-            <RefreshCw size={24} className="animate-spin" />
-            <span>Connecting to Supabase Cloud Database...</span>
+          <div className="text-center text-[#D4AF37] font-medium animate-pulse py-20 text-xl flex flex-col items-center justify-center space-y-3">
+            <RefreshCw size={32} className="animate-spin text-[#D4AF37]" />
+            <span>Connecting & Syncing with Cloud Database...</span>
           </div>
         ) : displayProducts.length === 0 ? (
-          <div className="text-center py-24 bg-[#1A1A1A] rounded-3xl border border-dashed border-gray-800 max-w-3xl mx-auto">
-            <ShoppingBag size={64} className="mx-auto text-gray-700 mb-6" />
+          <div className="text-center py-24 bg-[#1A1A1A] rounded-3xl border border-dashed border-gray-800 max-w-3xl mx-auto shadow-2xl p-8 reveal-on-scroll opacity-0 translate-y-12 transition-all duration-700">
+            <ShoppingBag size={64} className="mx-auto text-gray-700 mb-6 opacity-40 animate-bounce" />
             <h2 className="text-2xl font-serif font-bold text-white mb-2">No Products Available</h2>
-            <p className="text-gray-500">
+            <p className="text-gray-500 text-sm">
               {searchQuery ? `No product matches your search "${searchQuery}".` : "Products will appear here once added in the Admin Panel."}
             </p>
           </div>
@@ -233,10 +278,13 @@ export default function Home() {
                 : (product.imageUrl ? [product.imageUrl] : []);
 
               return (
-                <div key={product._id || product.id} className="bg-[#1A1A1A] border border-[#D4AF37]/20 rounded-2xl p-4 text-center hover:border-[#D4AF37]/60 transition-all duration-500 group flex flex-col shadow-xl relative">
+                <div 
+                  key={product._id || product.id} 
+                  className="reveal-on-scroll opacity-0 translate-y-12 transition-all duration-700 ease-out group bg-[#1A1A1A] border border-[#D4AF37]/20 rounded-3xl p-4 text-center hover:border-[#D4AF37] hover:shadow-[0_10px_30px_rgba(212,175,55,0.25)] hover:-translate-y-2 flex flex-col relative overflow-hidden"
+                >
                   
                   {/* Product Image Box with 2-Sec Auto-Slider */}
-                  <Link to={`/product/${product._id || product.id}`} className="block relative overflow-hidden rounded-xl mb-4 bg-[#111111] aspect-[4/5]">
+                  <Link to={`/product/${product._id || product.id}`} className="block relative overflow-hidden rounded-2xl mb-4 bg-[#111111] aspect-[4/5]">
                     {productImages.length > 0 ? (
                       productImages.map((img: string, idx: number) => (
                         <img 
@@ -257,7 +305,7 @@ export default function Home() {
 
                     {/* Discount Badge */}
                     {discPercent > 0 && (
-                      <div className="absolute top-3 left-3 bg-gradient-to-r from-orange-500 to-red-600 text-white text-xs font-extrabold px-3 py-1.5 rounded-md shadow-lg z-10 flex items-center">
+                      <div className="absolute top-3 left-3 bg-gradient-to-r from-orange-500 to-red-600 text-white text-[11px] font-extrabold px-3 py-1.5 rounded-lg shadow-lg z-10 flex items-center">
                         <Tag size={12} className="mr-1" />
                         -{discPercent}% OFF
                       </div>
@@ -265,16 +313,16 @@ export default function Home() {
 
                     {/* Dynamic Stylish Top-Right Stock Badge */}
                     {stockVal <= 0 || product.status === 'Out of Stock' ? (
-                      <span className="absolute top-3 right-3 bg-rose-950/90 text-rose-400 border border-rose-500/40 text-[10px] font-bold px-2.5 py-1 rounded-md backdrop-blur-md z-10 uppercase tracking-wider shadow-lg">
+                      <span className="absolute top-3 right-3 bg-rose-950/90 text-rose-400 border border-rose-500/40 text-[10px] font-bold px-2.5 py-1 rounded-lg backdrop-blur-md z-10 uppercase tracking-wider shadow-lg">
                         SOLD OUT
                       </span>
                     ) : stockVal <= 10 ? (
-                      <span className="absolute top-3 right-3 bg-amber-950/90 text-amber-300 border border-amber-500/40 text-[10px] font-bold px-2.5 py-1 rounded-md backdrop-blur-md z-10 uppercase tracking-wider shadow-lg flex items-center gap-1.5">
+                      <span className="absolute top-3 right-3 bg-amber-950/90 text-amber-300 border border-amber-500/40 text-[10px] font-bold px-2.5 py-1 rounded-lg backdrop-blur-md z-10 uppercase tracking-wider shadow-lg flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span>
                         LOW STOCK
                       </span>
                     ) : (
-                      <span className="absolute top-3 right-3 bg-emerald-950/90 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2.5 py-1 rounded-md backdrop-blur-md z-10 uppercase tracking-wider shadow-lg flex items-center gap-1.5">
+                      <span className="absolute top-3 right-3 bg-emerald-950/90 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2.5 py-1 rounded-lg backdrop-blur-md z-10 uppercase tracking-wider shadow-lg flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                         IN STOCK
                       </span>
@@ -283,7 +331,7 @@ export default function Home() {
                   
                   {/* Product Title */}
                   <Link to={`/product/${product._id || product.id}`}>
-                    <h3 className="font-bold text-white mb-1 hover:text-[#D4AF37] transition-colors line-clamp-2 px-2 uppercase tracking-tighter text-sm">
+                    <h3 className="font-bold text-white mb-1 group-hover:text-[#D4AF37] transition-colors line-clamp-2 px-2 uppercase tracking-tight text-sm">
                       {product.name}
                     </h3>
                   </Link>
@@ -296,7 +344,7 @@ export default function Home() {
                   </div>
 
                   {/* Highlighted Remaining Stock Box */}
-                  <div className="bg-[#111111] border border-[#D4AF37]/30 rounded-lg px-3 py-1.5 mb-3 mx-auto w-max shadow-inner">
+                  <div className="bg-[#111111] border border-[#D4AF37]/30 rounded-xl px-3 py-1.5 mb-3 mx-auto w-max shadow-inner">
                     <p className="text-[11px] text-gray-300 font-medium">
                       {stockVal > 0 ? (
                         <>
@@ -320,13 +368,13 @@ export default function Home() {
                   <button 
                     onClick={(e) => handleAddToCart(product, e)}
                     disabled={stockVal <= 0 || product.status === 'Out of Stock'}
-                    className={`w-full flex items-center justify-center space-x-2 border py-3 rounded-lg font-bold uppercase tracking-wider text-sm transition-all duration-300 ${
+                    className={`w-full flex items-center justify-center space-x-2 border py-3.5 rounded-xl font-bold uppercase tracking-wider text-xs transition-all duration-300 active:scale-95 ${
                       stockVal <= 0 || product.status === 'Out of Stock'
-                      ? 'bg-[#111111] text-gray-500 border-gray-700 cursor-not-allowed' 
-                      : 'border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37] hover:text-black shadow-[0_0_10px_rgba(212,175,55,0.1)]'
+                      ? 'bg-[#111111] text-gray-500 border-gray-800 cursor-not-allowed' 
+                      : 'border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37] hover:text-black shadow-lg shadow-[#D4AF37]/10'
                     }`}
                   >
-                    <ShoppingBag size={18} />
+                    <ShoppingBag size={16} />
                     <span>{stockVal <= 0 || product.status === 'Out of Stock' ? 'OUT OF STOCK' : 'ADD TO CART'}</span>
                   </button>
                 </div>
