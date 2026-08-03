@@ -1,46 +1,40 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { ChevronLeft, ShoppingBag, Image as ImageIcon, Tag, Search, Sparkles, RefreshCw, Layers } from 'lucide-react';
+import { ChevronLeft, ShoppingBag, Image as ImageIcon, Tag, Search, RefreshCw, Layers } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCartStore } from '../../store/useCartStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
-import { 
-  supabase, 
-  getSupabaseProducts, 
-  getSupabaseCategories 
-} from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
 
 export default function CategoryProductsPage() {
-  const { categoryName } = useParams<{ categoryName: string }>();
-  
-  // 🚀 ১. স্মার্ট ইউআরএল ডিকোডিং (স্পেস বা %20 থাকলেও পারফেক্টলি ডিকোড হবে)
-  const decodedCategoryName = decodeURIComponent(categoryName || '').trim();
+  const params = useParams<any>();
+  const location = useLocation();
+
+  // 🚀 ১. ট্রিপল-লেভেল পারফেক্ট ক্যাটাগরি নাম এক্সট্রাকটর (কখনো খালি "" হবে না)
+  const extractCategoryName = (): string => {
+    let raw = params.categoryName || params.category || params.name || params.id;
+    
+    // যদি রাউটার প্যারামিটারে না পাওয়া যায় তবে ব্রাউজার ইউআরএল থেকে এক্সট্রাক্ট করবে
+    if (!raw && location.pathname.includes('/category/')) {
+      const parts = location.pathname.split('/category/');
+      if (parts[1]) {
+        raw = parts[1].split('/')[0];
+      }
+    }
+    
+    return decodeURIComponent(raw || '').trim();
+  };
+
+  const decodedCategoryName = extractCategoryName();
 
   const addToCart = useCartStore((state) => state.addToCart);
   const { settings } = useSettingsStore();
   const safeSettings = settings as any;
 
-  // 🚀 ২. ইনস্ট্যান্ট ক্যাস ডাটা লোডিং (০ মিলি-সেকেন্ডে পেজ ওপেন হবে)
-  const [products, setProducts] = useState<any[]>(() => {
-    try {
-      const savedProds = localStorage.getItem('mo_fashion_products');
-      if (savedProds) {
-        const parsed = JSON.parse(savedProds);
-        return parsed.filter((p: any) => {
-          if (!p || !p.category) return false;
-          return String(p.category).trim().toLowerCase() === decodedCategoryName.toLowerCase();
-        });
-      }
-    } catch (e) {}
-    return [];
-  });
-
+  const [products, setProducts] = useState<any[]>([]);
   const [categoryInfo, setCategoryInfo] = useState<any>(null);
-  const [loading, setLoading] = useState<boolean>(() => {
-    return !localStorage.getItem('mo_fashion_products');
-  });
-
+  const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [imageIndex, setImageIndex] = useState(0);
 
@@ -52,59 +46,82 @@ export default function CategoryProductsPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // 🚀 ৩. Supabase ক্লাউড ডাটাবেস থেকে রিয়েল-টাইম কাস্টমার ক্যাটাগরি ডাটা ফেচিং (All-Device Live)
-  const fetchCategoryProducts = async (isSilent = false) => {
+  // 🚀 ২. সরাসরি Supabase ক্লাউড ডাটাবেস থেকে ১০০% লাইভ ডাটা ফেচিং (All Devices Sync)
+  const fetchCategoryProductsLive = async () => {
+    if (!decodedCategoryName) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      if (!isSilent && products.length === 0) setLoading(true);
+      setLoading(true);
 
-      const [cloudProducts, cloudCategories] = await Promise.all([
-        getSupabaseProducts(),
-        getSupabaseCategories()
-      ]);
+      // ১. সরাসরি ক্লাউড ডাটাবেস থেকে সব প্রোডাক্ট ফেচ
+      const { data: cloudProducts, error: prodErr } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-      if (Array.isArray(cloudProducts)) {
-        // 🚀 Smart Case-Insensitive & Space-Trimmed Matching (কোনো অবস্থাতেই Product Not Found বলবে না)
+      if (!prodErr && Array.isArray(cloudProducts)) {
+        // 🚀 Smart Matching Logic (কোনো অবস্থায় Product Not Found বলবে না)
+        const targetCatLower = decodedCategoryName.toLowerCase().trim();
+        
         const matchedProducts = cloudProducts.filter((p: any) => {
           if (!p || !p.category) return false;
-          const pCat = String(p.category).trim().toLowerCase();
-          const targetCat = decodedCategoryName.toLowerCase();
-          return pCat === targetCat;
+          const pCatLower = String(p.category).toLowerCase().trim();
+          return pCatLower === targetCatLower || pCatLower.includes(targetCatLower) || targetCatLower.includes(pCatLower);
         });
 
         setProducts(matchedProducts);
         localStorage.setItem('mo_fashion_products', JSON.stringify(cloudProducts));
+      } else {
+        // ফলব্যাক লোকালস্টোরেজ
+        const localProds = JSON.parse(localStorage.getItem('mo_fashion_products') || '[]');
+        const targetCatLower = decodedCategoryName.toLowerCase().trim();
+        const matchedLocal = localProds.filter((p: any) => {
+          if (!p || !p.category) return false;
+          const pCatLower = String(p.category).toLowerCase().trim();
+          return pCatLower === targetCatLower || pCatLower.includes(targetCatLower);
+        });
+        setProducts(matchedLocal);
       }
 
+      // ২. সরাসরি ক্লাউড ডাটাবেস থেকে ক্যাটাগরি ইনফো ফেচ
+      const { data: cloudCategories } = await supabase
+        .from('categories')
+        .select('*');
+
       if (Array.isArray(cloudCategories)) {
+        const targetCatLower = decodedCategoryName.toLowerCase().trim();
         const matchedCat = cloudCategories.find((c: any) => 
-          c.name && String(c.name).trim().toLowerCase() === decodedCategoryName.toLowerCase()
+          c.name && String(c.name).toLowerCase().trim() === targetCatLower
         );
         if (matchedCat) setCategoryInfo(matchedCat);
         localStorage.setItem('mo_fashion_categories', JSON.stringify(cloudCategories));
       }
 
     } catch (error) {
-      console.warn("Supabase category fetch warning, using local cache.");
+      console.warn("Category Products live fetch warning:", error);
     } finally {
-      if (!isSilent) setLoading(false);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCategoryProducts();
+    fetchCategoryProductsLive();
 
-    // 🚀 ৪. Supabase Realtime WebSocket Channels (এডমিন থেকে নতুন প্রোডাক্ট দিলে অল-ডিভাইসে সাথে সাথে ১ সেকেন্ডে শো করবে)
+    // 🚀 ৩. Supabase WebSocket Realtime Channel (এডমিন থেকে যে ডিভাইসেই এড হোক, ১ সেকেন্ডে সিঙ্ক হবে)
     const channel = supabase
-      .channel(`public:category:${decodedCategoryName}`)
+      .channel(`public:category:live:${decodedCategoryName}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
-        fetchCategoryProducts(true);
+        fetchCategoryProductsLive();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
-        fetchCategoryProducts(true);
+        fetchCategoryProductsLive();
       })
       .subscribe();
 
-    const handleStorageChange = () => fetchCategoryProducts(true);
+    const handleStorageChange = () => fetchCategoryProductsLive();
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('productUpdated', handleStorageChange);
 
@@ -113,7 +130,7 @@ export default function CategoryProductsPage() {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('productUpdated', handleStorageChange);
     };
-  }, [categoryName]);
+  }, [decodedCategoryName, location.pathname]);
 
   // ডাইনামিক ফিল্টারড সার্চ
   const filteredProducts = products.filter(p => 
@@ -160,32 +177,33 @@ export default function CategoryProductsPage() {
       <div className="container mx-auto px-4 max-w-7xl">
         
         {/* Back Link */}
-        <Link to="/categories" className="inline-flex items-center text-gray-400 hover:text-[#D4AF37] transition-all duration-200 mb-8 hover:-translate-x-1">
+        <Link to="/categories" className="inline-flex items-center text-gray-400 hover:text-[#D4AF37] transition-all duration-200 mb-8 hover:-translate-x-1 font-medium text-sm">
           <ChevronLeft size={20} className="mr-1" />
           <span>Back to Collections</span>
         </Link>
 
         {/* 🚀 Category Header Banner */}
-        <div className="bg-[#1A1A1A] border border-[#D4AF37]/20 rounded-3xl p-8 mb-10 shadow-2xl backdrop-blur-md relative overflow-hidden">
+        <div className="bg-[#1A1A1A] border border-[#D4AF37]/20 rounded-3xl p-6 sm:p-8 mb-10 shadow-2xl backdrop-blur-md relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/5 rounded-full blur-3xl pointer-events-none"></div>
 
           <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
             <div>
               <div className="flex items-center space-x-3 mb-2">
                 <span className="p-2 bg-[#D4AF37]/10 text-[#D4AF37] rounded-xl border border-[#D4AF37]/30">
-                  <Layers size={24} />
+                  <Layers size={22} />
                 </span>
                 <span className="text-xs font-bold uppercase tracking-widest text-[#D4AF37] bg-[#D4AF37]/10 px-3 py-1 rounded-full border border-[#D4AF37]/20">
-                  Collection Showcase
+                  Live Collection Showcase
                 </span>
               </div>
 
+              {/* 🚀 ক্যাটাগরি নাম (কখনো খালি হবে না) */}
               <h1 className="text-3xl md:text-5xl font-serif font-bold text-white uppercase tracking-wider mb-3">
-                {decodedCategoryName}
+                {decodedCategoryName || 'All Products'}
               </h1>
 
               <p className="text-gray-400 text-sm max-w-xl leading-relaxed">
-                {categoryInfo?.description || `Explore our handpicked selection of items in ${decodedCategoryName}.`}
+                {categoryInfo?.description || `Explore our handpicked selection of items in ${decodedCategoryName || 'this collection'}.`}
               </p>
             </div>
 
@@ -214,10 +232,10 @@ export default function CategoryProductsPage() {
         )}
 
         {/* 📦 Products Grid */}
-        {loading && products.length === 0 ? (
+        {loading ? (
           <div className="text-center py-20 text-[#D4AF37] animate-pulse flex flex-col items-center justify-center space-y-3">
             <RefreshCw size={36} className="animate-spin text-[#D4AF37]" />
-            <p className="font-medium text-lg">Syncing items in {decodedCategoryName}...</p>
+            <p className="font-medium text-lg">Fetching live items in {decodedCategoryName}...</p>
           </div>
         ) : filteredProducts.length === 0 ? (
           <div className="text-center py-20 bg-[#1A1A1A] rounded-3xl border border-dashed border-gray-800 max-w-2xl mx-auto shadow-2xl p-8 animate-in fade-in zoom-in-95 duration-200">
