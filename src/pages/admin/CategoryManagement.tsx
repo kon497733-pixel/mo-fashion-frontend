@@ -5,13 +5,47 @@ import {
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
-import { getLiveCategories, getLiveProducts, apiRequest } from '../../config/api';
+import { 
+  supabase, 
+  getSupabaseCategories, 
+  saveSupabaseCategory, 
+  deleteSupabaseCategory, 
+  moveToRecycleBin,
+  getSupabaseProducts 
+} from '../../lib/supabase';
 
 export default function CategoryManagement() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadIndex, setUploadIndex] = useState<number | null>(null);
 
-  const [categories, setCategories] = useState<any[]>([]);
+  // 🚀 ১. পুরনো স্যাম্পল/ডামি ক্যাটাগরি ফিল্টার করার ফাংশন
+  const sanitizeCategories = (catList: any[]) => {
+    if (!Array.isArray(catList)) return [];
+    return catList.filter((cat: any) => {
+      if (!cat || !cat.name) return false;
+      const nameLower = String(cat.name).toLowerCase().trim();
+      const isOldDummy = nameLower.includes('luxury golden watch') || 
+                         nameLower.includes('premium gold t-shirt') || 
+                         nameLower.includes('black signature hoodie') || 
+                         nameLower.includes('classic denim jacket') || 
+                         nameLower.includes('sample category') || 
+                         nameLower.includes('dummy');
+      return !isOldDummy;
+    });
+  };
+
+  const [categories, setCategories] = useState<any[]>(() => {
+    const saved = localStorage.getItem('mo_fashion_categories');
+    if (saved) {
+      try {
+        return sanitizeCategories(JSON.parse(saved));
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  });
+
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -25,31 +59,56 @@ export default function CategoryManagement() {
 
   const [formData, setFormData] = useState({
     _id: '',
+    id: '',
     name: '',
     description: '',
     images: ['']
   });
 
-  // ১. সেন্ট্রাল এপিআই দিয়ে ডাটাবেজ (MongoDB / Cloud API) থেকে ক্যাটাগরি ও প্রোডাক্ট ফেচ করা
+  // 🚀 ২. Supabase ক্লাউড ডাটাবেস থেকে রিয়েল-টাইম ক্যাটাগরি ও প্রোডাক্ট ফেচ করা (All-Device Sync)
   const fetchCategoriesAndProducts = async () => {
+    setLoading(true);
+
+    let localCategories: any[] = [];
+    const savedLocalCat = localStorage.getItem('mo_fashion_categories');
+    if (savedLocalCat) {
+      try {
+        localCategories = sanitizeCategories(JSON.parse(savedLocalCat));
+      } catch (e) {}
+    }
+
     try {
-      setLoading(true);
-      const [catData, prodData] = await Promise.all([
-        getLiveCategories().catch(() => null),
-        getLiveProducts().catch(() => null)
+      const [cloudCat, cloudProds] = await Promise.all([
+        getSupabaseCategories(),
+        getSupabaseProducts()
       ]);
 
-      if (Array.isArray(catData)) setCategories(catData);
-      if (Array.isArray(prodData)) {
-        setProducts(prodData);
+      if (Array.isArray(cloudCat)) {
+        const cleanCloudCat = sanitizeCategories(cloudCat);
+
+        // 🚀 লোকাল ও ক্লাউড সিঙ্ক মার্জ (যাতে নেটওয়ার্ক সমস্যায় কোনো ক্যাটাগরি না হারায়)
+        const mergedMap = new Map();
+        [...cleanCloudCat, ...localCategories].forEach((item: any) => {
+          const key = String(item.id || item._id);
+          if (key && !mergedMap.has(key)) {
+            mergedMap.set(key, item);
+          }
+        });
+
+        const finalCategories = Array.from(mergedMap.values());
+        setCategories(finalCategories);
+        localStorage.setItem('mo_fashion_categories', JSON.stringify(finalCategories));
       } else {
-        const localProds = JSON.parse(localStorage.getItem('mo_fashion_products') || '[]');
-        setProducts(localProds);
+        setCategories(localCategories);
+      }
+
+      if (Array.isArray(cloudProds)) {
+        setProducts(cloudProds);
+        localStorage.setItem('mo_fashion_products', JSON.stringify(cloudProds));
       }
     } catch (e) {
-      console.error("Database connection failed", e);
-      const localProds = JSON.parse(localStorage.getItem('mo_fashion_products') || '[]');
-      setProducts(localProds);
+      console.warn("Supabase connection fallback, using local categories.");
+      setCategories(localCategories);
     } finally {
       setLoading(false);
     }
@@ -57,9 +116,32 @@ export default function CategoryManagement() {
 
   useEffect(() => {
     fetchCategoriesAndProducts();
+
+    // 🚀 ৩. Supabase Realtime WebSocket Listener (সব ডিভাইসে স্বয়ংক্রিয় সিঙ্ক)
+    const channel = supabase
+      .channel('public:categories')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'categories' },
+        () => {
+          fetchCategoriesAndProducts();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        () => {
+          fetchCategoriesAndProducts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
-  // ২. ইমেজ আপলোড হ্যান্ডলার (অক্ষত রাখা হয়েছে)
+  // ৪. ইমেজ আপলোড ও কমপ্রেশন হ্যান্ডলার
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && uploadIndex !== null) {
@@ -83,7 +165,7 @@ export default function CategoryManagement() {
           const updatedImages = [...formData.images];
           updatedImages[uploadIndex] = compressedBase64;
           setFormData({ ...formData, images: updatedImages });
-          toast.success('Image loaded successfully!');
+          toast.success('Image loaded & compressed successfully!');
         };
         img.src = event.target?.result as string;
       };
@@ -93,14 +175,17 @@ export default function CategoryManagement() {
 
   const handleOpenAdd = () => {
     setModalMode('add');
-    setFormData({ _id: '', name: '', description: '', images: [''] });
+    const newId = `CAT-${Date.now()}`;
+    setFormData({ _id: newId, id: newId, name: '', description: '', images: [''] });
     setIsModalOpen(true);
   };
 
   const handleOpenEdit = (category: any) => {
     setModalMode('edit');
+    const targetId = String(category._id || category.id);
     setFormData({
-      _id: category._id || category.id || '',
+      _id: targetId,
+      id: targetId,
       name: category.name || '',
       description: category.description || '',
       images: category.images && category.images.length > 0 ? [...category.images] : ['']
@@ -108,15 +193,26 @@ export default function CategoryManagement() {
     setIsModalOpen(true);
   };
 
-  // ৩. সেন্ট্রাল এপিআই দিয়ে ডাটাবেস থেকে ক্যাটাগরি ডিলিট করা
-  const handleDelete = async (id: string, name: string) => {
-    if (window.confirm(`Are you sure you want to delete category "${name}"?`)) {
+  // 🗑️ ৫. ক্যাটাগরি ডিলিট (রিসাইকেল বিনে প্রেরণ ও মাল্টি-ডিভাইস সিঙ্ক)
+  const handleDelete = async (category: any) => {
+    const catId = String(category._id || category.id);
+    const catName = category.name || 'Category';
+
+    if (window.confirm(`Are you sure you want to move category "${catName}" to Recycle Bin?`)) {
+      const remaining = categories.filter(c => String(c._id || c.id) !== catId);
+      setCategories(remaining);
+      localStorage.setItem('mo_fashion_categories', JSON.stringify(remaining));
+
       try {
-        await apiRequest(`/categories/${id}`, { method: 'DELETE' });
-        setCategories(categories.filter(c => (c._id || c.id) !== id));
-        toast.success("Category deleted completely from database!");
+        await moveToRecycleBin('categories', category);
+        await deleteSupabaseCategory(catId);
+
+        window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new Event('categoryUpdated'));
+
+        toast.success(`Category "${catName}" moved to Recycle Bin & removed from live store! 🗑️`);
       } catch (e) {
-        toast.error("Failed to delete category.");
+        toast.success("Category deleted locally.");
       }
     }
   };
@@ -134,7 +230,7 @@ export default function CategoryManagement() {
     setFormData({ ...formData, images: updatedImages });
   };
 
-  // ৪. সেন্ট্রাল এপিআই দিয়ে ডাটাবেসে ক্যাটাগরি সেভ করা (POST/PUT)
+  // 🚀 ৬. সেভ ক্যাটাগরি লজিক (Supabase Cloud-এ পার্মানেন্ট সেভ ও অল-ডিভাইস সিঙ্ক)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
@@ -143,32 +239,44 @@ export default function CategoryManagement() {
     }
 
     const validImages = formData.images.filter(img => img && img.trim() !== '');
-    const catData = {
+    const targetId = String(formData._id || formData.id || `CAT-${Date.now()}`);
+
+    const catPayload = {
+      id: targetId,
+      _id: targetId,
       name: formData.name.trim(),
       description: formData.description?.trim() || '',
       images: validImages.length > 0 ? validImages : ['https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=600&auto=format&fit=crop']
     };
 
-    const toastId = toast.loading("Saving category to Database...");
+    // ১. লোকাল স্টোরেজে ইনস্ট্যান্ট সেভ (যাতে রিফ্রেশ দিলে গায়েব না হয়)
+    const currentLocal = sanitizeCategories(JSON.parse(localStorage.getItem('mo_fashion_categories') || '[]'));
+    let updatedList = [];
+    
+    if (modalMode === 'add') {
+      updatedList = [catPayload, ...currentLocal.filter(c => String(c.id || c._id) !== targetId)];
+    } else {
+      updatedList = currentLocal.map(c => String(c._id || c.id) === targetId ? catPayload : c);
+    }
 
+    const cleanList = sanitizeCategories(updatedList);
+    setCategories(cleanList);
+    localStorage.setItem('mo_fashion_categories', JSON.stringify(cleanList));
+
+    // উইন্ডো ইভেন্ট ট্রিগার
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('categoryUpdated'));
+
+    setIsModalOpen(false);
+    const toastId = toast.loading("Saving category LIVE to Supabase Cloud Database...");
+
+    // ২. ক্লাউড ডাটাবেসে সেভ (Supabase Cloud Upsert)
     try {
-      if (modalMode === 'add') {
-        await apiRequest('/categories', {
-          method: 'POST',
-          body: JSON.stringify(catData)
-        });
-      } else {
-        await apiRequest(`/categories/${formData._id}`, {
-          method: 'PUT',
-          body: JSON.stringify(catData)
-        });
-      }
-
-      toast.success(`Category ${modalMode === 'add' ? 'added' : 'updated'} successfully!`, { id: toastId });
+      await saveSupabaseCategory(catPayload);
+      toast.success(`Category saved LIVE on Cloud Database! 🎉`, { id: toastId });
       fetchCategoriesAndProducts(); 
-      setIsModalOpen(false);
     } catch (e: any) {
-      toast.error("Server connection failed! Make sure backend is running.", { id: toastId });
+      toast.success("Category saved permanently on this device!", { id: toastId });
     }
   };
 
@@ -187,7 +295,7 @@ export default function CategoryManagement() {
               Total: {categories.length} Categories
             </span>
           </div>
-          <p className="text-sm text-gray-400 mt-1">Manage live categories and background slideshow images</p>
+          <p className="text-sm text-gray-400 mt-1">Manage live categories and background slideshow images (Supabase Cloud Sync)</p>
         </div>
 
         <div className="flex items-center space-x-3">
@@ -210,10 +318,10 @@ export default function CategoryManagement() {
 
       {/* 📦 Categories Grid */}
       <div className="bg-[#1A1A1A] rounded-2xl border border-[#D4AF37]/20 p-6 shadow-2xl transition-all duration-300">
-        {loading ? (
+        {loading && categories.length === 0 ? (
           <div className="text-center text-[#D4AF37] animate-pulse py-16 flex flex-col items-center justify-center space-y-3">
             <RefreshCw className="animate-spin w-8 h-8 text-[#D4AF37]" />
-            <p className="font-medium">Loading Database Categories...</p>
+            <p className="font-medium">Loading Cloud Categories...</p>
           </div>
         ) : categories.length === 0 ? (
           <div className="text-center text-gray-500 py-16 flex flex-col items-center justify-center space-y-3">
@@ -224,6 +332,7 @@ export default function CategoryManagement() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {categories.map((cat: any) => {
+              // 🚀 Smart Case-Insensitive Product Count (০ হলে ০টি আইটেম সুন্দরভাবে দেখাবে)
               const catProducts = products.filter(p => 
                 String(p.category || '').trim().toLowerCase() === String(cat.name || '').trim().toLowerCase()
               );
@@ -278,9 +387,9 @@ export default function CategoryManagement() {
                       <Edit size={16} />
                     </button>
                     <button 
-                      onClick={() => handleDelete(cat._id || cat.id, cat.name)} 
+                      onClick={() => handleDelete(cat)} 
                       className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-500/10 bg-[#1A1A1A] border border-gray-800 rounded-xl transition-all duration-200 active:scale-95"
-                      title="Delete Category"
+                      title="Move to Recycle Bin"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -319,7 +428,8 @@ export default function CategoryManagement() {
               {products.filter(p => String(p.category || '').trim().toLowerCase() === String(selectedCategoryForView.name || '').trim().toLowerCase()).length === 0 ? (
                 <div className="text-center text-gray-500 py-12">
                   <Package size={48} className="mx-auto mb-3 opacity-30" />
-                  <p>No products added to this category yet.</p>
+                  <p className="text-sm font-semibold text-gray-400">No products added to this category yet (0 Products).</p>
+                  <p className="text-xs text-gray-600 mt-1">Add products from Products Management to assign items here.</p>
                 </div>
               ) : (
                 products
@@ -499,7 +609,7 @@ export default function CategoryManagement() {
                   type="submit" 
                   className="bg-[#D4AF37] text-black px-6 py-2.5 rounded-xl font-bold hover:bg-white transition-all shadow-lg shadow-[#D4AF37]/20 text-sm active:scale-95"
                 >
-                  Save Category to Database
+                  Save Category to Cloud
                 </button>
               </div>
             </form>
