@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
-// 🚀 Supabase Credentials
+// 🚀 Supabase Credentials from Environment Variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://lcoujwhfddeihulurrwq.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Aib7MOvBq4kMBsiM7BeHnQ_ElMM9Cjl';
 
@@ -12,7 +12,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-// 🛡️ ইউনিভার্সাল সেফ সেভ ও মার্জ ফাংশন (যাতে ১টি প্রোডাক্টও কখনো রিফ্রেশে গায়েব না হয়)
+// 🛡️ ইউনিভার্সাল সেফ সেভ ও মার্জ ফাংশন
 const mergeAndStore = (cloudData: any[], localKey: string) => {
   let localData: any[] = [];
   try {
@@ -85,7 +85,7 @@ export const updateSupabaseSettings = async (newSettings: Record<string, any>) =
 };
 
 // =========================================================
-// 📦 2. PRODUCTS SERVICES (All Devices Live Guaranteed)
+// 📦 2. PRODUCTS SERVICES (_id Schema Error Fixed)
 // =========================================================
 
 export const getSupabaseProducts = async () => {
@@ -108,36 +108,37 @@ export const getSupabaseProducts = async () => {
 
 export const saveSupabaseProduct = async (productData: Record<string, any>) => {
   const targetId = String(productData.id || productData._id || `PROD-${Date.now()}`);
+  
+  // 🚀 _id প্রপার্টিটি ক্লাউডে পাঠানোর আগে ১০০% মুছে ফেলা হলো (Schema Cache Error Fix)
   const { _id, ...cleanProduct } = productData;
   const payload = {
     ...cleanProduct,
     id: targetId,
-    _id: targetId,
     updated_at: new Date().toISOString()
   };
 
-  // 🚀 ১. ব্রাউজার লোকাল ব্যাকআপ সেভ
+  // ১. ব্রাউজার লোকাল ব্যাকআপ সেভ
   try {
     const existing = JSON.parse(localStorage.getItem('mo_fashion_products') || '[]');
     const filtered = Array.isArray(existing) ? existing.filter((p: any) => String(p.id || p._id) !== targetId) : [];
-    const updatedLocal = [payload, ...filtered];
+    const updatedLocal = [{ ...payload, _id: targetId }, ...filtered];
     localStorage.setItem('mo_fashion_products', JSON.stringify(updatedLocal));
     window.dispatchEvent(new Event('storage'));
     window.dispatchEvent(new Event('productUpdated'));
   } catch (e) {}
 
-  // 🚀 ২. ক্লাউড ডাটাবেসে পার্মানেন্ট সেভ
-  try {
-    const { data, error } = await supabase
-      .from('products')
-      .upsert([payload], { onConflict: 'id' })
-      .select();
+  // ২. ক্লাউড ডাটাবেসে পার্মানেন্ট সেভ (Clean Payload without _id)
+  const { data, error } = await supabase
+    .from('products')
+    .upsert([payload], { onConflict: 'id' })
+    .select();
 
-    if (!error && data && data.length > 0) return data[0];
-  } catch (err: any) {
-    console.warn('Failed to save Supabase Product:', err);
+  if (error) {
+    console.error('Supabase Product Save Error:', error.message);
+    throw new Error(error.message);
   }
 
+  if (data && data.length > 0) return data[0];
   return payload;
 };
 
@@ -159,7 +160,7 @@ export const deleteSupabaseProduct = async (id: string) => {
 };
 
 // =========================================================
-// 📦 3. CATEGORIES SERVICES (Live Sync)
+// 📦 3. CATEGORIES SERVICES (_id Schema Error Fixed)
 // =========================================================
 
 export const getSupabaseCategories = async () => {
@@ -182,34 +183,35 @@ export const getSupabaseCategories = async () => {
 
 export const saveSupabaseCategory = async (categoryData: Record<string, any>) => {
   const targetId = String(categoryData.id || categoryData._id || `CAT-${Date.now()}`);
+  
+  // 🚀 _id প্রপার্টিটি ক্লাউডে পাঠানোর আগে মুছে ফেলা হলো
   const { _id, ...cleanCategory } = categoryData;
   const payload = {
     ...cleanCategory,
     id: targetId,
-    _id: targetId,
     updated_at: new Date().toISOString()
   };
 
   try {
     const existing = JSON.parse(localStorage.getItem('mo_fashion_categories') || '[]');
     const filtered = Array.isArray(existing) ? existing.filter((c: any) => String(c.id || c._id) !== targetId) : [];
-    const updatedLocal = [payload, ...filtered];
+    const updatedLocal = [{ ...payload, _id: targetId }, ...filtered];
     localStorage.setItem('mo_fashion_categories', JSON.stringify(updatedLocal));
     window.dispatchEvent(new Event('storage'));
     window.dispatchEvent(new Event('categoryUpdated'));
   } catch (e) {}
 
-  try {
-    const { data, error } = await supabase
-      .from('categories')
-      .upsert([payload], { onConflict: 'id' })
-      .select();
+  const { data, error } = await supabase
+    .from('categories')
+    .upsert([payload], { onConflict: 'id' })
+    .select();
 
-    if (!error && data && data.length > 0) return data[0];
-  } catch (err: any) {
-    console.warn('Failed to save Supabase Category:', err);
+  if (error) {
+    console.error('Supabase Category Save Error:', error.message);
+    throw new Error(error.message);
   }
 
+  if (data && data.length > 0) return data[0];
   return payload;
 };
 
@@ -255,12 +257,12 @@ export const getSupabaseCoupons = async () => {
 export const saveSupabaseCoupon = async (couponData: Record<string, any>) => {
   const targetId = String(couponData.id || couponData._id || Date.now());
   const { _id, ...cleanCoupon } = couponData;
-  const payload = { ...cleanCoupon, id: targetId, _id: targetId };
+  const payload = { ...cleanCoupon, id: targetId };
 
   try {
     const existing = JSON.parse(localStorage.getItem('mo_fashion_coupons') || '[]');
     const filtered = Array.isArray(existing) ? existing.filter((c: any) => String(c.id || c._id) !== targetId) : [];
-    localStorage.setItem('mo_fashion_coupons', JSON.stringify([payload, ...filtered]));
+    localStorage.setItem('mo_fashion_coupons', JSON.stringify([{ ...payload, _id: targetId }, ...filtered]));
   } catch (e) {}
 
   try {
@@ -308,12 +310,12 @@ export const getSupabaseOrders = async () => {
 export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
   const targetId = String(orderData.id || orderData._id || orderData.orderId || Date.now());
   const { _id, ...cleanOrder } = orderData;
-  const payload = { ...cleanOrder, id: targetId, _id: targetId };
+  const payload = { ...cleanOrder, id: targetId };
 
   try {
     const existing = JSON.parse(localStorage.getItem('mo_fashion_orders') || '[]');
     const filtered = Array.isArray(existing) ? existing.filter((o: any) => String(o.id || o._id) !== targetId) : [];
-    localStorage.setItem('mo_fashion_orders', JSON.stringify([payload, ...filtered]));
+    localStorage.setItem('mo_fashion_orders', JSON.stringify([{ ...payload, _id: targetId }, ...filtered]));
   } catch (e) {}
 
   try {
@@ -361,12 +363,12 @@ export const getSupabaseCustomers = async () => {
 export const saveSupabaseCustomer = async (customerData: Record<string, any>) => {
   const targetId = String(customerData.id || customerData._id || Date.now());
   const { _id, ...cleanCustomer } = customerData;
-  const payload = { ...cleanCustomer, id: targetId, _id: targetId };
+  const payload = { ...cleanCustomer, id: targetId };
 
   try {
     const existing = JSON.parse(localStorage.getItem('mo_fashion_customers') || '[]');
     const filtered = Array.isArray(existing) ? existing.filter((c: any) => String(c.id || c._id) !== targetId) : [];
-    localStorage.setItem('mo_fashion_customers', JSON.stringify([payload, ...filtered]));
+    localStorage.setItem('mo_fashion_customers', JSON.stringify([{ ...payload, _id: targetId }, ...filtered]));
   } catch (e) {}
 
   try {
@@ -402,7 +404,6 @@ export const getSupabaseRecycleBin = async () => {
   return cached ? JSON.parse(cached) : [];
 };
 
-// 🗑️ Move to Recycle Bin (Soft Delete)
 export const moveToRecycleBin = async (originalTable: 'products' | 'categories' | 'orders' | 'coupons', item: Record<string, any>) => {
   const itemId = String(item.id || item._id || Date.now());
   const trashId = `TRASH-${Date.now()}`;
@@ -441,14 +442,14 @@ export const moveToRecycleBin = async (originalTable: 'products' | 'categories' 
   }
 };
 
-// ♻️ 1-Click Restore
 export const restoreFromRecycleBin = async (trashRecord: Record<string, any>) => {
   const { originalTable, data: originalData, id: trashId, itemId } = trashRecord;
   const targetId = String(itemId || originalData?.id || originalData?._id);
 
   try {
     if (originalTable && originalData) {
-      await supabase.from(originalTable).upsert([originalData], { onConflict: 'id' });
+      const { _id, ...cleanData } = originalData;
+      await supabase.from(originalTable).upsert([{ ...cleanData, id: targetId }], { onConflict: 'id' });
     }
     if (trashId) {
       await supabase.from('recycle_bin').delete().eq('id', trashId);
@@ -473,7 +474,6 @@ export const restoreFromRecycleBin = async (trashRecord: Record<string, any>) =>
   }
 };
 
-// ❌ Permanent Delete (No Reappearing Bug - Completely Wiped From All Databases)
 export const permanentDeleteFromRecycleBin = async (trashId: string, itemId?: string, originalTable?: string) => {
   try {
     if (trashId) {

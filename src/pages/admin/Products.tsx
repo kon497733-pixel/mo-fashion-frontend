@@ -8,6 +8,10 @@ import toast from 'react-hot-toast';
 import { notifyProductChange } from '../../services/emailService'; 
 import { 
   supabase, 
+  getSupabaseProducts, 
+  saveSupabaseProduct, 
+  deleteSupabaseProduct,
+  moveToRecycleBin,
   saveSupabaseCategory,
   getSupabaseCategories
 } from '../../lib/supabase';
@@ -92,7 +96,7 @@ export default function Products() {
   // 🚀 ২. ক্যাটাগরি ও প্রোডাক্ট লাইভ ডাটা ফেচিং
   const loadCategoriesList = async () => {
     try {
-      const { data: cloudCats } = await supabase.from('categories').select('*');
+      const cloudCats = await getSupabaseCategories();
       if (Array.isArray(cloudCats) && cloudCats.length > 0) {
         setCategories(cloudCats);
         localStorage.setItem('mo_fashion_categories', JSON.stringify(cloudCats));
@@ -118,9 +122,9 @@ export default function Products() {
     }
 
     try {
-      const { data: cloudData, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+      const cloudData = await getSupabaseProducts();
       
-      if (!error && Array.isArray(cloudData)) {
+      if (Array.isArray(cloudData)) {
         const cleanCloud = sanitizeProducts(cloudData);
 
         // 🚀 লোকাল ডাটা ও ক্লাউড ডাটা সেফলি মার্জ করা (যাতে সেভ করা প্রোডাক্ট উধাও না হয়)
@@ -152,9 +156,9 @@ export default function Products() {
     loadCategoriesList();
     fetchProducts();
 
-    // 🚀 ৩. Supabase Realtime WebSocket Listener (সব ডিভাইসে রিয়েল-টাইম ব্রডকাস্ট)
+    // 🚀 ৩. Supabase Realtime WebSocket Listener (সব ডিভাইসে ১ সেকেন্ডে ব্রডকাস্ট হবে)
     const channel = supabase
-      .channel('public:products:management:unstoppable')
+      .channel('public:products:management:5g')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
         fetchProducts();
       })
@@ -212,7 +216,7 @@ export default function Products() {
     setIsModalOpen(true);
   };
 
-  // 🚀 হাই-কম্প্রেশন ইমেজ আপলোড (কখনো লোকাল স্টোরেজ ক্র্যাশ করবে না)
+  // 🚀 হাই-কমপ্রেশন ইমেজ আপলোড
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && uploadIndex !== null) {
@@ -274,7 +278,7 @@ export default function Products() {
     const pId = String(product._id || product.id);
     const pName = product.name || 'Product';
 
-    if (window.confirm(`Are you sure you want to delete "${pName}"?`)) {
+    if (window.confirm(`Are you sure you want to move "${pName}" to Recycle Bin?`)) {
       const remaining = products.filter(p => String(p._id || p.id) !== pId);
       setProducts(remaining);
       
@@ -285,20 +289,21 @@ export default function Products() {
       updateCategoryProductCounts(remaining);
 
       try {
-        await supabase.from('products').delete().eq('id', pId);
+        await moveToRecycleBin('products', product);
+        await deleteSupabaseProduct(pId);
         try { await notifyProductChange('Deleted', pName); } catch(e){}
         
         window.dispatchEvent(new Event('storage'));
         window.dispatchEvent(new Event('productUpdated'));
 
-        toast.success(`"${pName}" deleted successfully! 🗑️`);
+        toast.success(`"${pName}" moved to Recycle Bin & removed from live store! 🗑️`);
       } catch (e) {
         toast.success("Product removed locally.");
       }
     }
   };
 
-  // 🚀 ৪. ট্রিপল-লেভেল আনস্টপাবল সেভ প্রোডাক্ট লজিক (১০০% গ্যারান্টেড সেভ)
+  // 🚀 ৪. সেভ প্রোডাক্ট লজিক (অল-ডিভাইস রিয়েল-টাইম ব্রডকাস্ট)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -345,13 +350,13 @@ export default function Products() {
         sizes: sizeVar ? sizeVar.options : []     
       };
 
-      // 🚀 ১. আনকন্ডিশনাল স্টেট আপডেট (যাতে স্ক্রিন থেকে প্রোডাক্ট কখনো উধাও না হতে পারে)
+      // 🚀 ১. ইন্সট্যান্ট স্টেট আপডেট
       setProducts(prevProducts => {
         const filtered = prevProducts.filter(p => String(p.id || p._id) !== targetId);
         return [productPayload, ...filtered];
       });
 
-      // 🚀 ২. সেফ লোকাল স্টোরেজ সেভ
+      // 🚀 ২. ব্রাউজার সেভ
       try {
         const currentList = sanitizeProducts(JSON.parse(localStorage.getItem('mo_fashion_products') || '[]'));
         const filtered = currentList.filter((p: any) => String(p.id || p._id) !== targetId);
@@ -362,28 +367,24 @@ export default function Products() {
 
       setIsModalOpen(false);
 
-      // 🚀 ৩. ক্লাউড সেভ (Supabase Cloud Direct Upsert)
-      const { data: cloudSaved, error: supabaseError } = await supabase
-        .from('products')
-        .upsert([productPayload], { onConflict: 'id' })
-        .select();
+      // 🚀 ৩. ক্লাউড ডাটাবেস সেভ (Supabase Upsert)
+      await saveSupabaseProduct(productPayload);
 
-      if (supabaseError) {
-        console.error("Supabase Save Warning:", supabaseError);
-        toast.error(`Cloud Warning: ${supabaseError.message}`, { id: toastId });
-      } else {
-        toast.success(`Product "${productPayload.name}" saved LIVE in "${selectedCategoryName}"! 🎉`, { id: toastId });
-      }
+      toast.success(`Product "${productPayload.name}" saved LIVE in "${selectedCategoryName}"! 🎉`, { id: toastId });
+      try { await notifyProductChange(modalMode === 'add' ? 'Added' : 'Updated', productPayload.name); } catch(e){}
 
-      // 🚀 ৪. ক্যাটাগরি প্রোডাক্ট কাউন্ট অটো-ইনক্রিমেন্ট
+      // 🚀 ৪. ক্যাটাগরি প্রোডাক্ট কাউন্ট সিঙ্ক
       updateCategoryProductCounts([productPayload, ...products]);
 
       window.dispatchEvent(new Event('storage'));
       window.dispatchEvent(new Event('productUpdated'));
+      window.dispatchEvent(new Event('categoryUpdated'));
+
+      fetchProducts();
 
     } catch (err: any) {
       console.error("Save Exec Error:", err);
-      toast.error(`Save Error: ${err.message || 'Unknown error'}`, { id: toastId });
+      toast.error(`Notice: ${err.message || 'Saved locally'}`, { id: toastId });
     } finally {
       setIsSaving(false);
     }
