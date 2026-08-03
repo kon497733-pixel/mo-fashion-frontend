@@ -92,7 +92,7 @@ export default function Products() {
     }
   };
 
-  // 🚀 ২. রিয়েল-টাইম ক্লাউড সিঙ্ক ও লোকাল ডাটা মার্জ (রিলোড দিলেও গায়েব হবে না)
+  // 🚀 ২. রিয়েল-টাইম ক্লাউড সিঙ্ক ও লোকাল ডাটা মার্জ (যাতে ১ সেকেন্ডের জন্যও প্রোডাক্ট উধাও না হয়)
   const fetchProducts = async () => {
     setLoading(true);
 
@@ -109,12 +109,12 @@ export default function Products() {
       if (Array.isArray(cloudData)) {
         const cleanCloud = sanitizeProducts(cloudData);
 
-        // 🚀 লোকাল ডাটা ও ক্লাউড ডাটা ইউনিক ID দিয়ে মার্জ করা (যাতে লোকাল প্রোডাক্ট ক্লাউডে না পৌঁছালেও গায়েব না হয়)
+        // 🚀 লোকাল ডাটা ও ক্লাউড ডাটা সেফলি মার্জ করা (যাতে কোনো প্রোডাক্ট হারানো না যায়)
         const mergedMap = new Map();
         [...localList, ...cleanCloud].forEach((item: any) => {
           const key = String(item.id || item._id);
-          if (key && !mergedMap.has(key)) {
-            mergedMap.set(key, item);
+          if (key && key !== 'undefined' && key !== 'null') {
+            mergedMap.set(key, { ...mergedMap.get(key), ...item });
           }
         });
 
@@ -124,10 +124,12 @@ export default function Products() {
         updateCategoryProductCounts(finalMergedList);
       } else {
         setProducts(localList);
+        updateCategoryProductCounts(localList);
       }
     } catch (error) {
       console.warn("Supabase connection fallback, using local products.");
       setProducts(localList);
+      updateCategoryProductCounts(localList);
     } finally {
       setLoading(false);
     }
@@ -325,7 +327,7 @@ export default function Products() {
       sizes: sizeVar ? sizeVar.options : []     
     };
 
-    // 🚀 ১. পার্মানেন্ট ইন্সট্যান্ট লোকাল আপডেট (যাতে কোনো অবস্থায় রিফ্রেশ দিলে গায়েব না হয়)
+    // 🚀 ১. পার্মানেন্ট ইন্সট্যান্ট লোকাল আপডেট (যাতে কোনো অবস্থায় রিফ্রেশ দিলে বা নেট স্পিড কম থাকলেও উধাও না হয়)
     const currentList = sanitizeProducts(JSON.parse(localStorage.getItem('mo_fashion_products') || '[]'));
     let updatedList = [];
     

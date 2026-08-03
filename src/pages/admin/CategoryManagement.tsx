@@ -86,12 +86,12 @@ export default function CategoryManagement() {
       if (Array.isArray(cloudCat)) {
         const cleanCloudCat = sanitizeCategories(cloudCat);
 
-        // 🚀 লোকাল ও ক্লাউড সিঙ্ক মার্জ (যাতে নেটওয়ার্ক সমস্যায় কোনো ক্যাটাগরি না হারায়)
+        // 🚀 লোকাল ও ক্লাউড সিঙ্ক মার্জ (যাতে নেটের স্পিড কম থাকলেও কোনো ক্যাটাগরি গায়েব না হয়)
         const mergedMap = new Map();
-        [...cleanCloudCat, ...localCategories].forEach((item: any) => {
+        [...localCategories, ...cleanCloudCat].forEach((item: any) => {
           const key = String(item.id || item._id);
-          if (key && !mergedMap.has(key)) {
-            mergedMap.set(key, item);
+          if (key && key !== 'undefined' && key !== 'null') {
+            mergedMap.set(key, { ...mergedMap.get(key), ...item });
           }
         });
 
@@ -119,7 +119,7 @@ export default function CategoryManagement() {
 
     // 🚀 ৩. Supabase Realtime WebSocket Listener (সব ডিভাইসে স্বয়ংক্রিয় সিঙ্ক)
     const channel = supabase
-      .channel('public:categories')
+      .channel('public:categories:management')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'categories' },
@@ -193,7 +193,7 @@ export default function CategoryManagement() {
     setIsModalOpen(true);
   };
 
-  // 🗑️ ৫. ক্যাটাগরি ডিলিট (রিসাইকেল বিনে প্রেরণ ও মাল্টি-ডিভাইস সিঙ্ক)
+  // 🗑️ ৫. ক্যাটাগরি ডিলিট (রিসাইকেল বিনে প্রেরণ ও অল-ডিভাইস সিঙ্ক)
   const handleDelete = async (category: any) => {
     const catId = String(category._id || category.id);
     const catName = category.name || 'Category';
@@ -249,7 +249,7 @@ export default function CategoryManagement() {
       images: validImages.length > 0 ? validImages : ['https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=600&auto=format&fit=crop']
     };
 
-    // ১. লোকাল স্টোরেজে ইনস্ট্যান্ট সেভ (যাতে রিফ্রেশ দিলে গায়েব না হয়)
+    // ১. লোকাল স্টোরেজে ইন্সট্যান্ট সেভ (যাতে রিফ্রেশ দিলে গায়েব না হয়)
     const currentLocal = sanitizeCategories(JSON.parse(localStorage.getItem('mo_fashion_categories') || '[]'));
     let updatedList = [];
     
