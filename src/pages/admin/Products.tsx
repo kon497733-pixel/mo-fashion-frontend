@@ -64,7 +64,7 @@ export default function Products() {
     variants: [] as { name: string, options: string }[]
   });
 
-  // 🚀 ক্যাটাগরির প্রোডাক্ট সংখ্যা (Count) ক্লাউড ডাটাবেস ও লোকালস্টোরেজে রিয়েল-টাইম আপডেট করার ফাংশন
+  // 🚀 ক্যাটাগরির প্রোডাক্ট সংখ্যা (Count) ক্লাউড ডাটাবেস ও লোকালস্টোরেজে আপডেট করার ফাংশন
   const updateCategoryProductCounts = async (currentProductsList: any[]) => {
     try {
       const activeCategories = await getSupabaseCategories();
@@ -72,7 +72,8 @@ export default function Products() {
         const updatedCategories = activeCategories.map((cat: any) => {
           const count = currentProductsList.filter((p: any) => 
             p && p.category && cat.name && 
-            String(p.category).trim().toLowerCase() === String(cat.name).trim().toLowerCase()
+            (String(p.category).trim().toLowerCase() === String(cat.name).trim().toLowerCase() ||
+             String(p.category).trim().toLowerCase().includes(String(cat.name).trim().toLowerCase()))
           ).length;
           return { ...cat, count };
         });
@@ -92,7 +93,23 @@ export default function Products() {
     }
   };
 
-  // 🚀 ২. 5G স্পিড রিয়েল-টাইম ক্লাউড সিঙ্ক ও লোকাল ডাটা মার্জ (যাতে কোনো প্রোডাক্ট উধাও না হয়)
+  // 🚀 ২. ক্যাটাগরি ও প্রোডাক্ট লাইভ ডাটা লোড
+  const loadCategoriesList = async () => {
+    try {
+      const cloudCats = await getSupabaseCategories();
+      if (Array.isArray(cloudCats) && cloudCats.length > 0) {
+        setCategories(cloudCats);
+        localStorage.setItem('mo_fashion_categories', JSON.stringify(cloudCats));
+      } else {
+        const savedCats = JSON.parse(localStorage.getItem('mo_fashion_categories') || '[]');
+        if (savedCats.length > 0) setCategories(savedCats);
+      }
+    } catch (e) {
+      const savedCats = JSON.parse(localStorage.getItem('mo_fashion_categories') || '[]');
+      if (savedCats.length > 0) setCategories(savedCats);
+    }
+  };
+
   const fetchProducts = async () => {
     setLoading(true);
 
@@ -136,19 +153,24 @@ export default function Products() {
   };
 
   useEffect(() => {
+    loadCategoriesList();
     fetchProducts();
-
-    const savedCats = JSON.parse(localStorage.getItem('mo_fashion_categories') || '[]');
-    setCategories(savedCats.length > 0 ? savedCats : [{ name: "Men's Collection" }]);
 
     // 🚀 ৩. Supabase Realtime WebSocket Listener (সব ডিভাইসে ১ সেকেন্ডে রিয়েল-টাইম ব্রডকাস্ট)
     const channel = supabase
-      .channel('public:products:management:5g')
+      .channel('public:products:management:guaranteed')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'products' },
         () => {
           fetchProducts();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'categories' },
+        () => {
+          loadCategoriesList();
         }
       )
       .subscribe();
@@ -161,9 +183,11 @@ export default function Products() {
   const handleOpenAdd = () => {
     setModalMode('add');
     const newId = `PROD-${Date.now()}`;
+    const defaultCatName = categories.length > 0 ? categories[0].name : 'Shirt';
+
     setFormData({ 
       _id: newId, id: newId, name: '', description: '', 
-      category: categories.length > 0 ? categories[0].name : "Men's Collection", 
+      category: defaultCatName, 
       price: '', discount: '0', stock: '10', status: 'Active', images: [''],
       variants: []
     });
@@ -189,7 +213,7 @@ export default function Products() {
       id: targetId,
       name: product.name || '',
       description: product.description || '', 
-      category: product.category || (categories.length > 0 ? categories[0].name : "Men's Collection"),
+      category: product.category || (categories.length > 0 ? categories[0].name : 'Shirt'),
       price: product.price ? product.price.toString() : '',
       discount: (product.discount !== undefined && product.discount !== null) ? product.discount.toString() : '0',
       stock: product.stock !== undefined ? product.stock.toString() : '0',
@@ -257,7 +281,7 @@ export default function Products() {
     setFormData({ ...formData, variants: updatedVariants });
   };
 
-  // 🗑️ ডিলিট প্রোডাক্ট (রিসাইকেল বিনে প্রেরণ ও ক্যাটাগরি কাউন্ট অটো-কমানো)
+  // 🗑️ ডিলিট প্রোডাক্ট
   const handleDelete = async (product: any) => {
     const pId = String(product._id || product.id);
     const pName = product.name || 'Product';
@@ -285,7 +309,7 @@ export default function Products() {
     }
   };
 
-  // 🚀 ৪. সেভ প্রোডাক্ট লজিক (পার্মানেন্ট সেভ, সেলিং প্রাইস সিঙ্ক ও অল-ডিভাইস ব্রডকাস্ট)
+  // 🚀 ৪. গ্যারান্টেড সেভ প্রোডাক্ট লজিক (পার্মানেন্ট সেভ, সেলিং প্রাইস ও ক্যাটাগরি সিঙ্ক)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -309,6 +333,7 @@ export default function Products() {
     const sizeVar = formattedVariants.find(v => v.name.toLowerCase() === 'size' || v.name.toLowerCase() === 'sizes');
 
     const targetId = String(formData._id || formData.id || `PROD-${Date.now()}`);
+    const selectedCategoryName = formData.category || (categories.length > 0 ? categories[0].name : 'Shirt');
 
     const productPayload = {
       id: targetId,
@@ -319,7 +344,7 @@ export default function Products() {
       discount: discPercent,
       stock: Number(formData.stock) || 0,
       status: Number(formData.stock) <= 0 ? 'Out of Stock' : (formData.status || 'Active'),
-      category: formData.category || (categories.length > 0 ? categories[0].name : "Men's Collection"),
+      category: selectedCategoryName.trim(),
       images: validImages.length > 0 ? validImages : ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600'],
       imageUrl: validImages.length > 0 ? validImages[0] : '',
       variants: formattedVariants,
@@ -354,7 +379,7 @@ export default function Products() {
     // 🚀 ৩. ক্লাউড ডাটাবেসে সেভ করা (All-Device Live Broadcast)
     try {
       await saveSupabaseProduct(productPayload);
-      toast.success("Product saved LIVE on Supabase Cloud! 🎉", { id: toastId });
+      toast.success(`Product saved LIVE in "${selectedCategoryName}"! 🎉`, { id: toastId });
       try { await notifyProductChange(modalMode === 'add' ? 'Added' : 'Updated', productPayload.name); } catch(e){}
       fetchProducts(); 
     } catch (error) {
@@ -672,16 +697,16 @@ export default function Products() {
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-gray-300 text-sm mb-2 font-medium">Category</label>
+                  <label className="block text-gray-300 text-sm mb-2 font-medium">Category *</label>
                   <select 
                     value={formData.category}
                     onChange={(e) => setFormData({...formData, category: e.target.value})}
-                    className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#D4AF37] transition-colors cursor-pointer text-sm"
+                    className="w-full bg-[#111111] border border-[#D4AF37]/50 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#D4AF37] transition-colors cursor-pointer text-sm font-bold text-[#D4AF37]"
                   >
                     {categories.map((cat: any) => (
-                      <option key={cat.id || cat.name} value={cat.name}>{cat.name}</option>
+                      <option key={cat.id || cat.name} value={cat.name} className="bg-[#111111] text-white">{cat.name}</option>
                     ))}
-                    {categories.length === 0 && <option value="Uncategorized">Uncategorized</option>}
+                    {categories.length === 0 && <option value="Shirt">Shirt</option>}
                   </select>
                 </div>
                 <div>
