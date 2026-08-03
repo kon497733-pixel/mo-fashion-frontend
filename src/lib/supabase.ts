@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
-// 🚀 Supabase Credentials (Environment Variables থেকে)
+// 🚀 Supabase Credentials
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://lcoujwhfddeihulurrwq.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Aib7MOvBq4kMBsiM7BeHnQ_ElMM9Cjl';
 
@@ -40,43 +40,22 @@ export const getSupabaseSettings = async () => {
 
 // ২. সেটিংস লাইভ সেভ ও সিঙ্ক করা (Save Settings - 100% Guaranteed Error-Proof)
 export const updateSupabaseSettings = async (newSettings: Record<string, any>) => {
-  // ১. কেবল বৈধ ডেটাবেস ফিল্ডগুলো ফিল্টার করে নিচ্ছি
-  const cleanPayload = {
-    storeName: String(newSettings.storeName || 'MO FASHION'),
-    logoUrl: String(newSettings.logoUrl || ''),
-    aboutImageUrl: String(newSettings.aboutImageUrl || ''),
-    tagline: String(newSettings.tagline || ''),
-    contactEmail: String(newSettings.contactEmail || ''),
-    phoneNumber: String(newSettings.phoneNumber || ''),
-    address: String(newSettings.address || ''),
-    currency: String(newSettings.currency || '৳'),
-    taxRate: Number(newSettings.taxRate || 0),
-    shippingInside: Number(newSettings.shippingInside || 60),
-    shippingOutside: Number(newSettings.shippingOutside || 150),
-    enableBkash: Boolean(newSettings.enableBkash ?? true),
-    enableCard: Boolean(newSettings.enableCard ?? true),
-    enableCOD: Boolean(newSettings.enableCOD ?? true),
-    facebook: String(newSettings.facebook || ''),
-    instagram: String(newSettings.instagram || ''),
-    twitter: String(newSettings.twitter || ''),
-    faqs: Array.isArray(newSettings.faqs) ? newSettings.faqs : []
-  };
+  const { _id, created_at, id, __v, updated_at, ...cleanPayload } = newSettings;
 
   try {
-    // সেটিংসে আগে থেকে কোনো রো আছে কি না চেক করা
     const { data: rows } = await supabase.from('settings').select('id').limit(1);
 
     let response;
     if (rows && rows.length > 0 && rows[0].id) {
       response = await supabase
         .from('settings')
-        .update({ ...cleanPayload, updated_at: new Date().toISOString() })
+        .update(cleanPayload)
         .eq('id', rows[0].id)
         .select();
     } else {
       response = await supabase
         .from('settings')
-        .insert([{ ...cleanPayload, updated_at: new Date().toISOString() }])
+        .insert([cleanPayload])
         .select();
     }
 
