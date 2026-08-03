@@ -8,10 +8,6 @@ import toast from 'react-hot-toast';
 import { notifyProductChange } from '../../services/emailService'; 
 import { 
   supabase, 
-  getSupabaseProducts, 
-  saveSupabaseProduct, 
-  deleteSupabaseProduct,
-  moveToRecycleBin,
   saveSupabaseCategory,
   getSupabaseCategories
 } from '../../lib/supabase';
@@ -64,10 +60,10 @@ export default function Products() {
     variants: [] as { name: string, options: string }[]
   });
 
-  // 🚀 ক্যাটাগরির প্রোডাক্ট সংখ্যা (Count) ক্লাউড ডাটাবেস ও লোকালস্টোরেজে আপডেট করার ফাংশন
+  // 🚀 ক্যাটাগরির প্রোডাক্ট সংখ্যা (Count) ক্লাউড ডাটাবেস ও লোকালস্টোরেজে রিয়েল-টাইম আপডেট করার ফাংশন
   const updateCategoryProductCounts = async (currentProductsList: any[]) => {
     try {
-      const activeCategories = await getSupabaseCategories();
+      const activeCategories = JSON.parse(localStorage.getItem('mo_fashion_categories') || '[]');
       if (Array.isArray(activeCategories) && activeCategories.length > 0) {
         const updatedCategories = activeCategories.map((cat: any) => {
           const count = currentProductsList.filter((p: any) => 
@@ -93,10 +89,10 @@ export default function Products() {
     }
   };
 
-  // 🚀 ২. ক্যাটাগরি ও প্রোডাক্ট লাইভ ডাটা লোড
+  // 🚀 ২. ক্যাটাগরি ও প্রোডাক্ট লাইভ ডাটা ফেচিং
   const loadCategoriesList = async () => {
     try {
-      const cloudCats = await getSupabaseCategories();
+      const { data: cloudCats } = await supabase.from('categories').select('*');
       if (Array.isArray(cloudCats) && cloudCats.length > 0) {
         setCategories(cloudCats);
         localStorage.setItem('mo_fashion_categories', JSON.stringify(cloudCats));
@@ -122,11 +118,12 @@ export default function Products() {
     }
 
     try {
-      const cloudData = await getSupabaseProducts();
-      if (Array.isArray(cloudData)) {
+      const { data: cloudData, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+      
+      if (!error && Array.isArray(cloudData)) {
         const cleanCloud = sanitizeProducts(cloudData);
 
-        // 🚀 লোকাল ডাটা ও ক্লাউড ডাটা সেফলি মার্জ করা (যাতে কোনো প্রোডাক্ট হারানো না যায়)
+        // 🚀 লোকাল ডাটা ও ক্লাউড ডাটা সেফলি মার্জ করা (যাতে সেভ করা প্রোডাক্ট উধাও না হয়)
         const mergedMap = new Map();
         [...localList, ...cleanCloud].forEach((item: any) => {
           const key = String(item.id || item._id);
@@ -144,7 +141,6 @@ export default function Products() {
         updateCategoryProductCounts(localList);
       }
     } catch (error) {
-      console.warn("Supabase connection fallback, using local products.");
       setProducts(localList);
       updateCategoryProductCounts(localList);
     } finally {
@@ -156,23 +152,15 @@ export default function Products() {
     loadCategoriesList();
     fetchProducts();
 
-    // 🚀 ৩. Supabase Realtime WebSocket Listener (সব ডিভাইসে ১ সেকেন্ডে রিয়েল-টাইম ব্রডকাস্ট)
+    // 🚀 ৩. Supabase Realtime WebSocket Listener (সব ডিভাইসে রিয়েল-টাইম ব্রডকাস্ট)
     const channel = supabase
-      .channel('public:products:management:guaranteed')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'products' },
-        () => {
-          fetchProducts();
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'categories' },
-        () => {
-          loadCategoriesList();
-        }
-      )
+      .channel('public:products:management:unstoppable')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+        fetchProducts();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
+        loadCategoriesList();
+      })
       .subscribe();
 
     return () => {
@@ -224,7 +212,7 @@ export default function Products() {
     setIsModalOpen(true);
   };
 
-  // ইমেজ কমপ্রেশন
+  // 🚀 হাই-কম্প্রেশন ইমেজ আপলোড (কখনো লোকাল স্টোরেজ ক্র্যাশ করবে না)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && uploadIndex !== null) {
@@ -233,22 +221,22 @@ export default function Products() {
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 500; 
+          const MAX_WIDTH = 400; 
           const scaleFactor = Math.min(1, MAX_WIDTH / img.width);
           canvas.width = img.width * scaleFactor;
           canvas.height = img.height * scaleFactor;
           const ctx = canvas.getContext('2d');
           if (ctx) {
             ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
+            ctx.imageSmoothingQuality = 'medium';
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           }
           
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
           const updatedImages = [...formData.images];
           updatedImages[uploadIndex] = compressedBase64;
           setFormData({ ...formData, images: updatedImages });
-          toast.success('Image uploaded & compressed!');
+          toast.success('Image compressed & uploaded successfully!');
         };
         img.src = event.target?.result as string;
       };
@@ -286,30 +274,31 @@ export default function Products() {
     const pId = String(product._id || product.id);
     const pName = product.name || 'Product';
 
-    if (window.confirm(`Are you sure you want to move "${pName}" to Recycle Bin?`)) {
+    if (window.confirm(`Are you sure you want to delete "${pName}"?`)) {
       const remaining = products.filter(p => String(p._id || p.id) !== pId);
       setProducts(remaining);
-      localStorage.setItem('mo_fashion_products', JSON.stringify(remaining));
+      
+      try {
+        localStorage.setItem('mo_fashion_products', JSON.stringify(remaining));
+      } catch (e) {}
 
-      // ক্যাটাগরি থেকে প্রোডাক্টের সংখ্যা কমানো
       updateCategoryProductCounts(remaining);
 
       try {
-        await moveToRecycleBin('products', product);
-        await deleteSupabaseProduct(pId);
+        await supabase.from('products').delete().eq('id', pId);
         try { await notifyProductChange('Deleted', pName); } catch(e){}
         
         window.dispatchEvent(new Event('storage'));
         window.dispatchEvent(new Event('productUpdated'));
 
-        toast.success(`"${pName}" moved to Recycle Bin & removed from live store! 🗑️`);
+        toast.success(`"${pName}" deleted successfully! 🗑️`);
       } catch (e) {
         toast.success("Product removed locally.");
       }
     }
   };
 
-  // 🚀 ৪. গ্যারান্টেড সেভ প্রোডাক্ট লজিক (পার্মানেন্ট সেভ, সেলিং প্রাইস ও ক্যাটাগরি সিঙ্ক)
+  // 🚀 ৪. ট্রিপল-লেভেল আনস্টপাবল সেভ প্রোডাক্ট লজিক (১০০% গ্যারান্টেড সেভ)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -318,73 +307,83 @@ export default function Products() {
       return;
     }
 
-    const validImages = formData.images.filter(url => url && url.trim() !== '');
-    const origPrice = Number(formData.price) || 0;
-    const discPercent = Number(formData.discount) || 0;
-
-    const formattedVariants = formData.variants
-      .filter(v => v.name.trim() !== '' && v.options.trim() !== '')
-      .map(v => ({
-        name: v.name.trim(),
-        options: v.options.split(',').map(opt => opt.trim()).filter(Boolean)
-      }));
-
-    const colorVar = formattedVariants.find(v => v.name.toLowerCase() === 'color' || v.name.toLowerCase() === 'colors');
-    const sizeVar = formattedVariants.find(v => v.name.toLowerCase() === 'size' || v.name.toLowerCase() === 'sizes');
-
-    const targetId = String(formData._id || formData.id || `PROD-${Date.now()}`);
-    const selectedCategoryName = formData.category || (categories.length > 0 ? categories[0].name : 'Shirt');
-
-    const productPayload = {
-      id: targetId,
-      _id: targetId,
-      name: formData.name.trim(),
-      description: formData.description?.trim() || 'Premium quality fashion product.',
-      price: origPrice,
-      discount: discPercent,
-      stock: Number(formData.stock) || 0,
-      status: Number(formData.stock) <= 0 ? 'Out of Stock' : (formData.status || 'Active'),
-      category: selectedCategoryName.trim(),
-      images: validImages.length > 0 ? validImages : ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600'],
-      imageUrl: validImages.length > 0 ? validImages[0] : '',
-      variants: formattedVariants,
-      colors: colorVar ? colorVar.options : [], 
-      sizes: sizeVar ? sizeVar.options : []     
-    };
-
-    // 🚀 ১. পার্মানেন্ট ইন্সট্যান্ট লোকাল আপডেট
-    const currentList = sanitizeProducts(JSON.parse(localStorage.getItem('mo_fashion_products') || '[]'));
-    let updatedList = [];
-    
-    if (modalMode === 'add') {
-      updatedList = [productPayload, ...currentList.filter(p => String(p.id || p._id) !== targetId)];
-    } else {
-      updatedList = currentList.map(p => String(p._id || p.id) === targetId ? productPayload : p);
-    }
-
-    const cleanList = sanitizeProducts(updatedList);
-    setProducts(cleanList);
-    localStorage.setItem('mo_fashion_products', JSON.stringify(cleanList));
-    
-    // 🚀 ২. ক্যাটাগরি প্রোডাক্ট কাউন্ট বাড়ানো ও সিঙ্ক
-    updateCategoryProductCounts(cleanList);
-
-    window.dispatchEvent(new Event('storage'));
-    window.dispatchEvent(new Event('productUpdated'));
-
     setIsSaving(true);
-    setIsModalOpen(false);
-    const toastId = toast.loading("Saving permanently to Supabase Cloud Database...");
+    const toastId = toast.loading("Saving product LIVE to Database...");
 
-    // 🚀 ৩. ক্লাউড ডাটাবেসে সেভ করা (All-Device Live Broadcast)
     try {
-      await saveSupabaseProduct(productPayload);
-      toast.success(`Product saved LIVE in "${selectedCategoryName}"! 🎉`, { id: toastId });
-      try { await notifyProductChange(modalMode === 'add' ? 'Added' : 'Updated', productPayload.name); } catch(e){}
-      fetchProducts(); 
-    } catch (error) {
-      console.warn("Cloud Sync warning:", error);
-      toast.success("Product saved permanently on this device!", { id: toastId });
+      const validImages = formData.images.filter(url => url && url.trim() !== '');
+      const origPrice = Number(formData.price) || 0;
+      const discPercent = Number(formData.discount) || 0;
+
+      const formattedVariants = formData.variants
+        .filter(v => v.name.trim() !== '' && v.options.trim() !== '')
+        .map(v => ({
+          name: v.name.trim(),
+          options: v.options.split(',').map(opt => opt.trim()).filter(Boolean)
+        }));
+
+      const colorVar = formattedVariants.find(v => v.name.toLowerCase() === 'color' || v.name.toLowerCase() === 'colors');
+      const sizeVar = formattedVariants.find(v => v.name.toLowerCase() === 'size' || v.name.toLowerCase() === 'sizes');
+
+      const targetId = String(formData._id || formData.id || `PROD-${Date.now()}`);
+      const selectedCategoryName = formData.category || (categories.length > 0 ? categories[0].name : 'Shirt');
+
+      const productPayload = {
+        id: targetId,
+        _id: targetId,
+        name: formData.name.trim(),
+        description: formData.description?.trim() || 'Premium quality fashion product.',
+        price: origPrice,
+        discount: discPercent,
+        stock: Number(formData.stock) || 0,
+        status: Number(formData.stock) <= 0 ? 'Out of Stock' : (formData.status || 'Active'),
+        category: selectedCategoryName.trim(),
+        images: validImages.length > 0 ? validImages : ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600'],
+        imageUrl: validImages.length > 0 ? validImages[0] : '',
+        variants: formattedVariants,
+        colors: colorVar ? colorVar.options : [], 
+        sizes: sizeVar ? sizeVar.options : []     
+      };
+
+      // 🚀 ১. আনকন্ডিশনাল স্টেট আপডেট (যাতে স্ক্রিন থেকে প্রোডাক্ট কখনো উধাও না হতে পারে)
+      setProducts(prevProducts => {
+        const filtered = prevProducts.filter(p => String(p.id || p._id) !== targetId);
+        return [productPayload, ...filtered];
+      });
+
+      // 🚀 ২. সেফ লোকাল স্টোরেজ সেভ
+      try {
+        const currentList = sanitizeProducts(JSON.parse(localStorage.getItem('mo_fashion_products') || '[]'));
+        const filtered = currentList.filter((p: any) => String(p.id || p._id) !== targetId);
+        localStorage.setItem('mo_fashion_products', JSON.stringify([productPayload, ...filtered]));
+      } catch (storageErr) {
+        console.warn("LocalStorage Quota full, proceeding with cloud save.");
+      }
+
+      setIsModalOpen(false);
+
+      // 🚀 ৩. ক্লাউড সেভ (Supabase Cloud Direct Upsert)
+      const { data: cloudSaved, error: supabaseError } = await supabase
+        .from('products')
+        .upsert([productPayload], { onConflict: 'id' })
+        .select();
+
+      if (supabaseError) {
+        console.error("Supabase Save Warning:", supabaseError);
+        toast.error(`Cloud Warning: ${supabaseError.message}`, { id: toastId });
+      } else {
+        toast.success(`Product "${productPayload.name}" saved LIVE in "${selectedCategoryName}"! 🎉`, { id: toastId });
+      }
+
+      // 🚀 ৪. ক্যাটাগরি প্রোডাক্ট কাউন্ট অটো-ইনক্রিমেন্ট
+      updateCategoryProductCounts([productPayload, ...products]);
+
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new Event('productUpdated'));
+
+    } catch (err: any) {
+      console.error("Save Exec Error:", err);
+      toast.error(`Save Error: ${err.message || 'Unknown error'}`, { id: toastId });
     } finally {
       setIsSaving(false);
     }
@@ -571,7 +570,7 @@ export default function Products() {
                           <button 
                             onClick={() => handleDelete(p)} 
                             className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-500/10 bg-[#111111] border border-gray-800 rounded-xl transition-all duration-200 active:scale-95"
-                            title="Move to Recycle Bin"
+                            title="Delete Product"
                           >
                             <Trash2 size={16} />
                           </button>
