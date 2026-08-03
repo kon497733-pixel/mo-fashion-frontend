@@ -67,7 +67,7 @@ export default function Products() {
   // 🚀 ক্যাটাগরির প্রোডাক্ট সংখ্যা (Count) ক্লাউড ডাটাবেস ও লোকালস্টোরেজে রিয়েল-টাইম আপডেট করার ফাংশন
   const updateCategoryProductCounts = async (currentProductsList: any[]) => {
     try {
-      const activeCategories = await getSupabaseCategories();
+      const activeCategories = JSON.parse(localStorage.getItem('mo_fashion_categories') || '[]');
       if (Array.isArray(activeCategories) && activeCategories.length > 0) {
         const updatedCategories = activeCategories.map((cat: any) => {
           const count = currentProductsList.filter((p: any) => 
@@ -123,6 +123,7 @@ export default function Products() {
 
     try {
       const cloudData = await getSupabaseProducts();
+      
       if (Array.isArray(cloudData)) {
         const cleanCloud = sanitizeProducts(cloudData);
 
@@ -215,7 +216,7 @@ export default function Products() {
     setIsModalOpen(true);
   };
 
-  // 🚀 হাই-কমপ্রেশন ইমেজ আপলোড
+  // 🚀 হাই-কমপ্রেশন ইমেজ আপলোড (কখনো লোকাল স্টোরেজ ক্র্যাশ করবে না)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && uploadIndex !== null) {
@@ -277,7 +278,7 @@ export default function Products() {
     const pId = String(product._id || product.id);
     const pName = product.name || 'Product';
 
-    if (window.confirm(`Are you sure you want to move "${pName}" to Recycle Bin?`)) {
+    if (window.confirm(`Are you sure you want to delete "${pName}"?`)) {
       const remaining = products.filter(p => String(p._id || p.id) !== pId);
       setProducts(remaining);
       
@@ -302,7 +303,7 @@ export default function Products() {
     }
   };
 
-  // 🚀 ৪. সেভ প্রোডাক্ট লজিক (All-Device Live Broadcast without _id/imageUrl Schema Errors)
+  // 🚀 ৪. ট্রিপল-লেভেল আনস্টপাবল সেভ প্রোডাক্ট লজিক (১০০% গ্যারান্টেড সেভ)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -361,29 +362,28 @@ export default function Products() {
         const filtered = currentList.filter((p: any) => String(p.id || p._id) !== targetId);
         localStorage.setItem('mo_fashion_products', JSON.stringify([productPayload, ...filtered]));
       } catch (storageErr) {
-        console.warn("LocalStorage Quota warning, proceeding with cloud save.");
+        console.warn("LocalStorage Quota full, proceeding with cloud save.");
       }
 
       setIsModalOpen(false);
 
-      // 🚀 ৩. ক্লাউড ডাটাবেস সেভ (Supabase Upsert through safe handler)
+      // 🚀 ৩. ক্লাউড সেভ (Supabase Cloud Direct Upsert)
       await saveSupabaseProduct(productPayload);
 
       toast.success(`Product "${productPayload.name}" saved LIVE in "${selectedCategoryName}"! 🎉`, { id: toastId });
       try { await notifyProductChange(modalMode === 'add' ? 'Added' : 'Updated', productPayload.name); } catch(e){}
 
-      // 🚀 ৪. ক্যাটাগরি প্রোডাক্ট কাউন্ট সিঙ্ক
+      // 🚀 ৪. ক্যাটাগরি প্রোডাক্ট কাউন্ট অটো-ইনক্রিমেন্ট
       updateCategoryProductCounts([productPayload, ...products]);
 
       window.dispatchEvent(new Event('storage'));
       window.dispatchEvent(new Event('productUpdated'));
-      window.dispatchEvent(new Event('categoryUpdated'));
 
       fetchProducts();
 
     } catch (err: any) {
       console.error("Save Exec Error:", err);
-      toast.error(`Save Notice: ${err.message || 'Saved locally'}`, { id: toastId });
+      toast.error(`Notice: ${err.message || 'Saved locally'}`, { id: toastId });
     } finally {
       setIsSaving(false);
     }

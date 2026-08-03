@@ -66,7 +66,7 @@ export const updateSupabaseSettings = async (newSettings: Record<string, any>) =
   const targetId = 'STORE_SETTINGS';
 
   try {
-    const payload = { id: targetId, ...cleanPayload, updated_at: new Date().toISOString() };
+    const payload = { id: targetId, ...cleanPayload };
     localStorage.setItem('mo_fashion_settings', JSON.stringify(payload));
     window.dispatchEvent(new Event('settingsUpdated'));
 
@@ -85,7 +85,7 @@ export const updateSupabaseSettings = async (newSettings: Record<string, any>) =
 };
 
 // =========================================================
-// 📦 2. PRODUCTS SERVICES (imageUrl & _id Schema Error Fixed)
+// 📦 2. PRODUCTS SERVICES (updated_at, imageUrl & _id Schema Error Fixed)
 // =========================================================
 
 export const getSupabaseProducts = async () => {
@@ -109,13 +109,12 @@ export const getSupabaseProducts = async () => {
 export const saveSupabaseProduct = async (productData: Record<string, any>) => {
   const targetId = String(productData.id || productData._id || `PROD-${Date.now()}`);
   
-  // 🚀 _id এবং imageUrl প্রপার্টি দুটি ক্লাউডে পাঠানোর আগে মুছে ফেলা হলো (Schema Cache Error 100% Solved)
-  const { _id, imageUrl, ...cleanProduct } = productData;
+  // 🚀 updated_at, _id এবং imageUrl প্রপার্টি তিনটি ক্লাউডে পাঠানোর আগে মুছে ফেলা হলো (Schema Cache Error 100% Solved)
+  const { _id, imageUrl, updated_at, ...cleanProduct } = productData;
   
   const payload = {
     ...cleanProduct,
     id: targetId,
-    updated_at: new Date().toISOString()
   };
 
   // ১. ব্রাউজার লোকাল ব্যাকআপ সেভ (লোকাল ব্যবহারের জন্য _id ও imageUrl রাখা হলো)
@@ -128,7 +127,7 @@ export const saveSupabaseProduct = async (productData: Record<string, any>) => {
     window.dispatchEvent(new Event('productUpdated'));
   } catch (e) {}
 
-  // ২. ক্লাউড ডাটাবেসে পার্মানেন্ট সেভ (Clean Payload without _id & imageUrl)
+  // ২. ক্লাউড ডাটাবেসে পার্মানেন্ট সেভ (Clean Payload without updated_at, _id & imageUrl)
   const { data, error } = await supabase
     .from('products')
     .upsert([payload], { onConflict: 'id' })
@@ -185,11 +184,10 @@ export const getSupabaseCategories = async () => {
 export const saveSupabaseCategory = async (categoryData: Record<string, any>) => {
   const targetId = String(categoryData.id || categoryData._id || `CAT-${Date.now()}`);
   
-  const { _id, ...cleanCategory } = categoryData;
+  const { _id, updated_at, ...cleanCategory } = categoryData;
   const payload = {
     ...cleanCategory,
     id: targetId,
-    updated_at: new Date().toISOString()
   };
 
   try {
@@ -256,7 +254,7 @@ export const getSupabaseCoupons = async () => {
 
 export const saveSupabaseCoupon = async (couponData: Record<string, any>) => {
   const targetId = String(couponData.id || couponData._id || Date.now());
-  const { _id, ...cleanCoupon } = couponData;
+  const { _id, updated_at, ...cleanCoupon } = couponData;
   const payload = { ...cleanCoupon, id: targetId };
 
   try {
@@ -309,7 +307,7 @@ export const getSupabaseOrders = async () => {
 
 export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
   const targetId = String(orderData.id || orderData._id || orderData.orderId || Date.now());
-  const { _id, ...cleanOrder } = orderData;
+  const { _id, updated_at, ...cleanOrder } = orderData;
   const payload = { ...cleanOrder, id: targetId };
 
   try {
@@ -362,7 +360,7 @@ export const getSupabaseCustomers = async () => {
 
 export const saveSupabaseCustomer = async (customerData: Record<string, any>) => {
   const targetId = String(customerData.id || customerData._id || Date.now());
-  const { _id, ...cleanCustomer } = customerData;
+  const { _id, updated_at, ...cleanCustomer } = customerData;
   const payload = { ...cleanCustomer, id: targetId };
 
   try {
@@ -448,7 +446,7 @@ export const restoreFromRecycleBin = async (trashRecord: Record<string, any>) =>
 
   try {
     if (originalTable && originalData) {
-      const { _id, imageUrl, ...cleanData } = originalData;
+      const { _id, imageUrl, updated_at, trashId: tId, deletedAt, ...cleanData } = originalData;
       await supabase.from(originalTable).upsert([{ ...cleanData, id: targetId }], { onConflict: 'id' });
     }
     if (trashId) {
