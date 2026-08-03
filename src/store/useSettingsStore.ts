@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getLiveSettings, apiRequest } from '../config/api';
+import { supabase, getSupabaseSettings, updateSupabaseSettings } from '../lib/supabase';
 
 export interface SiteSettings {
   storeName: string;
@@ -25,26 +25,27 @@ interface SettingsStore {
   isLoading: boolean;
   fetchSettings: () => Promise<void>;
   updateSettings: (newSettings: Partial<SiteSettings>) => Promise<void>;
+  subscribeRealtimeSettings: () => () => void;
 }
 
-// 🚀 প্রাথমিক স্টেট স্ট্রাকচার (০% ডামি লোগো বা ডিফল্ট বিহীন)
+// 🚀 প্রাথমিক সেটিংস অবজেক্ট (০% ডামি লোগো বা ডিফল্ট বিহীন)
 const initialSettings: SiteSettings = {
   storeName: 'MO FASHION',
   logoUrl: '',
   aboutImageUrl: '',
-  tagline: 'Premium E-Commerce Experience',
-  contactEmail: 'kon497733@gmail.com',
-  phoneNumber: '+880 1707697445',
-  address: 'CDA Agrabad, Chattogram, Bangladesh',
+  tagline: '',
+  contactEmail: '',
+  phoneNumber: '',
+  address: '',
   currency: '৳',
   shippingInside: 60,
   shippingOutside: 150,
   enableBkash: true,
   enableCard: true,
   enableCOD: true,
-  facebook: 'https://facebook.com',
-  instagram: 'https://instagram.com',
-  twitter: 'https://twitter.com'
+  facebook: '',
+  instagram: '',
+  twitter: ''
 };
 
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
@@ -59,11 +60,11 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   })(),
   isLoading: false,
 
-  // 🚀 ১. ক্লাউড MongoDB ডাটাবেস থেকে রিয়েল-টাইমে সেটিংস লোড করা
+  // 🚀 ১. Supabase ক্লাউড ডাটাবেস থেকে রিয়েল-টাইম সেটিংস লোড করা
   fetchSettings: async () => {
     set({ isLoading: true });
     try {
-      const liveData = await getLiveSettings();
+      const liveData = await getSupabaseSettings();
       if (liveData && Object.keys(liveData).length > 0) {
         const merged = { ...initialSettings, ...liveData };
         set({ settings: merged, isLoading: false });
@@ -72,32 +73,53 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         set({ isLoading: false });
       }
     } catch (error) {
-      console.warn("Using cached settings due to server connection:", error);
+      console.warn("Using cached settings:", error);
       set({ isLoading: false });
     }
   },
 
-  // 🚀 ২. ক্লাউড ডাটাবেসে সেভ করার পর ১০০% কনফার্মেশন পাওয়ার পর স্টেট আপডেট করা
+  // 🚀 ২. অ্যাডমিন প্যানেল থেকে সেভ চাপার সাথে সাথে Supabase ক্লাউডে লাইভ সেভ
   updateSettings: async (newSettings: Partial<SiteSettings>) => {
     const current = get().settings;
     const updated = { ...current, ...newSettings };
 
-    // ক্লাউড ডাটাবেসে রিকোয়েস্ট পাঠানো (PUT Method)
-    const cloudResponse = await apiRequest('/settings', {
-      method: 'PUT',
-      body: JSON.stringify(updated)
-    });
+    try {
+      // Supabase Realtime ক্লাউড সেভ
+      const savedData = await updateSupabaseSettings(updated);
+      const finalData = savedData ? { ...initialSettings, ...savedData } : updated;
 
-    // ক্লাউড থেকে কনফার্ম হওয়া অরিজিনাল ডাটা দিয়ে স্টেট আপডেট
-    const finalSettings = (cloudResponse && Object.keys(cloudResponse).length > 0)
-      ? { ...initialSettings, ...cloudResponse }
-      : updated;
+      set({ settings: finalData });
+      localStorage.setItem('mo_fashion_settings', JSON.stringify(finalData));
 
-    set({ settings: finalSettings });
-    localStorage.setItem('mo_fashion_settings', JSON.stringify(finalSettings));
+      // গ্লোবাল ইভেন্ট ডিসপ্যাচ
+      window.dispatchEvent(new Event('settingsUpdated'));
+      window.dispatchEvent(new Event('storage'));
+    } catch (error) {
+      console.error("Failed to update Supabase settings:", error);
+      throw error;
+    }
+  },
 
-    // সমস্ত ডিভাইসে রিয়েল-টাইম আপডেটের জন্য গ্লোবাল ইভেন্ট ডিসপ্যাচ
-    window.dispatchEvent(new Event('settingsUpdated'));
-    window.dispatchEvent(new Event('storage'));
+  // 🚀 ৩. বিশ্বব্যাপী সব ডিভাইসে রিয়েল-টাইম অটো-সিঙ্ক লিসেনার (Supabase WebSocket)
+  subscribeRealtimeSettings: () => {
+    const channel = supabase
+      .channel('public:settings')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'settings' },
+        (payload) => {
+          if (payload.new && Object.keys(payload.new).length > 0) {
+            const merged = { ...initialSettings, ...payload.new };
+            set({ settings: merged });
+            localStorage.setItem('mo_fashion_settings', JSON.stringify(merged));
+            window.dispatchEvent(new Event('settingsUpdated'));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }
 }));

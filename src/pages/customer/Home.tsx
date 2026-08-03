@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { ShoppingBag, Image as ImageIcon, Search, Tag, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCartStore } from '../../store/useCartStore';
-import { getLiveProducts, getLiveSettings } from '../../config/api';
+import { supabase, getSupabaseProducts, getSupabaseSettings } from '../../lib/supabase';
 
 export default function Home() {
   const addToCart = useCartStore((state) => state.addToCart);
@@ -31,7 +31,7 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
-  // 🚀 ১. সরাসরি ক্লাউড ডাটাবেস (MongoDB API) থেকে সেন্ট্রাল এপিআই দিয়ে রিয়েল-টাইম প্রোডাক্ট ও সেটিংস ফেচ করা
+  // 🚀 ১. সরাসরি Supabase ক্লাউড ডাটাবেস থেকে রিয়েল-টাইম প্রোডাক্ট ও সেটিংস ফেচ করা
   const fetchLiveHomeData = async (isSilent = false) => {
     if (!isSilent) {
       const savedProducts = localStorage.getItem('mo_fashion_products');
@@ -54,8 +54,8 @@ export default function Home() {
     try {
       if (!isSilent) setLoading(true);
       const [data, settingsData] = await Promise.all([
-        getLiveProducts(),
-        getLiveSettings()
+        getSupabaseProducts(),
+        getSupabaseSettings()
       ]);
 
       if (Array.isArray(data)) {
@@ -64,12 +64,12 @@ export default function Home() {
         localStorage.setItem('mo_fashion_products', JSON.stringify(data));
       }
 
-      if (settingsData) {
+      if (settingsData && Object.keys(settingsData).length > 0) {
         setSiteSettings(settingsData);
         localStorage.setItem('mo_fashion_settings', JSON.stringify(settingsData));
       }
     } catch (error) {
-      console.warn("Backend API offline, using cached home data.");
+      console.warn("Supabase API offline, using cached home data.");
     } finally {
       if (!isSilent) setLoading(false);
     }
@@ -78,12 +78,33 @@ export default function Home() {
   useEffect(() => {
     fetchLiveHomeData();
 
-    // 🚀 অন্যান্য ডিভাইস থেকে স্টক/সোল্ড চেঞ্জ হলে রিয়েল-টাইমে পেজ আপডেট করতে Polling (প্রতি ৪ সেকেন্ড পর পর)
-    const pollInterval = setInterval(() => {
-      fetchLiveHomeData(true);
-    }, 4000);
+    // 🚀 Supabase Realtime WebSocket Listeners for Instant Cross-Device Sync
+    const productsChannel = supabase
+      .channel('public:products:home')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        () => {
+          fetchLiveHomeData(true);
+        }
+      )
+      .subscribe();
 
-    return () => clearInterval(pollInterval);
+    const settingsChannel = supabase
+      .channel('public:settings:home')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'settings' },
+        () => {
+          fetchLiveHomeData(true);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(productsChannel);
+      supabase.removeChannel(settingsChannel);
+    };
   }, []);
 
   // সার্চ ফিল্টার লজিক
@@ -188,7 +209,7 @@ export default function Home() {
         {loading && displayProducts.length === 0 ? (
           <div className="text-center text-[#D4AF37] font-medium animate-pulse py-20 text-xl flex items-center justify-center gap-3">
             <RefreshCw size={24} className="animate-spin" />
-            <span>Connecting to Live Cloud Database...</span>
+            <span>Connecting to Supabase Cloud Database...</span>
           </div>
         ) : displayProducts.length === 0 ? (
           <div className="text-center py-24 bg-[#1A1A1A] rounded-3xl border border-dashed border-gray-800 max-w-3xl mx-auto">

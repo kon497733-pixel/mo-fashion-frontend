@@ -6,7 +6,7 @@ import {
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
 import { notifyProductChange } from '../../services/emailService'; 
-import { apiRequest, getLiveProducts } from '../../config/api';
+import { supabase, getSupabaseProducts, saveSupabaseProduct, deleteSupabaseProduct } from '../../lib/supabase';
 
 export default function Products() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -55,7 +55,7 @@ export default function Products() {
     variants: [] as { name: string, options: string }[]
   });
 
-  // ক্লাউড ডাটাবেস থেকে রিয়েল-টাইম প্রোডাক্ট ফেচ
+  // Supabase ক্লাউড ডাটাবেস থেকে রিয়েল-টাইম প্রোডাক্ট ফেচ
   const fetchProducts = async () => {
     const savedLocal = localStorage.getItem('mo_fashion_products');
     if (savedLocal) {
@@ -67,14 +67,14 @@ export default function Products() {
 
     try {
       setLoading(true);
-      const data = await getLiveProducts();
+      const data = await getSupabaseProducts();
       if (Array.isArray(data)) {
         const cleanCloud = sanitizeProducts(data);
         setProducts(cleanCloud);
         localStorage.setItem('mo_fashion_products', JSON.stringify(cleanCloud));
       }
     } catch (error) {
-      console.warn("Backend API offline, using cleaned local products.");
+      console.warn("Supabase API offline, using cleaned local products.");
     } finally {
       setLoading(false);
     }
@@ -82,8 +82,25 @@ export default function Products() {
 
   useEffect(() => {
     fetchProducts();
+
+    // 🚀 Supabase Realtime WebSocket Listener for Products
+    const channel = supabase
+      .channel('public:products')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        () => {
+          fetchProducts();
+        }
+      )
+      .subscribe();
+
     const savedCategories = JSON.parse(localStorage.getItem('mo_fashion_categories') || '[]');
     setCategories(savedCategories.length > 0 ? savedCategories : [{ name: "Men's Collection" }]);
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleOpenAdd = () => {
@@ -103,10 +120,10 @@ export default function Products() {
     const targetId = product._id || product.id;
     
     // 🚀 পুরোনো প্রোডাক্টের কালার/সাইজ থাকলে সেগুলোকে ডাইনামিক বক্সে রূপান্তর করা
-    let loadedVariants = product.variants ? product.variants.map((v: any) => ({ name: v.name, options: v.options.join(', ') })) : [];
+    let loadedVariants = product.variants ? product.variants.map((v: any) => ({ name: v.name, options: Array.isArray(v.options) ? v.options.join(', ') : v.options })) : [];
     if (loadedVariants.length === 0) {
-      if (product.colors && product.colors.length > 0) loadedVariants.push({ name: 'Color', options: product.colors.join(', ') });
-      if (product.sizes && product.sizes.length > 0) loadedVariants.push({ name: 'Size', options: product.sizes.join(', ') });
+      if (product.colors && product.colors.length > 0) loadedVariants.push({ name: 'Color', options: Array.isArray(product.colors) ? product.colors.join(', ') : product.colors });
+      if (product.sizes && product.sizes.length > 0) loadedVariants.push({ name: 'Size', options: Array.isArray(product.sizes) ? product.sizes.join(', ') : product.sizes });
     }
 
     setFormData({
@@ -190,7 +207,7 @@ export default function Products() {
       toast.success("Product deleted!");
 
       try {
-        await apiRequest(`/products/${id}`, { method: 'DELETE' });
+        await deleteSupabaseProduct(id);
         try { await notifyProductChange('Deleted', name); } catch(e){}
       } catch (e) {
         console.warn("Cloud delete failed. Deleted locally.");
@@ -218,11 +235,14 @@ export default function Products() {
         options: v.options.split(',').map(opt => opt.trim()).filter(Boolean)
       }));
 
-    // ব্যাকএন্ডের পুরানো মডেলের সাপোর্টের জন্য
     const colorVar = formattedVariants.find(v => v.name.toLowerCase() === 'color' || v.name.toLowerCase() === 'colors');
     const sizeVar = formattedVariants.find(v => v.name.toLowerCase() === 'size' || v.name.toLowerCase() === 'sizes');
 
+    const targetId = String(formData._id || formData.id || Date.now());
+
     const productPayload = {
+      id: targetId,
+      _id: targetId,
       name: formData.name.trim(),
       description: formData.description?.trim() || 'Premium quality product.',
       price: origPrice,
@@ -237,15 +257,9 @@ export default function Products() {
       sizes: sizeVar ? sizeVar.options : []     
     };
 
-    const targetId = formData._id || formData.id || Date.now().toString();
-    const localProductObj = { _id: targetId, id: targetId, ...productPayload };
-
-    let updatedList = [];
-    if (modalMode === 'add') {
-      updatedList = [localProductObj, ...products];
-    } else {
-      updatedList = products.map(p => (p._id || p.id) === targetId ? localProductObj : p);
-    }
+    const updatedList = modalMode === 'add' 
+      ? [productPayload, ...products]
+      : products.map(p => (p._id || p.id) === targetId ? productPayload : p);
 
     setProducts(updatedList);
     localStorage.setItem('mo_fashion_products', JSON.stringify(updatedList));
@@ -253,22 +267,12 @@ export default function Products() {
 
     setIsSaving(true);
     setIsModalOpen(false);
-    const toastId = toast.loading("Saving product to Cloud Database...");
+    const toastId = toast.loading("Saving product to Supabase Cloud Database...");
 
     try {
-      if (modalMode === 'add') {
-        await apiRequest('/products', {
-          method: 'POST',
-          body: JSON.stringify(productPayload)
-        });
-      } else {
-        await apiRequest(`/products/${targetId}`, {
-          method: 'PUT',
-          body: JSON.stringify(productPayload)
-        });
-      }
+      await saveSupabaseProduct(productPayload);
 
-      toast.success("Product saved LIVE on Cloud!", { id: toastId });
+      toast.success("Product saved LIVE on Supabase Cloud! 🎉", { id: toastId });
       try { await notifyProductChange(modalMode === 'add' ? 'Added' : 'Updated', productPayload.name); } catch(e){}
       fetchProducts(); 
     } catch (error) {
@@ -322,7 +326,7 @@ export default function Products() {
       <div className="bg-[#1A1A1A] rounded-xl border border-[#D4AF37]/20 overflow-hidden shadow-lg">
         <div className="overflow-x-auto custom-scrollbar">
           {loading && products.length === 0 ? (
-             <div className="text-center py-20 text-[#D4AF37] animate-pulse">Connecting to live cloud database...</div>
+             <div className="text-center py-20 text-[#D4AF37] animate-pulse">Connecting to Supabase Cloud Database...</div>
           ) : (
             <table className="w-full text-left whitespace-nowrap">
               <thead className="bg-[#111111] border-b border-[#D4AF37]/20 text-xs uppercase font-bold text-gray-400">
