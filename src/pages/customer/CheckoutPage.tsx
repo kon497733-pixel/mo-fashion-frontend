@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronLeft, CreditCard, Smartphone, Banknote, Tag, MapPin, Check } from 'lucide-react';
+import { ChevronLeft, CreditCard, Smartphone, Banknote, Tag, MapPin, Check, Sparkles, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Helmet } from 'react-helmet-async';
 
@@ -116,7 +116,7 @@ export default function CheckoutPage() {
 
   // রিয়েল-টাইম সাবটোটাল হিসাব
   let subtotalAfterProductDiscount = 0;
-    const enrichedCartItems = items.map((cartItem: any) => {
+  const enrichedCartItems = items.map((cartItem: any) => {
     const dbProduct = dbProducts.find(p => String(p.id || p._id) === String(cartItem.id));
     const originalPrice = dbProduct ? Number(dbProduct.price) : Number(cartItem.price);
     const discountPercent = dbProduct ? Number(dbProduct.discount) || 0 : 0;
@@ -263,7 +263,7 @@ export default function CheckoutPage() {
           const newStock = Math.max(0, currentStock - orderedItem.quantity);
           const newSold = currentSold + orderedItem.quantity;
           
-          // সেন্ট্রাল এপিআই দিয়ে লাইভ স্টক আপডেট
+          // সেন্ট্রাল এপিআই দিয়ে লাইভ স্টক এবং সোল্ড কাউন্ট আপডেট
           apiRequest(`/products/${p._id || p.id}`, {
             method: 'PUT',
             body: JSON.stringify({ stock: newStock, sold: newSold })
@@ -335,13 +335,13 @@ export default function CheckoutPage() {
       }
       localStorage.setItem('mo_fashion_customers', JSON.stringify(existingCustomers));
 
-      toast.success(`Order ${orderId} placed successfully!`, { id: toastId });
+      toast.success(`Order ${orderId} placed successfully! 🎉`, { id: toastId });
       clearCart();
       setTimeout(() => navigate('/'), 2000);
 
     } catch (error) {
       console.error("Order Error:", error);
-      toast.success(`Order placed successfully!`, { id: toastId });
+      toast.success(`Order placed successfully! 🎉`, { id: toastId });
       clearCart();
       setTimeout(() => navigate('/'), 2000);
     } finally {
@@ -350,27 +350,34 @@ export default function CheckoutPage() {
   };
 
   return (
-    <main className="min-h-screen py-10 text-white bg-[#111111]">
+    <main className="min-h-screen py-10 text-white bg-[#111111] transition-all duration-300">
       <Helmet><title>Checkout | {safeSettings?.storeName || 'MO FASHION'}</title></Helmet>
 
-      <div className="container mx-auto px-4">
-        <Link to="/cart" className="inline-flex items-center text-gray-400 hover:text-[#D4AF37] transition-colors mb-8">
+      <div className="container mx-auto px-4 max-w-7xl">
+        <Link to="/cart" className="inline-flex items-center text-gray-400 hover:text-[#D4AF37] transition-all duration-200 mb-8 hover:-translate-x-1">
           <ChevronLeft size={20} className="mr-1" />
           <span>Back to Cart</span>
         </Link>
 
-        <h1 className="text-3xl md:text-4xl font-serif font-bold text-[#D4AF37] mb-8 tracking-wider uppercase">
-          CHECKOUT
-        </h1>
+        {/* 🚀 Top-Notch Animated Header */}
+        <div className="flex items-center justify-between mb-8 pb-4 border-b border-[#D4AF37]/20">
+          <h1 className="text-3xl md:text-4xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase flex items-center">
+            <Sparkles className="mr-3 text-[#D4AF37]" size={32} />
+            CHECKOUT
+          </h1>
+          <span className="hidden sm:flex items-center text-xs text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/30 animate-pulse">
+            <ShieldCheck size={14} className="mr-1.5" /> 256-Bit SSL Encrypted
+          </span>
+        </div>
 
         <div className="flex flex-col lg:flex-row gap-10">
           
           {/* Shipping Form */}
           <div className="lg:w-2/3 space-y-8">
-            <div className="bg-[#1A1A1A] border border-[#D4AF37]/20 rounded-xl p-6 shadow-lg">
-              <div className="flex justify-between items-center border-b border-[#D4AF37]/10 pb-3 mb-6">
+            <div className="bg-[#1A1A1A] border border-[#D4AF37]/20 rounded-2xl p-6 sm:p-8 shadow-xl hover:border-[#D4AF37]/40 transition-all duration-300 backdrop-blur-md">
+              <div className="flex justify-between items-center border-b border-[#D4AF37]/10 pb-4 mb-6">
                 <h2 className="text-xl font-bold text-[#D4AF37] uppercase tracking-wide">Shipping Details</h2>
-                <span className="text-xs bg-[#D4AF37]/10 text-[#D4AF37] px-2 py-1 rounded border border-[#D4AF37]/20 flex items-center">
+                <span className="text-xs bg-[#D4AF37]/10 text-[#D4AF37] px-3 py-1 rounded-full border border-[#D4AF37]/20 flex items-center">
                   <MapPin size={12} className="mr-1" /> Delivery within Bangladesh only
                 </span>
               </div>
@@ -378,38 +385,38 @@ export default function CheckoutPage() {
               <form id="checkout-form" onSubmit={handlePlaceOrder} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-gray-400 text-sm mb-2">First Name *</label>
-                    <input type="text" name="firstName" required value={formData.firstName} onChange={handleChange} className="w-full bg-[#111111] border border-gray-700 rounded-md px-4 py-2.5 text-white focus:border-[#D4AF37] focus:outline-none transition-colors" placeholder="e.g. Mehedi" />
+                    <label className="block text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">First Name *</label>
+                    <input type="text" name="firstName" required value={formData.firstName} onChange={handleChange} className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-colors text-sm" placeholder="e.g. Mehedi" />
                   </div>
                   <div>
-                    <label className="block text-gray-400 text-sm mb-2">Last Name *</label>
-                    <input type="text" name="lastName" required value={formData.lastName} onChange={handleChange} className="w-full bg-[#111111] border border-gray-700 rounded-md px-4 py-2.5 text-white focus:border-[#D4AF37] focus:outline-none transition-colors" placeholder="e.g. Hasan" />
+                    <label className="block text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Last Name *</label>
+                    <input type="text" name="lastName" required value={formData.lastName} onChange={handleChange} className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-colors text-sm" placeholder="e.g. Hasan" />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     {/* ইমেইল অপশনাল */}
-                    <label className="block text-gray-400 text-sm mb-2">Email Address <span className="text-xs text-gray-500">(Optional)</span></label>
-                    <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full bg-[#111111] border border-gray-700 rounded-md px-4 py-2.5 text-white focus:border-[#D4AF37] focus:outline-none transition-colors" placeholder="e.g. mail@example.com (optional)" />
+                    <label className="block text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Email Address <span className="text-xs text-gray-500 font-normal">(Optional)</span></label>
+                    <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-colors text-sm" placeholder="e.g. mail@example.com" />
                   </div>
                   <div>
                     {/* ফোন নাম্বার ভ্যালিডেশন সহ */}
-                    <label className="block text-gray-400 text-sm mb-2">Phone Number * <span className="text-xs text-gray-500">(e.g. 01712345678)</span></label>
-                    <input type="tel" name="phone" required value={formData.phone} onChange={handleChange} className="w-full bg-[#111111] border border-gray-700 rounded-md px-4 py-2.5 text-white focus:border-[#D4AF37] focus:outline-none transition-colors" placeholder="e.g. 01712345678" />
+                    <label className="block text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Phone Number * <span className="text-xs text-[#D4AF37] font-normal">(e.g. 01712345678)</span></label>
+                    <input type="tel" name="phone" required value={formData.phone} onChange={handleChange} className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-colors text-sm" placeholder="e.g. 01712345678" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-gray-400 text-sm mb-2">Full Address *</label>
-                  <input type="text" name="address" required value={formData.address} onChange={handleChange} className="w-full bg-[#111111] border border-gray-700 rounded-md px-4 py-2.5 text-white focus:border-[#D4AF37] focus:outline-none transition-colors" placeholder="House/Road/Area" />
+                  <label className="block text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Full Address *</label>
+                  <input type="text" name="address" required value={formData.address} onChange={handleChange} className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-colors text-sm" placeholder="House/Road/Area" />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   
                   {/* সিটির ড্রপডাউন */}
                   <div className="relative" ref={cityRef}>
-                    <label className="block text-gray-400 text-sm mb-2">City / District *</label>
+                    <label className="block text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">City / District *</label>
                     <input 
                       type="text" 
                       name="city"
@@ -420,18 +427,18 @@ export default function CheckoutPage() {
                         setShowCityDropdown(true);
                       }}
                       onFocus={() => setShowCityDropdown(true)}
-                      className="w-full bg-[#111111] border border-gray-700 rounded-md px-4 py-2.5 text-white focus:border-[#D4AF37] focus:outline-none transition-colors" 
+                      className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-colors text-sm" 
                       placeholder="Type district (e.g. Chattogram, Dhaka)" 
                       autoComplete="off"
                     />
                     
                     {showCityDropdown && filteredDistricts.length > 0 && (
-                      <div className="absolute left-0 right-0 top-full mt-1 bg-[#1A1A1A] border border-[#D4AF37]/30 rounded-lg shadow-2xl max-h-48 overflow-y-auto z-50 custom-scrollbar">
+                      <div className="absolute left-0 right-0 top-full mt-1.5 bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-xl shadow-2xl max-h-48 overflow-y-auto z-50 custom-scrollbar animate-in fade-in zoom-in-95 duration-150">
                         {filteredDistricts.map((district) => (
                           <div
                             key={district}
                             onMouseDown={() => handleSelectCity(district)}
-                            className="px-4 py-2.5 text-sm text-gray-300 hover:bg-[#D4AF37] hover:text-black cursor-pointer flex items-center justify-between transition-colors"
+                            className="px-4 py-2.5 text-sm text-gray-300 hover:bg-[#D4AF37] hover:text-black cursor-pointer flex items-center justify-between transition-colors font-medium"
                           >
                             <span>{district}</span>
                             {formData.city === district && <Check size={14} className="text-black" />}
@@ -442,38 +449,38 @@ export default function CheckoutPage() {
                   </div>
 
                   <div>
-                    {/* 🚀 পোস্টাল কোড এখন অপশনাল */}
-                    <label className="block text-gray-400 text-sm mb-2">Postal Code <span className="text-xs text-gray-500">(Optional)</span></label>
-                    <input type="text" name="postalCode" value={formData.postalCode} onChange={handleChange} className="w-full bg-[#111111] border border-gray-700 rounded-md px-4 py-2.5 text-white focus:border-[#D4AF37] focus:outline-none transition-colors" placeholder="e.g. 4000 (optional)" />
+                    {/* 🚀 পোস্টাল কোড অপশনাল */}
+                    <label className="block text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Postal Code <span className="text-xs text-gray-500 font-normal">(Optional)</span></label>
+                    <input type="text" name="postalCode" value={formData.postalCode} onChange={handleChange} className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-colors text-sm" placeholder="e.g. 4000" />
                   </div>
                   <div>
-                    <label className="block text-gray-400 text-sm mb-2">Country</label>
-                    <input type="text" name="country" value="Bangladesh" readOnly className="w-full bg-[#1A1A1A] border border-gray-700 text-gray-400 rounded-md px-4 py-2.5 cursor-not-allowed focus:outline-none" />
+                    <label className="block text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Country</label>
+                    <input type="text" name="country" value="Bangladesh" readOnly className="w-full bg-[#1A1A1A] border border-gray-700 text-gray-400 rounded-xl px-4 py-3 cursor-not-allowed focus:outline-none text-sm font-semibold" />
                   </div>
                 </div>
               </form>
             </div>
 
             {/* Payment Methods */}
-            <div className="bg-[#1A1A1A] border border-[#D4AF37]/20 rounded-xl p-6 shadow-lg">
-              <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase tracking-wide border-b border-[#D4AF37]/10 pb-3">Payment Method</h2>
+            <div className="bg-[#1A1A1A] border border-[#D4AF37]/20 rounded-2xl p-6 sm:p-8 shadow-xl hover:border-[#D4AF37]/40 transition-all duration-300">
+              <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase tracking-wide border-b border-[#D4AF37]/10 pb-4">Select Payment Method</h2>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {safeSettings?.enableBkash !== false && (
-                  <button type="button" onClick={() => setPaymentMethod('bKash')} className={`flex flex-col items-center justify-center p-4 rounded-lg border transition-all duration-300 ${paymentMethod === 'bKash' ? 'border-[#D4AF37] bg-[#D4AF37]/10 text-[#D4AF37]' : 'border-gray-700 text-gray-400 hover:border-[#D4AF37] hover:text-[#D4AF37] bg-[#111111]'}`}>
-                    <Smartphone size={32} className="mb-2" />
-                    <span className="font-medium">bKash</span>
+                  <button type="button" onClick={() => setPaymentMethod('bKash')} className={`flex flex-col items-center justify-center p-5 rounded-xl border transition-all duration-300 active:scale-95 ${paymentMethod === 'bKash' ? 'border-[#D4AF37] bg-[#D4AF37]/10 text-[#D4AF37] shadow-lg shadow-[#D4AF37]/10 scale-[1.02]' : 'border-gray-800 text-gray-400 hover:border-[#D4AF37]/50 hover:text-white bg-[#111111]'}`}>
+                    <Smartphone size={32} className="mb-2.5 text-[#D4AF37]" />
+                    <span className="font-bold text-sm">bKash</span>
                   </button>
                 )}
                 {safeSettings?.enableCard !== false && (
-                  <button type="button" onClick={() => setPaymentMethod('Card')} className={`flex flex-col items-center justify-center p-4 rounded-lg border transition-all duration-300 ${paymentMethod === 'Card' ? 'border-[#D4AF37] bg-[#D4AF37]/10 text-[#D4AF37]' : 'border-gray-700 text-gray-400 hover:border-[#D4AF37] hover:text-[#D4AF37] bg-[#111111]'}`}>
-                    <CreditCard size={32} className="mb-2" />
-                    <span className="font-medium">Credit/Debit Card</span>
+                  <button type="button" onClick={() => setPaymentMethod('Card')} className={`flex flex-col items-center justify-center p-5 rounded-xl border transition-all duration-300 active:scale-95 ${paymentMethod === 'Card' ? 'border-[#D4AF37] bg-[#D4AF37]/10 text-[#D4AF37] shadow-lg shadow-[#D4AF37]/10 scale-[1.02]' : 'border-gray-800 text-gray-400 hover:border-[#D4AF37]/50 hover:text-white bg-[#111111]'}`}>
+                    <CreditCard size={32} className="mb-2.5 text-[#D4AF37]" />
+                    <span className="font-bold text-sm">Credit/Debit Card</span>
                   </button>
                 )}
                 {safeSettings?.enableCOD !== false && (
-                  <button type="button" onClick={() => setPaymentMethod('Cash on Delivery')} className={`flex flex-col items-center justify-center p-4 rounded-lg border transition-all duration-300 ${paymentMethod === 'Cash on Delivery' ? 'border-[#D4AF37] bg-[#D4AF37]/10 text-[#D4AF37]' : 'border-gray-700 text-gray-400 hover:border-[#D4AF37] hover:text-[#D4AF37] bg-[#111111]'}`}>
-                    <Banknote size={32} className="mb-2" />
-                    <span className="font-medium text-center leading-tight">Cash on Delivery</span>
+                  <button type="button" onClick={() => setPaymentMethod('Cash on Delivery')} className={`flex flex-col items-center justify-center p-5 rounded-xl border transition-all duration-300 active:scale-95 ${paymentMethod === 'Cash on Delivery' ? 'border-[#D4AF37] bg-[#D4AF37]/10 text-[#D4AF37] shadow-lg shadow-[#D4AF37]/10 scale-[1.02]' : 'border-gray-800 text-gray-400 hover:border-[#D4AF37]/50 hover:text-white bg-[#111111]'}`}>
+                    <Banknote size={32} className="mb-2.5 text-[#D4AF37]" />
+                    <span className="font-bold text-sm text-center leading-tight">Cash on Delivery</span>
                   </button>
                 )}
               </div>
@@ -482,46 +489,46 @@ export default function CheckoutPage() {
 
           {/* Right Side: Order Summary */}
           <div className="lg:w-1/3">
-            <div className="bg-[#1A1A1A] border border-[#D4AF37]/20 rounded-xl p-6 shadow-lg sticky top-24">
-              <h2 className="text-xl font-serif font-bold text-[#D4AF37] mb-6 uppercase tracking-wide border-b border-[#D4AF37]/10 pb-3">Order Summary</h2>
+            <div className="bg-[#1A1A1A] border border-[#D4AF37]/20 rounded-2xl p-6 sm:p-8 shadow-2xl sticky top-24 transition-all duration-300">
+              <h2 className="text-xl font-serif font-bold text-[#D4AF37] mb-6 uppercase tracking-wide border-b border-[#D4AF37]/10 pb-4">Order Summary</h2>
               
               <div className="space-y-4 mb-6 max-h-60 overflow-y-auto custom-scrollbar pr-2">
                 {items.map((item: any, index: number) => (
-                  <div key={index} className="flex items-center space-x-3 text-sm border-b border-gray-800 pb-3 last:border-0">
-                    <div className="w-12 h-12 bg-[#111111] rounded overflow-hidden flex-shrink-0 border border-gray-700">
+                  <div key={index} className="flex items-center space-x-3.5 text-sm border-b border-gray-800/80 pb-3 last:border-0 group">
+                    <div className="w-12 h-12 bg-[#111111] rounded-xl overflow-hidden flex-shrink-0 border border-gray-700 shadow-sm group-hover:scale-105 transition-transform">
                       {item.image && item.image !== 'No Image' ? (
                         <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-[8px] text-[#D4AF37] uppercase">No Img</div>
+                        <div className="w-full h-full flex items-center justify-center text-[8px] text-[#D4AF37] uppercase font-bold">No Img</div>
                       )}
                     </div>
                     <div className="flex-1">
-                      <span className="text-gray-200 line-clamp-1 font-medium">{item.name}</span>
-                      <span className="text-xs text-gray-500">Qty: {item.quantity} | {item.size}</span>
+                      <span className="text-gray-200 line-clamp-1 font-semibold group-hover:text-[#D4AF37] transition-colors">{item.name}</span>
+                      <span className="text-xs text-gray-500">Qty: {item.quantity} {item.size ? `| Size: ${item.size}` : ''}</span>
                     </div>
                     <span className="text-[#D4AF37] font-bold">{safeSettings?.currency || '৳'} {(Number(item.price) * item.quantity).toFixed(2)}</span>
                   </div>
                 ))}
               </div>
 
-              <div className="border-t border-gray-700 pt-4 space-y-3 mb-6 text-sm">
+              <div className="border-t border-gray-800 pt-4 space-y-3 mb-6 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-400">Subtotal</span>
-                  <span className="text-white">{safeSettings?.currency || '৳'} {subtotalAfterProductDiscount.toFixed(2)}</span>
+                  <span className="text-white font-medium">{safeSettings?.currency || '৳'} {subtotalAfterProductDiscount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">Shipping <span className="text-xs">({isInsideChattogram ? 'Inside CTG' : 'Outside CTG'})</span></span>
-                  <span className="text-white">{safeSettings?.currency || '৳'} {shipping.toFixed(2)}</span>
+                  <span className="text-white font-medium">{safeSettings?.currency || '৳'} {shipping.toFixed(2)}</span>
                 </div>
                 {taxRate > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-400">Tax ({taxRate}%)</span>
-                    <span className="text-white">{safeSettings?.currency || '৳'} {taxAmount.toFixed(2)}</span>
+                    <span className="text-white font-medium">{safeSettings?.currency || '৳'} {taxAmount.toFixed(2)}</span>
                   </div>
                 )}
                 {appliedCoupon && (
-                  <div className="flex justify-between text-green-400 items-center bg-green-500/10 p-2 rounded border border-green-500/20 mt-2">
-                    <span className="flex items-center"><Tag size={14} className="mr-1" /> Coupon ({appliedCoupon.code})</span>
+                  <div className="flex justify-between text-green-400 items-center bg-green-500/10 p-2.5 rounded-xl border border-green-500/20 mt-2 text-xs font-bold">
+                    <span className="flex items-center"><Tag size={14} className="mr-1.5" /> Coupon ({appliedCoupon.code})</span>
                     <span>-{safeSettings?.currency || '৳'} {finalCouponDiscountAmount.toFixed(2)}</span>
                   </div>
                 )}
@@ -529,14 +536,16 @@ export default function CheckoutPage() {
 
               <div className="border-t border-[#D4AF37]/30 pt-5 mb-8 flex justify-between items-end">
                 <span className="font-serif font-bold text-lg text-white">Grand Total</span>
-                <span className="font-bold text-3xl text-[#D4AF37]">{safeSettings?.currency || '৳'} {totalAmount.toFixed(2)}</span>
+                <span className="font-bold text-3xl text-[#D4AF37] tracking-wider animate-pulse">
+                  {safeSettings?.currency || '৳'} {totalAmount.toFixed(2)}
+                </span>
               </div>
 
               <button 
                 type="submit"
                 form="checkout-form"
                 disabled={isSubmitting || items.length === 0 || !paymentMethod}
-                className="w-full bg-[#D4AF37] text-black py-4 rounded-lg hover:bg-white transition-colors font-bold uppercase tracking-wider text-sm shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-gradient-to-r from-[#D4AF37] to-[#f3e5ab] text-black py-4 rounded-xl hover:scale-105 transition-all duration-300 font-bold uppercase tracking-wider text-sm shadow-xl shadow-[#D4AF37]/20 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
               >
                 {isSubmitting ? 'Processing Securely...' : 'Place Order Now'}
               </button>

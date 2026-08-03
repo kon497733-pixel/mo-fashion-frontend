@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Trash2, RefreshCcw, ArchiveX, Layers, Package, AlertTriangle, Image as ImageIcon } from 'lucide-react';
+import { Trash2, RefreshCcw, ArchiveX, Layers, Package, AlertTriangle, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
 
@@ -44,9 +44,9 @@ export default function RecycleBin() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(restoredCategory)
       });
-      toast.success(`Category "${itemToRestore.name}" restored LIVE to Cloud!`);
+      toast.success(`Category "${itemToRestore.name}" restored LIVE to Cloud! 🎉`);
     } catch (e) {
-      toast.success(`Category "${itemToRestore.name}" restored successfully!`);
+      toast.success(`Category "${itemToRestore.name}" restored successfully! 🎉`);
     }
   };
 
@@ -83,9 +83,9 @@ export default function RecycleBin() {
       });
       
       if (response.ok) {
-        toast.success(`Product "${itemToRestore.name}" restored LIVE to Cloud Database!`);
+        toast.success(`Product "${itemToRestore.name}" restored LIVE to Cloud Database! 🎉`);
       } else {
-        toast.success(`Product "${itemToRestore.name}" restored successfully!`);
+        toast.success(`Product "${itemToRestore.name}" restored successfully! 🎉`);
       }
     } catch (error) {
       toast.success(`Product "${itemToRestore.name}" restored locally!`);
@@ -121,64 +121,75 @@ export default function RecycleBin() {
   };
 
   return (
-    <div className="text-white pb-10">
+    <div className="text-white pb-10 transition-all duration-300">
       <Helmet>
         <title>Admin - Recycle Bin | MO FASHION</title>
       </Helmet>
 
-      {/* Header Section */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+      {/* 🚀 Top-Notch Animated Glassmorphic Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-2xl border border-[#D4AF37]/20 backdrop-blur-md shadow-xl transition-all duration-300 hover:border-[#D4AF37]/40">
         <div>
-          <h1 className="text-2xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase flex items-center">
-            <ArchiveX className="mr-3" size={28} />
-            Recycle Bin
-          </h1>
+          <div className="flex items-center space-x-3">
+            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase flex items-center">
+              <ArchiveX className="mr-3 text-[#D4AF37] animate-bounce" size={28} />
+              Recycle Bin
+            </h1>
+            <span className="bg-[#D4AF37]/10 text-[#D4AF37] text-xs font-bold px-3 py-1 rounded-full border border-[#D4AF37]/30 flex items-center">
+              Soft Delete Protection
+            </span>
+          </div>
           <p className="text-sm text-gray-400 mt-1">Restore deleted items or permanently remove them from Cloud DB.</p>
         </div>
         
         <button 
           onClick={handleEmptyBin}
           disabled={activeTab === 'categories' ? deletedCategories.length === 0 : deletedProducts.length === 0}
-          className="bg-red-500/10 text-red-500 border border-red-500/30 px-5 py-2.5 rounded hover:bg-red-500 hover:text-white transition-colors font-bold flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-red-500/10 text-red-500 border border-red-500/30 px-5 py-2.5 rounded-xl hover:bg-red-500 hover:text-white transition-all duration-300 font-bold flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 shadow-lg shadow-red-500/10"
         >
-          <Trash2 size={20} />
+          <Trash2 size={18} />
           <span>Empty Bin</span>
         </button>
       </div>
 
-      {/* Tabs */}
+      {/* 🏷️ Animated Navigation Tabs */}
       <div className="flex space-x-4 mb-6 border-b border-gray-800">
         <button 
           onClick={() => setActiveTab('categories')}
-          className={`pb-3 px-4 font-bold tracking-wide transition-colors flex items-center ${
-            activeTab === 'categories' ? 'text-[#D4AF37] border-b-2 border-[#D4AF37]' : 'text-gray-500 hover:text-gray-300'
+          className={`pb-3 px-4 font-bold tracking-wide transition-all duration-200 flex items-center relative ${
+            activeTab === 'categories' ? 'text-[#D4AF37]' : 'text-gray-500 hover:text-gray-300'
           }`}
         >
           <Layers size={18} className="mr-2" />
-          Deleted Categories ({deletedCategories.length})
+          <span>Deleted Categories ({deletedCategories.length})</span>
+          {activeTab === 'categories' && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#D4AF37] shadow-[0_0_10px_#D4AF37] animate-in fade-in duration-300"></div>
+          )}
         </button>
         <button 
           onClick={() => setActiveTab('products')}
-          className={`pb-3 px-4 font-bold tracking-wide transition-colors flex items-center ${
-            activeTab === 'products' ? 'text-[#D4AF37] border-b-2 border-[#D4AF37]' : 'text-gray-500 hover:text-gray-300'
+          className={`pb-3 px-4 font-bold tracking-wide transition-all duration-200 flex items-center relative ${
+            activeTab === 'products' ? 'text-[#D4AF37]' : 'text-gray-500 hover:text-gray-300'
           }`}
         >
           <Package size={18} className="mr-2" />
-          Deleted Products ({deletedProducts.length})
+          <span>Deleted Products ({deletedProducts.length})</span>
+          {activeTab === 'products' && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#D4AF37] shadow-[0_0_10px_#D4AF37] animate-in fade-in duration-300"></div>
+          )}
         </button>
       </div>
 
-      {/* Warning Message */}
-      <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-xl flex items-start space-x-3 mb-6">
-        <AlertTriangle className="text-yellow-500 shrink-0 mt-0.5" size={20} />
-        <p className="text-sm text-yellow-500/90">
+      {/* ⚠️ Animated Warning Banner */}
+      <div className="bg-yellow-500/10 border border-yellow-500/30 p-4 rounded-2xl flex items-start space-x-3 mb-6 shadow-md transition-all">
+        <AlertTriangle className="text-yellow-500 shrink-0 mt-0.5 animate-pulse" size={20} />
+        <p className="text-sm text-yellow-500/90 leading-relaxed font-medium">
           Items in the recycle bin will remain here until you restore them or permanently delete them. Permanent deletion cannot be reversed!
         </p>
       </div>
 
-      {/* Categories Content */}
+      {/* 📦 Categories Content */}
       {activeTab === 'categories' && (
-        <div className="bg-[#1A1A1A] rounded-xl border border-[#D4AF37]/20 overflow-hidden shadow-lg">
+        <div className="bg-[#1A1A1A] rounded-2xl border border-[#D4AF37]/20 overflow-hidden shadow-2xl transition-all duration-300">
           <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left whitespace-nowrap">
               <thead className="bg-[#111111] border-b border-[#D4AF37]/20">
@@ -190,39 +201,39 @@ export default function RecycleBin() {
               </thead>
               <tbody className="divide-y divide-gray-800">
                 {deletedCategories.map((category) => (
-                  <tr key={category.id || category._id} className="hover:bg-[#111111]/50 transition-colors opacity-80 hover:opacity-100">
+                  <tr key={category.id || category._id} className="hover:bg-[#111111] transition-all duration-200 group opacity-90 hover:opacity-100">
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400">
+                        <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 group-hover:scale-110 transition-transform duration-300">
                           <Layers size={18} />
                         </div>
                         <div>
-                          <p className="font-bold text-white line-through decoration-gray-600">{category.name}</p>
+                          <p className="font-bold text-white line-through decoration-gray-500 group-hover:text-[#D4AF37] transition-colors">{category.name}</p>
                           <p className="text-xs text-gray-500 truncate max-w-[200px]">{category.description || 'No description'}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm text-gray-400 bg-[#111111] px-3 py-1.5 rounded-full border border-gray-800">
+                      <span className="text-xs text-gray-400 bg-[#111111] px-3 py-1.5 rounded-full border border-gray-800 font-medium">
                         {category.deletedAt || 'Unknown Date'}
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center justify-end space-x-3">
-                        {/* Restore Button */}
+                      <div className="flex items-center justify-end space-x-2">
+                        {/* ♻️ 1-Click Restore Button */}
                         <button 
                           onClick={() => handleRestoreCategory(category.id || category._id)}
-                          className="flex items-center space-x-1 px-4 py-1.5 bg-green-500/10 text-green-500 border border-green-500/30 hover:bg-green-500 hover:text-white transition-colors rounded-md font-medium text-sm"
+                          className="flex items-center space-x-1.5 px-4 py-2 bg-green-500/10 text-green-400 border border-green-500/30 hover:bg-green-500 hover:text-black transition-all duration-200 rounded-xl font-bold text-xs active:scale-95 shadow-sm"
                           title="Restore Category"
                         >
-                          <RefreshCcw size={14} />
-                          <span>Restore</span>
+                          <RefreshCcw size={14} className="animate-spin-hover" />
+                          <span>1-Click Restore</span>
                         </button>
                         
-                        {/* Permanent Delete Button */}
+                        {/* ❌ Permanent Delete Button */}
                         <button 
                           onClick={() => handlePermanentDeleteCategory(category.id || category._id, category.name)}
-                          className="p-1.5 text-gray-400 hover:text-red-500 transition-colors bg-[#111111] rounded-md border border-gray-800 hover:border-red-500/50"
+                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-all duration-200 bg-[#111111] rounded-xl border border-gray-800 hover:border-red-500/50 active:scale-95"
                           title="Delete Permanently"
                         >
                           <Trash2 size={16} />
@@ -235,8 +246,11 @@ export default function RecycleBin() {
                 {deletedCategories.length === 0 && (
                   <tr>
                     <td colSpan={3} className="px-6 py-12 text-center text-gray-500">
-                      <ArchiveX size={48} className="mx-auto mb-4 opacity-20" />
-                      <p>Recycle Bin is empty. No deleted categories found.</p>
+                      <div className="flex flex-col items-center justify-center space-y-3">
+                        <ArchiveX size={48} className="text-gray-600 opacity-40 animate-pulse" />
+                        <p className="text-base font-semibold text-gray-400">Recycle Bin is empty.</p>
+                        <p className="text-xs text-gray-600">No deleted categories found in trash.</p>
+                      </div>
                     </td>
                   </tr>
                 )}
@@ -246,9 +260,9 @@ export default function RecycleBin() {
         </div>
       )}
 
-      {/* Products Content */}
+      {/* 📦 Products Content */}
       {activeTab === 'products' && (
-        <div className="bg-[#1A1A1A] rounded-xl border border-[#D4AF37]/20 overflow-hidden shadow-lg">
+        <div className="bg-[#1A1A1A] rounded-2xl border border-[#D4AF37]/20 overflow-hidden shadow-2xl transition-all duration-300">
           <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left whitespace-nowrap">
               <thead className="bg-[#111111] border-b border-[#D4AF37]/20">
@@ -261,47 +275,47 @@ export default function RecycleBin() {
               </thead>
               <tbody className="divide-y divide-gray-800">
                 {deletedProducts.map((product) => (
-                  <tr key={product._id || product.id} className="hover:bg-[#111111]/50 transition-colors opacity-80 hover:opacity-100">
+                  <tr key={product._id || product.id} className="hover:bg-[#111111] transition-all duration-200 group opacity-90 hover:opacity-100">
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center overflow-hidden shrink-0">
+                        <div className="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
                           {product.images && product.images[0] && !product.images[0].includes('via.placeholder') ? (
-                            <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover grayscale" />
+                            <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-110 transition-all duration-500" />
                           ) : (
                             <ImageIcon size={20} className="text-red-400" />
                           )}
                         </div>
                         <div>
-                          <p className="font-bold text-white line-through decoration-gray-600 truncate max-w-[200px]">{product.name}</p>
+                          <p className="font-bold text-white line-through decoration-gray-500 truncate max-w-[200px] group-hover:text-[#D4AF37] transition-colors">{product.name}</p>
                           <p className="text-xs text-gray-500">ID: ...{String(product._id || product.id).slice(-6)}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-gray-300 text-sm">{product.category}</p>
-                      <p className="text-[#D4AF37] font-bold">৳{Number(product.price || 0).toFixed(2)}</p>
+                      <p className="text-gray-300 text-xs font-medium">{product.category}</p>
+                      <p className="text-[#D4AF37] font-bold text-sm">৳{Number(product.price || 0).toFixed(2)}</p>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm text-gray-400 bg-[#111111] px-3 py-1.5 rounded-full border border-gray-800">
+                      <span className="text-xs text-gray-400 bg-[#111111] px-3 py-1.5 rounded-full border border-gray-800 font-medium">
                         {product.deletedAt || 'Unknown Date'}
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center justify-end space-x-3">
-                        {/* Restore Button */}
+                      <div className="flex items-center justify-end space-x-2">
+                        {/* ♻️ 1-Click Restore Button */}
                         <button 
                           onClick={() => handleRestoreProduct(product._id || product.id)}
-                          className="flex items-center space-x-1 px-4 py-1.5 bg-green-500/10 text-green-500 border border-green-500/30 hover:bg-green-500 hover:text-white transition-colors rounded-md font-medium text-sm"
+                          className="flex items-center space-x-1.5 px-4 py-2 bg-green-500/10 text-green-400 border border-green-500/30 hover:bg-green-500 hover:text-black transition-all duration-200 rounded-xl font-bold text-xs active:scale-95 shadow-sm"
                           title="Restore Product"
                         >
                           <RefreshCcw size={14} />
-                          <span>Restore</span>
+                          <span>1-Click Restore</span>
                         </button>
                         
-                        {/* Permanent Delete Button */}
+                        {/* ❌ Permanent Delete Button */}
                         <button 
                           onClick={() => handlePermanentDeleteProduct(product._id || product.id, product.name)}
-                          className="p-1.5 text-gray-400 hover:text-red-500 transition-colors bg-[#111111] rounded-md border border-gray-800 hover:border-red-500/50"
+                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-all duration-200 bg-[#111111] rounded-xl border border-gray-800 hover:border-red-500/50 active:scale-95"
                           title="Delete Permanently"
                         >
                           <Trash2 size={16} />
@@ -314,8 +328,11 @@ export default function RecycleBin() {
                 {deletedProducts.length === 0 && (
                   <tr>
                     <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
-                      <ArchiveX size={48} className="mx-auto mb-4 opacity-20" />
-                      <p>Recycle Bin is empty. No deleted products found.</p>
+                      <div className="flex flex-col items-center justify-center space-y-3">
+                        <ArchiveX size={48} className="text-gray-600 opacity-40 animate-pulse" />
+                        <p className="text-base font-semibold text-gray-400">Recycle Bin is empty.</p>
+                        <p className="text-xs text-gray-600">No deleted products found in trash.</p>
+                      </div>
                     </td>
                   </tr>
                 )}

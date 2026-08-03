@@ -23,7 +23,7 @@ export const sendEmailNotification = async (subject: string, message: string) =>
   try {
     // যদি API Key না থাকে, তবে আপাতত কনসোলে মেইলটি দেখাবে (টেস্টিংয়ের জন্য)
     if (serviceId === 'dummy_service') {
-      console.log(`\n📧 [EMAIL SENT TO: ${TARGET_EMAIL}]`);
+      console.log(`%c 📧 [EMAIL NOTIFICATION SENT TO: ${TARGET_EMAIL}]`, 'color: #D4AF37; font-weight: bold; font-size: 14px;');
       console.log(`📌 Subject: ${subject}`);
       console.log(`📝 Message: \n${message}`);
       console.log(`--------------------------------------------------\n`);
@@ -53,7 +53,7 @@ export const sendEmailNotification = async (subject: string, message: string) =>
 // ১. নতুন অর্ডারের ইমেইল নোটিফিকেশন
 export const notifyNewOrder = async (orderId: string, customerName: string, totalAmount: number) => {
   const subject = `New Order Received! (${orderId})`;
-  const message = `Hello Admin,\n\nA new order has been placed on your website.\n\nOrder ID: ${orderId}\nCustomer Name: ${customerName}\nTotal Amount: $${totalAmount.toFixed(2)}\n\nPlease check the admin panel for more details.`;
+  const message = `Hello Admin,\n\nA new order has been placed on your website.\n\nOrder ID: ${orderId}\nCustomer Name: ${customerName}\nTotal Amount: ৳${totalAmount.toFixed(2)}\n\nPlease check the admin panel for more details.`;
   
   await sendEmailNotification(subject, message);
 };

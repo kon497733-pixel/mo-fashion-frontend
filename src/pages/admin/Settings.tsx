@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import {
   Save, Store, Mail, Phone, Globe,
   MapPin, Percent, Truck, 
-  Settings as SettingsIcon, CreditCard, HelpCircle, Plus, Trash2, Image as ImageIcon, Upload, Type
+  Settings as SettingsIcon, CreditCard, HelpCircle, Plus, Trash2, Image as ImageIcon, Upload, Type, RefreshCw, Sparkles
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSettingsStore } from '../../store/useSettingsStore';
@@ -182,22 +182,30 @@ export default function Settings() {
   ];
 
   return (
-    <div className="text-white pb-10">
+    <div className="text-white pb-10 transition-all duration-300">
       <Helmet><title>Admin - Advanced Settings | MO FASHION</title></Helmet>
 
-      <div className="mb-8">
-        <h1 className="text-2xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase flex items-center">
-          <SettingsIcon className="mr-3 text-[#D4AF37]" size={28} />
-          Advanced Store Settings
-        </h1>
-        <p className="text-sm text-gray-400 mt-1">Manage global store settings, logo, tagline, and live cloud database</p>
+      {/* 🚀 Top-Notch Animated Glassmorphic Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-2xl border border-[#D4AF37]/20 backdrop-blur-md shadow-xl transition-all duration-300 hover:border-[#D4AF37]/40">
+        <div>
+          <div className="flex items-center space-x-3">
+            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase flex items-center">
+              <SettingsIcon className="mr-3 text-[#D4AF37] animate-spin-slow" size={28} />
+              Advanced Store Settings
+            </h1>
+            <span className="bg-[#D4AF37]/10 text-[#D4AF37] text-xs font-bold px-3 py-1 rounded-full border border-[#D4AF37]/30 flex items-center">
+              Global Cloud Hub
+            </span>
+          </div>
+          <p className="text-sm text-gray-400 mt-1">Manage global store settings, logo, tagline, and live cloud database</p>
+        </div>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
         
-        {/* Left Sidebar */}
+        {/* Left Sidebar Menu with Hover Scale */}
         <div className="lg:w-1/4">
-          <div className="bg-[#1A1A1A] rounded-xl border border-[#D4AF37]/20 p-4 sticky top-24 shadow-lg">
+          <div className="bg-[#1A1A1A] rounded-2xl border border-[#D4AF37]/20 p-4 sticky top-24 shadow-xl backdrop-blur-md">
             <nav className="space-y-2">
               {menuItems.map((item) => {
                 const Icon = item.icon;
@@ -207,13 +215,13 @@ export default function Settings() {
                     key={item.name}
                     type="button"
                     onClick={() => setActiveTab(item.name)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors font-medium ${
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 font-bold text-sm active:scale-95 ${
                       isActive 
-                      ? 'bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/30 shadow-[0_0_10px_rgba(212,175,55,0.1)]' 
+                      ? 'bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/40 shadow-lg shadow-[#D4AF37]/10 scale-[1.02]' 
                       : 'text-gray-400 hover:bg-[#111111] hover:text-white border border-transparent'
                     }`}
                   >
-                    <Icon size={20} />
+                    <Icon size={18} />
                     <span>{item.name}</span>
                   </button>
                 );
@@ -222,27 +230,32 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Right Content Area */}
+        {/* Right Content Area with Smooth Tab Animations */}
         <div className="lg:w-3/4">
           {loading ? (
-            <div className="bg-[#1A1A1A] p-10 rounded-xl text-center text-[#D4AF37] animate-pulse">Loading Cloud Settings...</div>
+            <div className="bg-[#1A1A1A] p-16 rounded-2xl text-center text-[#D4AF37] border border-[#D4AF37]/20 flex flex-col items-center justify-center space-y-3 shadow-xl">
+              <RefreshCw className="animate-spin w-8 h-8 text-[#D4AF37]" />
+              <p className="font-medium animate-pulse">Loading Cloud Settings...</p>
+            </div>
           ) : (
-            <form onSubmit={handleSaveSettings} className="bg-[#1A1A1A] p-6 sm:p-8 rounded-xl border border-[#D4AF37]/20 shadow-lg relative min-h-[400px]">
+            <form onSubmit={handleSaveSettings} className="bg-[#1A1A1A] p-6 sm:p-8 rounded-2xl border border-[#D4AF37]/20 shadow-2xl relative min-h-[400px] transition-all duration-300">
               
               {/* 1. General Settings */}
               {activeTab === 'General' && (
-                <div className="space-y-6 animate-fade-in">
-                  <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/10 pb-3">General Information</h2>
+                <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
+                  <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center">
+                    <Sparkles size={20} className="mr-2 text-[#D4AF37]" /> General Information
+                  </h2>
                   
                   {/* ওয়েবসাইট লোগো সেকশন */}
-                  <div className="bg-[#111111] p-5 rounded-xl border border-[#D4AF37]/20 space-y-4">
+                  <div className="bg-[#111111] p-5 rounded-2xl border border-[#D4AF37]/20 space-y-4 hover:border-[#D4AF37]/40 transition-colors">
                     <label className="block text-[#D4AF37] font-bold text-sm">Website Logo Management</label>
 
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 pt-2">
                       <div className="w-40 h-28 bg-[#1A1A1A] border-2 border-dashed border-[#D4AF37]/40 rounded-xl flex items-center justify-center overflow-hidden relative group flex-shrink-0 shadow-inner">
                         {localSettings.logoUrl ? (
                           <>
-                            <img src={localSettings.logoUrl} alt="Store Logo" className="w-full h-full object-contain p-2" />
+                            <img src={localSettings.logoUrl} alt="Store Logo" className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300" />
                             <button
                               type="button"
                               onClick={handleRemoveLogo}
@@ -265,7 +278,7 @@ export default function Settings() {
                           <button
                             type="button"
                             onClick={() => logoFileInputRef.current?.click()}
-                            className="bg-[#D4AF37] text-black px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-white transition-colors flex items-center space-x-2 shadow-md uppercase tracking-wider"
+                            className="bg-[#D4AF37] text-black px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-white transition-all duration-200 flex items-center space-x-2 shadow-md uppercase tracking-wider active:scale-95"
                           >
                             <Upload size={16} />
                             <span>Upload HD Logo</span>
@@ -281,7 +294,7 @@ export default function Settings() {
                             value={localSettings.logoUrl || ''} 
                             onChange={handleChange} 
                             placeholder="Or paste copied logo URL from Chrome..." 
-                            className="w-full bg-[#1A1A1A] border border-gray-700 rounded-lg pl-10 pr-4 py-2.5 text-white text-xs focus:outline-none focus:border-[#D4AF37] transition-colors" 
+                            className="w-full bg-[#1A1A1A] border border-gray-700 rounded-xl pl-10 pr-4 py-2.5 text-white text-xs focus:outline-none focus:border-[#D4AF37] transition-colors" 
                           />
                         </div>
                       </div>
@@ -289,14 +302,14 @@ export default function Settings() {
                   </div>
 
                   {/* এবাউট পেজের টিম ছবি সেকশন */}
-                  <div className="bg-[#111111] p-5 rounded-xl border border-[#D4AF37]/20 space-y-4">
+                  <div className="bg-[#111111] p-5 rounded-2xl border border-[#D4AF37]/20 space-y-4 hover:border-[#D4AF37]/40 transition-colors">
                     <label className="block text-[#D4AF37] font-bold text-sm">About Page Image ("The Fashion Team" Box)</label>
 
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 pt-2">
                       <div className="w-40 h-28 bg-[#1A1A1A] border-2 border-dashed border-[#D4AF37]/40 rounded-xl flex items-center justify-center overflow-hidden relative group flex-shrink-0 shadow-inner">
                         {localSettings.aboutImageUrl ? (
                           <>
-                            <img src={localSettings.aboutImageUrl} alt="Team" className="w-full h-full object-cover" />
+                            <img src={localSettings.aboutImageUrl} alt="Team" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                             <button
                               type="button"
                               onClick={handleRemoveAboutImage}
@@ -319,7 +332,7 @@ export default function Settings() {
                           <button
                             type="button"
                             onClick={() => aboutFileInputRef.current?.click()}
-                            className="bg-[#D4AF37] text-black px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-white transition-colors flex items-center space-x-2 shadow-md uppercase tracking-wider"
+                            className="bg-[#D4AF37] text-black px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-white transition-all duration-200 flex items-center space-x-2 shadow-md uppercase tracking-wider active:scale-95"
                           >
                             <Upload size={16} />
                             <span>Upload About Image</span>
@@ -335,7 +348,7 @@ export default function Settings() {
                             value={localSettings.aboutImageUrl || ''} 
                             onChange={handleChange} 
                             placeholder="Or paste copied image URL from Chrome..." 
-                            className="w-full bg-[#1A1A1A] border border-gray-700 rounded-lg pl-10 pr-4 py-2.5 text-white text-xs focus:outline-none focus:border-[#D4AF37] transition-colors" 
+                            className="w-full bg-[#1A1A1A] border border-gray-700 rounded-xl pl-10 pr-4 py-2.5 text-white text-xs focus:outline-none focus:border-[#D4AF37] transition-colors" 
                           />
                         </div>
                       </div>
@@ -343,51 +356,51 @@ export default function Settings() {
                   </div>
 
                   {/* সাধারণ তথ্য ফিল্ডস */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
                     <div>
-                      <label className="block text-gray-300 text-sm mb-2">Store Name</label>
+                      <label className="block text-gray-300 text-xs font-bold uppercase tracking-wider mb-2">Store Name</label>
                       <div className="relative">
-                        <Store size={18} className="absolute left-3 top-3 text-gray-500" />
-                        <input type="text" name="storeName" value={localSettings.storeName || ''} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-lg pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] transition-colors" />
+                        <Store size={18} className="absolute left-3.5 top-3 text-gray-500" />
+                        <input type="text" name="storeName" value={localSettings.storeName || ''} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#D4AF37] transition-colors" />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-[#D4AF37] font-bold text-sm mb-2">Homepage Tagline / Description</label>
+                      <label className="block text-[#D4AF37] font-bold text-xs uppercase tracking-wider mb-2">Homepage Tagline / Description</label>
                       <div className="relative">
-                        <Type size={18} className="absolute left-3 top-3 text-[#D4AF37]" />
+                        <Type size={18} className="absolute left-3.5 top-3 text-[#D4AF37]" />
                         <input 
                           type="text" 
                           name="tagline" 
                           value={localSettings.tagline || ''} 
                           onChange={handleChange} 
                           placeholder="e.g. Premium E-Commerce Experience" 
-                          className="w-full bg-[#111111] border border-[#D4AF37]/50 rounded-lg pl-10 pr-4 py-2.5 text-white font-medium focus:outline-none focus:border-[#D4AF37] transition-colors" 
+                          className="w-full bg-[#111111] border border-[#D4AF37]/50 rounded-xl pl-10 pr-4 py-2.5 text-white font-medium text-sm focus:outline-none focus:border-[#D4AF37] transition-colors" 
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-gray-300 text-sm mb-2">Support Email</label>
+                      <label className="block text-gray-300 text-xs font-bold uppercase tracking-wider mb-2">Support Email</label>
                       <div className="relative">
-                        <Mail size={18} className="absolute left-3 top-3 text-gray-500" />
-                        <input type="email" name="contactEmail" value={localSettings.contactEmail || ''} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-lg pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] transition-colors" />
+                        <Mail size={18} className="absolute left-3.5 top-3 text-gray-500" />
+                        <input type="email" name="contactEmail" value={localSettings.contactEmail || ''} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#D4AF37] transition-colors" />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-gray-300 text-sm mb-2">Phone Number</label>
+                      <label className="block text-gray-300 text-xs font-bold uppercase tracking-wider mb-2">Phone Number</label>
                       <div className="relative">
-                        <Phone size={18} className="absolute left-3 top-3 text-gray-500" />
-                        <input type="text" name="phoneNumber" value={localSettings.phoneNumber || ''} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-lg pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] transition-colors" />
+                        <Phone size={18} className="absolute left-3.5 top-3 text-gray-500" />
+                        <input type="text" name="phoneNumber" value={localSettings.phoneNumber || ''} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#D4AF37] transition-colors" />
                       </div>
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-gray-300 text-sm mb-2">Store Address</label>
+                      <label className="block text-gray-300 text-xs font-bold uppercase tracking-wider mb-2">Store Address</label>
                       <div className="relative">
-                        <MapPin size={18} className="absolute left-3 top-3 text-gray-500" />
-                        <input type="text" name="address" value={localSettings.address || ''} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-lg pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] transition-colors" />
+                        <MapPin size={18} className="absolute left-3.5 top-3 text-gray-500" />
+                        <input type="text" name="address" value={localSettings.address || ''} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#D4AF37] transition-colors" />
                       </div>
                     </div>
                   </div>
@@ -396,37 +409,39 @@ export default function Settings() {
 
               {/* 2. Operations Settings */}
               {activeTab === 'Operations' && (
-                <div className="space-y-6 animate-fade-in">
-                  <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/10 pb-3">Operations & Shipping</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
+                  <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center">
+                    <Truck size={20} className="mr-2 text-[#D4AF37]" /> Operations & Shipping
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
-                      <label className="block text-gray-300 text-sm mb-2">Default Currency</label>
-                      <select name="currency" value={localSettings.currency || '৳'} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] cursor-pointer">
+                      <label className="block text-gray-300 text-xs font-bold uppercase tracking-wider mb-2">Default Currency</label>
+                      <select name="currency" value={localSettings.currency || '৳'} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] cursor-pointer text-sm font-semibold">
                         <option value="৳">৳ (BDT)</option>
                         <option value="$">$ (USD)</option>
                         <option value="€">€ (EUR)</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-gray-300 text-sm mb-2">Tax Rate (%)</label>
+                      <label className="block text-gray-300 text-xs font-bold uppercase tracking-wider mb-2">Tax Rate (%)</label>
                       <div className="relative">
-                        <Percent size={18} className="absolute left-3 top-3 text-gray-500" />
-                        <input type="number" name="taxRate" value={localSettings.taxRate || 0} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-lg pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-[#D4AF37]" min="0" step="0.1" />
+                        <Percent size={18} className="absolute left-3.5 top-3 text-gray-500" />
+                        <input type="number" name="taxRate" value={localSettings.taxRate || 0} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] text-sm" min="0" step="0.1" />
                       </div>
                     </div>
                     
                     <div>
-                      <label className="block text-gray-300 text-sm mb-2">Shipping Cost (Inside Chattogram)</label>
+                      <label className="block text-gray-300 text-xs font-bold uppercase tracking-wider mb-2">Shipping Cost (Inside Chattogram)</label>
                       <div className="relative">
-                        <Truck size={18} className="absolute left-3 top-3 text-[#D4AF37]" />
-                        <input type="number" name="shippingInside" value={localSettings.shippingInside || 0} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-lg pl-10 pr-4 py-2.5 text-[#D4AF37] font-bold focus:outline-none focus:border-[#D4AF37]" min="0" />
+                        <Truck size={18} className="absolute left-3.5 top-3 text-[#D4AF37]" />
+                        <input type="number" name="shippingInside" value={localSettings.shippingInside || 0} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl pl-10 pr-4 py-2.5 text-[#D4AF37] font-bold focus:outline-none focus:border-[#D4AF37] text-sm" min="0" />
                       </div>
                     </div>
                     <div>
-                      <label className="block text-gray-300 text-sm mb-2">Shipping Cost (Outside Chattogram)</label>
+                      <label className="block text-gray-300 text-xs font-bold uppercase tracking-wider mb-2">Shipping Cost (Outside Chattogram)</label>
                       <div className="relative">
-                        <Truck size={18} className="absolute left-3 top-3 text-[#D4AF37]" />
-                        <input type="number" name="shippingOutside" value={localSettings.shippingOutside || 0} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-lg pl-10 pr-4 py-2.5 text-[#D4AF37] font-bold focus:outline-none focus:border-[#D4AF37]" min="0" />
+                        <Truck size={18} className="absolute left-3.5 top-3 text-[#D4AF37]" />
+                        <input type="number" name="shippingOutside" value={localSettings.shippingOutside || 0} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl pl-10 pr-4 py-2.5 text-[#D4AF37] font-bold focus:outline-none focus:border-[#D4AF37] text-sm" min="0" />
                       </div>
                     </div>
                   </div>
@@ -435,20 +450,22 @@ export default function Settings() {
 
               {/* 3. Payment Settings */}
               {activeTab === 'Payment' && (
-                <div className="space-y-6 animate-fade-in">
-                  <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/10 pb-3">Payment Methods</h2>
+                <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
+                  <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center">
+                    <CreditCard size={20} className="mr-2 text-[#D4AF37]" /> Payment Methods
+                  </h2>
                   <div className="space-y-4">
-                    <label className="flex items-center space-x-3 p-4 bg-[#111111] border border-[#D4AF37]/20 rounded-lg cursor-pointer">
-                      <input type="checkbox" checked={localSettings.enableBkash ?? true} onChange={() => handleToggle('enableBkash')} className="w-5 h-5 accent-[#D4AF37]" />
-                      <span className="text-white font-medium text-lg">Enable bKash Payment</span>
+                    <label className="flex items-center space-x-3 p-4 bg-[#111111] border border-[#D4AF37]/20 rounded-xl cursor-pointer hover:border-[#D4AF37]/50 transition-colors">
+                      <input type="checkbox" checked={localSettings.enableBkash ?? true} onChange={() => handleToggle('enableBkash')} className="w-5 h-5 accent-[#D4AF37] rounded" />
+                      <span className="text-white font-medium text-base">Enable bKash Payment</span>
                     </label>
-                    <label className="flex items-center space-x-3 p-4 bg-[#111111] border border-[#D4AF37]/20 rounded-lg cursor-pointer">
-                      <input type="checkbox" checked={localSettings.enableCard ?? true} onChange={() => handleToggle('enableCard')} className="w-5 h-5 accent-[#D4AF37]" />
-                      <span className="text-white font-medium text-lg">Enable Credit/Debit Card</span>
+                    <label className="flex items-center space-x-3 p-4 bg-[#111111] border border-[#D4AF37]/20 rounded-xl cursor-pointer hover:border-[#D4AF37]/50 transition-colors">
+                      <input type="checkbox" checked={localSettings.enableCard ?? true} onChange={() => handleToggle('enableCard')} className="w-5 h-5 accent-[#D4AF37] rounded" />
+                      <span className="text-white font-medium text-base">Enable Credit/Debit Card</span>
                     </label>
-                    <label className="flex items-center space-x-3 p-4 bg-[#111111] border border-[#D4AF37]/20 rounded-lg cursor-pointer">
-                      <input type="checkbox" checked={localSettings.enableCOD ?? true} onChange={() => handleToggle('enableCOD')} className="w-5 h-5 accent-[#D4AF37]" />
-                      <span className="text-white font-medium text-lg">Enable Cash on Delivery (COD)</span>
+                    <label className="flex items-center space-x-3 p-4 bg-[#111111] border border-[#D4AF37]/20 rounded-xl cursor-pointer hover:border-[#D4AF37]/50 transition-colors">
+                      <input type="checkbox" checked={localSettings.enableCOD ?? true} onChange={() => handleToggle('enableCOD')} className="w-5 h-5 accent-[#D4AF37] rounded" />
+                      <span className="text-white font-medium text-base">Enable Cash on Delivery (COD)</span>
                     </label>
                   </div>
                 </div>
@@ -456,42 +473,46 @@ export default function Settings() {
 
               {/* 4. Social Links */}
               {activeTab === 'Social Links' && (
-                <div className="space-y-6 animate-fade-in">
-                  <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/10 pb-3">Social Media URLs</h2>
-                  <div className="space-y-5">
-                    <input type="url" name="facebook" value={localSettings.facebook || ''} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-lg p-3 text-white focus:outline-none focus:border-[#D4AF37]" placeholder="Facebook URL" />
-                    <input type="url" name="instagram" value={localSettings.instagram || ''} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-lg p-3 text-white focus:outline-none focus:border-[#D4AF37]" placeholder="Instagram URL" />
-                    <input type="url" name="twitter" value={localSettings.twitter || ''} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-lg p-3 text-white focus:outline-none focus:border-[#D4AF37]" placeholder="Twitter URL" />
+                <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
+                  <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center">
+                    <Globe size={20} className="mr-2 text-[#D4AF37]" /> Social Media URLs
+                  </h2>
+                  <div className="space-y-4">
+                    <input type="url" name="facebook" value={localSettings.facebook || ''} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-[#D4AF37] transition-colors" placeholder="Facebook Page URL (e.g. https://facebook.com/...)" />
+                    <input type="url" name="instagram" value={localSettings.instagram || ''} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-[#D4AF37] transition-colors" placeholder="Instagram Profile URL (e.g. https://instagram.com/...)" />
+                    <input type="url" name="twitter" value={localSettings.twitter || ''} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-[#D4AF37] transition-colors" placeholder="Twitter Profile URL (e.g. https://twitter.com/...)" />
                   </div>
                 </div>
               )}
 
               {/* 5. FAQs */}
               {activeTab === 'FAQs' && (
-                <div className="space-y-6 animate-fade-in">
-                  <div className="flex justify-between items-center mb-6 border-b border-[#D4AF37]/10 pb-3">
-                    <h2 className="text-xl font-bold text-[#D4AF37] uppercase">Manage FAQs</h2>
-                    <button type="button" onClick={addFaq} className="flex items-center text-sm bg-[#D4AF37]/10 text-[#D4AF37] px-3 py-1.5 rounded hover:bg-[#D4AF37] hover:text-black">
-                      <Plus size={16} className="mr-1" /> Add FAQ
+                <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
+                  <div className="flex justify-between items-center mb-6 border-b border-[#D4AF37]/20 pb-3">
+                    <h2 className="text-xl font-bold text-[#D4AF37] uppercase flex items-center">
+                      <HelpCircle size={20} className="mr-2 text-[#D4AF37]" /> Manage FAQs
+                    </h2>
+                    <button type="button" onClick={addFaq} className="flex items-center text-xs bg-[#D4AF37]/10 text-[#D4AF37] px-3.5 py-2 rounded-xl border border-[#D4AF37]/30 hover:bg-[#D4AF37] hover:text-black font-bold transition-all active:scale-95">
+                      <Plus size={16} className="mr-1" /> Add FAQ Box
                     </button>
                   </div>
                   {(localSettings.faqs || []).map((faq: any, index: number) => (
-                    <div key={index} className="bg-[#111111] p-4 rounded-lg border border-[#D4AF37]/20 space-y-3 relative">
-                      <button type="button" onClick={() => removeFaq(index)} className="absolute top-2 right-2 text-gray-500 hover:text-red-500 p-1"><Trash2 size={18} /></button>
-                      <input type="text" value={faq.question || ''} onChange={(e) => handleFaqChange(index, 'question', e.target.value)} className="w-full bg-[#1A1A1A] border border-gray-700 rounded p-2 text-white" placeholder="Question" />
-                      <input type="text" value={faq.answer || ''} onChange={(e) => handleFaqChange(index, 'answer', e.target.value)} className="w-full bg-[#1A1A1A] border border-gray-700 rounded p-2 text-white" placeholder="Answer" />
+                    <div key={index} className="bg-[#111111] p-4 rounded-xl border border-[#D4AF37]/20 space-y-3 relative group hover:border-[#D4AF37]/40 transition-colors">
+                      <button type="button" onClick={() => removeFaq(index)} className="absolute top-3 right-3 text-gray-500 hover:text-red-500 p-1 rounded-lg transition-colors"><Trash2 size={18} /></button>
+                      <input type="text" value={faq.question || ''} onChange={(e) => handleFaqChange(index, 'question', e.target.value)} className="w-full bg-[#1A1A1A] border border-gray-700 rounded-lg p-2.5 text-white text-sm focus:border-[#D4AF37] focus:outline-none" placeholder="Enter Question..." />
+                      <input type="text" value={faq.answer || ''} onChange={(e) => handleFaqChange(index, 'answer', e.target.value)} className="w-full bg-[#1A1A1A] border border-gray-700 rounded-lg p-2.5 text-white text-sm focus:border-[#D4AF37] focus:outline-none" placeholder="Enter Answer..." />
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* Save Button */}
+              {/* 💾 Save All Settings Button */}
               <div className="mt-10 pt-6 border-t border-[#D4AF37]/20 flex justify-end">
                 <button 
                   type="submit"
-                  className="bg-[#D4AF37] text-black px-8 py-3 rounded-lg hover:bg-white transition-colors font-bold flex items-center space-x-2 shadow-[0_0_15px_rgba(212,175,55,0.3)] active:scale-95"
+                  className="bg-gradient-to-r from-[#D4AF37] to-[#f3e5ab] text-black px-8 py-3 rounded-xl hover:scale-105 transition-all duration-300 font-bold flex items-center space-x-2 shadow-lg shadow-[#D4AF37]/20 active:scale-95 uppercase tracking-wider text-sm"
                 >
-                  <Save size={20} />
+                  <Save size={18} />
                   <span>Save All Settings to Cloud</span>
                 </button>
               </div>
