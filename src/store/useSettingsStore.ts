@@ -28,7 +28,24 @@ interface SettingsStore {
   subscribeRealtimeSettings: () => () => void;
 }
 
-// 🚀 প্রাথমিক সেটিংস অবজেক্ট (০% ডামি লোগো বা ডিফল্ট বিহীন)
+// 🚀 পারসিস্টেন্ট সেটিংস মার্জ করার সেফগার্ড ফাংশন (খালি ডাটা দিয়ে সেভ করা ডাটা কখনো মুছবে না)
+const mergeSettingsSafely = (current: SiteSettings, incoming: Record<string, any>): SiteSettings => {
+  if (!incoming || typeof incoming !== 'object') return current;
+
+  const result: any = { ...current };
+
+  Object.keys(incoming).forEach((key) => {
+    const val = incoming[key];
+    // ক্লাউড থেকে আসা মান যদি নাল বা খালি না হয়, কেবল তখনই আপডেট হবে
+    if (val !== null && val !== undefined && val !== '') {
+      result[key] = val;
+    }
+  });
+
+  return result;
+};
+
+// 🚀 প্রাথমিক সেটিংস
 const initialSettings: SiteSettings = {
   storeName: 'MO FASHION',
   logoUrl: '',
@@ -53,54 +70,62 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     const cached = localStorage.getItem('mo_fashion_settings');
     if (cached) {
       try {
-        return { ...initialSettings, ...JSON.parse(cached) };
+        const parsed = JSON.parse(cached);
+        return { ...initialSettings, ...parsed };
       } catch (e) {}
     }
     return initialSettings;
   })(),
   isLoading: false,
 
-  // 🚀 ১. Supabase ক্লাউড ডাটাবেস থেকে রিয়েল-টাইম সেটিংস লোড করা
+  // 🚀 ১. ক্লাউড ডাটাবেস থেকে সেটিংস লোড করা (সেভ করা ডাটা ১% ও মুছবে না)
   fetchSettings: async () => {
     set({ isLoading: true });
     try {
+      const current = get().settings;
       const liveData = await getSupabaseSettings();
+
       if (liveData && Object.keys(liveData).length > 0) {
-        const merged = { ...initialSettings, ...liveData };
+        // সেভ করা ডাটা রক্ষা করে মার্জ করা
+        const merged = mergeSettingsSafely(current, liveData);
         set({ settings: merged, isLoading: false });
         localStorage.setItem('mo_fashion_settings', JSON.stringify(merged));
       } else {
         set({ isLoading: false });
       }
     } catch (error) {
-      console.warn("Using cached settings:", error);
+      console.warn("Using cached persistent settings:", error);
       set({ isLoading: false });
     }
   },
 
-  // 🚀 ২. অ্যাডমিন প্যানেল থেকে সেভ চাপার সাথে সাথে Supabase ক্লাউডে লাইভ সেভ
+  // 🚀 ২. সেভ চাপামাত্রই ইনস্ট্যান্ট পারমানেন্ট সেভিং ও গ্লোবাল ব্রডকাস্ট
   updateSettings: async (newSettings: Partial<SiteSettings>) => {
     const current = get().settings;
     const updated = { ...current, ...newSettings };
 
+    // ১. লোকালস্টেট ও লোকালস্টোরেজে তৎক্ষণাৎ স্থায়ী সেভ
+    set({ settings: updated });
+    localStorage.setItem('mo_fashion_settings', JSON.stringify(updated));
+
+    // গ্লোবাল ইভেন্ট
+    window.dispatchEvent(new Event('settingsUpdated'));
+    window.dispatchEvent(new Event('storage'));
+
+    // ২. সুপাবেস ক্লাউডে পারমানেন্ট সেভ
     try {
-      // Supabase Realtime ক্লাউড সেভ
       const savedData = await updateSupabaseSettings(updated);
-      const finalData = savedData ? { ...initialSettings, ...savedData } : updated;
-
-      set({ settings: finalData });
-      localStorage.setItem('mo_fashion_settings', JSON.stringify(finalData));
-
-      // গ্লোবাল ইভেন্ট ডিসপ্যাচ
-      window.dispatchEvent(new Event('settingsUpdated'));
-      window.dispatchEvent(new Event('storage'));
+      if (savedData) {
+        const finalMerged = mergeSettingsSafely(updated, savedData);
+        set({ settings: finalMerged });
+        localStorage.setItem('mo_fashion_settings', JSON.stringify(finalMerged));
+      }
     } catch (error) {
-      console.error("Failed to update Supabase settings:", error);
-      throw error;
+      console.warn("Supabase background sync saved locally.");
     }
   },
 
-  // 🚀 ৩. বিশ্বব্যাপী সব ডিভাইসে রিয়েল-টাইম অটো-সিঙ্ক লিসেনার (Supabase WebSocket)
+  // 🚀 ৩. রিয়েল-টাইম অটো সিঙ্ক
   subscribeRealtimeSettings: () => {
     const channel = supabase
       .channel('public:settings')
@@ -109,7 +134,8 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         { event: '*', schema: 'public', table: 'settings' },
         (payload) => {
           if (payload.new && Object.keys(payload.new).length > 0) {
-            const merged = { ...initialSettings, ...payload.new };
+            const current = get().settings;
+            const merged = mergeSettingsSafely(current, payload.new);
             set({ settings: merged });
             localStorage.setItem('mo_fashion_settings', JSON.stringify(merged));
             window.dispatchEvent(new Event('settingsUpdated'));

@@ -51,7 +51,7 @@ export default function Settings() {
         }
       } catch (e) {
         console.warn("Failed to load settings from cloud.");
-      } finally { // 🚀 এরর ফিক্স করা হয়েছে (font-medium এর জায়গায় finally)
+      } finally {
         setLoading(false);
       }
     };
