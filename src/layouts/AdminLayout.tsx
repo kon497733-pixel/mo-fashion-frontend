@@ -6,7 +6,7 @@ import {
   ShoppingCart, 
   Users, 
   Ticket, 
-  Settings, 
+  Settings as SettingsIcon, 
   Menu, 
   X, 
   Bell, 
@@ -25,6 +25,7 @@ import {
   Clock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getLiveSettings, apiRequest } from '../config/api'; // 🚀 সেন্ট্রাল এপিআই কানেক্ট
 
 export default function AdminLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -62,7 +63,7 @@ export default function AdminLayout() {
     { path: '/admin/customers', icon: Users, label: 'Customers' },
     { path: '/admin/coupons', icon: Ticket, label: 'Coupons' },
     { path: '/admin/security', icon: Shield, label: 'Security' },
-    { path: '/admin/settings', icon: Settings, label: 'Settings' },
+    { path: '/admin/settings', icon: SettingsIcon, label: 'Settings' },
     { path: '/admin/recycle-bin', icon: Trash2, label: 'Recycle Bin' },
   ];
 
@@ -81,14 +82,10 @@ export default function AdminLayout() {
       }
 
       try {
-        const hostname = window.location.hostname || 'localhost';
-        const response = await fetch(`http://${hostname}:5000/api/settings`);
-        if (response.ok) {
-          const cloudData = await response.json();
-          if (cloudData && Object.keys(cloudData).length > 0) {
-            setSiteSettings(cloudData);
-            localStorage.setItem('mo_fashion_settings', JSON.stringify(cloudData));
-          }
+        const cloudData = await getLiveSettings();
+        if (cloudData && Object.keys(cloudData).length > 0) {
+          setSiteSettings(cloudData);
+          localStorage.setItem('mo_fashion_settings', JSON.stringify(cloudData));
         }
       } catch (err) {
         console.warn("Backend API offline, using cached settings.");
@@ -135,16 +132,12 @@ export default function AdminLayout() {
     const toastId = toast.loading(`Sending 5-minute security OTP code to ${registeredEmail}...`);
 
     try {
-      const hostname = window.location.hostname || 'localhost';
-      const response = await fetch(`http://${hostname}:5000/api/auth/send-otp`, {
+      const data = await apiRequest('/auth/send-otp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: registeredEmail })
       });
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (data && data.success) {
         setForgotStep('otp');
         toast.success(`Verification code sent to ${registeredEmail}! Check your Gmail inbox.`, { id: toastId, duration: 6000 });
       } else {
@@ -152,7 +145,7 @@ export default function AdminLayout() {
         toast.success(`Verification code sent to ${registeredEmail}! Check your Gmail inbox.`, { id: toastId, duration: 6000 });
       }
     } catch (e) {
-      toast.error("Cannot connect to email server. Make sure backend node server is running!", { id: toastId });
+      toast.error("Cannot connect to email server. Make sure backend server is running!", { id: toastId });
     } finally {
       setIsSendingCode(false);
     }
@@ -169,16 +162,12 @@ export default function AdminLayout() {
     const toastId = toast.loading("Verifying OTP code...");
 
     try {
-      const hostname = window.location.hostname || 'localhost';
-      const response = await fetch(`http://${hostname}:5000/api/auth/verify-otp`, {
+      const data = await apiRequest('/auth/verify-otp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'kon497733@gmail.com', otp: inputOtp.trim() })
       });
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (data && data.success) {
         toast.success("Identity Verified! Set your new passcode now.", { id: toastId });
         setForgotStep('new_password');
       } else {
@@ -189,7 +178,7 @@ export default function AdminLayout() {
     }
   };
 
-  // 🚀 ৭. নতুন কাস্টম পাসওয়ার্ড সেভ করা
+  // 🚀 ७. নতুন কাস্টম পাসওয়ার্ড সেভ করা
   const handleSaveNewPassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword.length < 4) {
@@ -236,7 +225,7 @@ export default function AdminLayout() {
           }
         `}</style>
 
-        {/* ⬛ 🚀 ৩-৪টি ছোট গ্লোয়িং বক্সের মুভিং ব্যাকগ্রাউন্ড (Moving Glowing Box Cluster) */}
+        {/* ⬛ 🚀 ৩-৪টি ছোট গ্লোয়িং বক্সের মুভিং ব্যাকগ্রাউন্ড */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 bg-[#030303]">
           
           {/* কালো ব্যাকগ্রাউন্ড যেখানে বক্স নেই */}
@@ -262,7 +251,7 @@ export default function AdminLayout() {
             </div>
           </div>
 
-          {/* সেফটি রেডিয়াল ওভারলে */}
+          {/* সেফটি রেডিয়াল শ্যাডো */}
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_#030303_85%)] z-3"></div>
         </div>
 
@@ -332,7 +321,7 @@ export default function AdminLayout() {
 
         </div>
 
-        {/* 🚀 ইমেইল OTP ভেরিফিকেশন মোডাল (সেম মুভিং গ্লোয়িং বক্সেস ব্যাকগ্রাউন্ড সহ) */}
+        {/* 🚀 ইমেইল OTP ভেরিফিকেশন মোডাল */}
         {showForgotModal && (
           <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
             
@@ -389,7 +378,7 @@ export default function AdminLayout() {
                 </form>
               )}
 
-              {/* 🚀 Step 2: Enter OTP Code (প্লেসহোল্ডারে "Enter your OTP") */}
+              {/* Step 2: Enter OTP Code */}
               {forgotStep === 'otp' && (
                 <form onSubmit={handleVerifyOtp} className="space-y-5">
                   <div className="flex items-center space-x-2 text-xs text-yellow-500 bg-yellow-500/10 p-3 rounded-lg border border-yellow-500/20">
@@ -402,7 +391,6 @@ export default function AdminLayout() {
                   </p>
 
                   <div className="relative">
-                    {/* 🚀 প্লেসহোল্ডারে "Enter your OTP" লেখা */}
                     <input 
                       type="text"
                       required
