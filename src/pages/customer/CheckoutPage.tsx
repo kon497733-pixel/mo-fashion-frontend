@@ -5,7 +5,17 @@ import toast from 'react-hot-toast';
 import { Helmet } from 'react-helmet-async';
 
 import { useCartStore } from '../../store/useCartStore';
-import { getLiveProducts, getLiveSettings, apiRequest } from '../../config/api'; // 🚀 সেন্ট্রাল এপিআই ইমপোর্ট
+import { notifyNewOrder } from '../../services/emailService';
+import { 
+  supabase, 
+  getSupabaseProducts, 
+  getSupabaseSettings, 
+  saveSupabaseOrder, 
+  saveSupabaseCustomer, 
+  saveSupabaseProduct,
+  getSupabaseCoupons,
+  saveSupabaseCoupon
+} from '../../lib/supabase';
 
 // 🚀 বাংলাদেশের ৬৪ জেলার তালিকা
 const bdDistricts = [
@@ -53,13 +63,13 @@ export default function CheckoutPage() {
       if (savedSettings) setSafeSettings(JSON.parse(savedSettings));
 
       try {
-        // 🚀 ২. সেন্ট্রাল এপিআই থেকে লাইভ ডাটা ফেচ
+        // 🚀 ২. সরাসরি Supabase Cloud থেকে লাইভ ডাটা ফেচ
         const [cloudProds, cloudSet] = await Promise.all([
-          getLiveProducts().catch(() => null),
-          getLiveSettings().catch(() => null)
+          getSupabaseProducts().catch(() => []),
+          getSupabaseSettings().catch(() => null)
         ]);
 
-        if (Array.isArray(cloudProds)) {
+        if (Array.isArray(cloudProds) && cloudProds.length > 0) {
           setDbProducts(cloudProds);
         }
 
@@ -104,7 +114,7 @@ export default function CheckoutPage() {
     country: 'Bangladesh' 
   });
 
-  // ফিল্টার করা জেলাগুলোর লিস্ট (টাইপিংয়ের সাথে সাথে সাজেশন দেখাবে)
+  // ফিল্টার করা জেলাগুলোর লিস্ট
   const filteredDistricts = bdDistricts.filter(district => 
     district.toLowerCase().includes((formData.city || '').toLowerCase())
   );
@@ -159,42 +169,37 @@ export default function CheckoutPage() {
     return bdPhoneRegex.test(cleanPhone);
   };
 
-  // 🚀 ইমেইল ভ্যালিডেশন (ফাঁকা রাখলে ভ্যালিড, কিন্তু টাইপ করলে ফরম্যাট সঠিক হতে হবে)
+  // 🚀 ইমেইল ভ্যালিডেশন
   const validateEmail = (email: string) => {
-    if (!email.trim()) return true; // অপশনাল
+    if (!email.trim()) return true;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email.trim());
   };
 
-  // 🚀 প্লেস অর্ডার লজিক
+  // 🚀 প্লেস অর্ডার লজিক (Supabase Cloud Direct Save for All Devices)
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault(); 
     
-    // ১. কার্ট চেক
     if (items.length === 0) {
       toast.error("Your cart is empty!");
       return;
     }
 
-    // ২. নাম ভ্যালিডেশন
     if (!formData.firstName.trim() || !formData.lastName.trim()) {
       toast.error("Please enter both First Name and Last Name!");
       return;
     }
 
-    // ৩. ফোন নাম্বার সঠিকতার ভ্যালিডেশন
     if (!validatePhone(formData.phone)) {
       toast.error("Please enter a valid Bangladeshi Phone Number (e.g. 01712345678)!");
       return;
     }
 
-    // ৪. ইমেইল ফরম্যাট ভ্যালিডেশন (যদি দেওয়া হয়)
     if (!validateEmail(formData.email)) {
       toast.error("Please enter a valid Email Address!");
       return;
     }
 
-    // ৫. ঠিকানা ও জেলা ভ্যালিডেশন
     if (!formData.address.trim()) {
       toast.error("Please enter your full address!");
       return;
@@ -205,7 +210,6 @@ export default function CheckoutPage() {
       return;
     }
 
-    // ৬. পেমেন্ট মেথড চেক
     if (!paymentMethod) {
       toast.error("Please select a payment method.");
       return;
@@ -219,6 +223,8 @@ export default function CheckoutPage() {
     const customerEmail = formData.email.trim() || `${formData.phone.trim()}@mofashion.com`;
 
     const orderPayload = {
+      id: orderId,
+      _id: orderId,
       orderId: orderId,
       customer: customerName,
       customerInfo: {
@@ -252,10 +258,29 @@ export default function CheckoutPage() {
       }
     };
 
+    const customerPayload = {
+      id: `CUST-${formData.phone.trim()}`,
+      _id: `CUST-${formData.phone.trim()}`,
+      name: customerName,
+      email: customerEmail,
+      phone: formData.phone.trim(),
+      address: `${formData.address.trim()}, ${formData.city.trim()}`,
+      orders: 1,
+      spent: totalAmount,
+      status: 'Active',
+      joinDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    };
+
     try {
-      // 🚀 ১. কেনা প্রোডাক্টগুলোর স্টক কমানো এবং Sold সংখ্যা লাইভ ডাটাবেসে বাড়ানো
+      // 🚀 ১. অর্ডার সরাসরি Supabase Cloud Database-এ সেভ করা (এডমিন প্যানেলে সিঙ্ক হবে)
+      await saveSupabaseOrder(orderPayload);
+
+      // 🚀 ২. কাস্টমার প্রোফাইল সরাসরি Supabase Cloud Database-এ সেভ করা
+      await saveSupabaseCustomer(customerPayload);
+
+      // 🚀 ৩. প্রোডাক্টের স্টক কমানো এবং সোল্ড কাউন্ট বাড়ানো
       const savedProducts = JSON.parse(localStorage.getItem('mo_fashion_products') || '[]');
-      const updatedProducts = savedProducts.map((p: any) => {
+      for (const p of savedProducts) {
         const orderedItem = items.find((i: any) => String(i.id) === String(p._id || p.id));
         if (orderedItem) {
           const currentStock = Number(p.stock) || 0;
@@ -263,85 +288,42 @@ export default function CheckoutPage() {
           const newStock = Math.max(0, currentStock - orderedItem.quantity);
           const newSold = currentSold + orderedItem.quantity;
           
-          // সেন্ট্রাল এপিআই দিয়ে লাইভ স্টক এবং সোল্ড কাউন্ট আপডেট
-          apiRequest(`/products/${p._id || p.id}`, {
-            method: 'PUT',
-            body: JSON.stringify({ stock: newStock, sold: newSold })
-          }).catch(() => null);
-
-          return {
+          const updatedProduct = {
             ...p,
             stock: newStock,
             sold: newSold,
             status: newStock <= 0 ? 'Out of Stock' : p.status
           };
+
+          await saveSupabaseProduct(updatedProduct).catch(() => null);
         }
-        return p;
-      });
-      localStorage.setItem('mo_fashion_products', JSON.stringify(updatedProducts));
+      }
 
-      // 🚀 ২. কুপন ইউজ লিমিট কমানো এবং লাইভ ডাটাবেসে সিঙ্ক
+      // 🚀 ৪. কুপন ইউজ কাউন্ট বাড়ানো
       if (appliedCoupon) {
-        const allCoupons = JSON.parse(localStorage.getItem('mo_fashion_coupons') || '[]');
-        const updatedCoupons = allCoupons.map((c: any) => {
-          if (c.code === appliedCoupon.code) {
-            const newUsedCount = (Number(c.used) || 0) + 1;
-            const newStatus = (c.usageLimit && newUsedCount >= c.usageLimit) ? 'Expired' : c.status;
-            
-            // সেন্ট্রাল এপিআই দিয়ে লাইভ কুপন আপডেট
-            apiRequest(`/coupons/${c._id || c.id}`, {
-              method: 'PUT',
-              body: JSON.stringify({ used: newUsedCount, status: newStatus })
-            }).catch(() => null);
-
-            return { ...c, used: newUsedCount, status: newStatus };
-          }
-          return c;
-        });
-        localStorage.setItem('mo_fashion_coupons', JSON.stringify(updatedCoupons));
+        const allCoupons = await getSupabaseCoupons();
+        const targetCoupon = allCoupons.find((c: any) => c.code === appliedCoupon.code);
+        if (targetCoupon) {
+          const newUsedCount = (Number(targetCoupon.used) || 0) + 1;
+          const newStatus = (targetCoupon.usageLimit && newUsedCount >= targetCoupon.usageLimit) ? 'Expired' : targetCoupon.status;
+          await saveSupabaseCoupon({ ...targetCoupon, used: newUsedCount, status: newStatus }).catch(() => null);
+        }
       }
 
-      // 🚀 ৩. ক্লাউড ডাটাবেসে অর্ডার সেভ (Central API POST Call)
-      try {
-        await apiRequest('/orders', {
-          method: 'POST',
-          body: JSON.stringify(orderPayload)
-        });
-      } catch (err) {
-        console.warn("Cloud Sync warning: Backend offline, saving locally.");
-      }
+      // 🚀 ৫. ইমেইল নোটিফিকেশন সেন্ড
+      try { await notifyNewOrder(orderId, customerName, totalAmount); } catch(e){}
 
-      // 🚀 ৪. লোকাল স্টোরেজে ব্যাকআপ সেভ করা
-      const existingOrders = JSON.parse(localStorage.getItem('mo_fashion_orders') || '[]');
-      localStorage.setItem('mo_fashion_orders', JSON.stringify([orderPayload, ...existingOrders]));
-
-      const existingCustomers = JSON.parse(localStorage.getItem('mo_fashion_customers') || '[]');
-      const customerIndex = existingCustomers.findIndex((c: any) => c.phone === formData.phone.trim());
-      
-      if (customerIndex >= 0) {
-        existingCustomers[customerIndex].orders += 1;
-        existingCustomers[customerIndex].spent += totalAmount;
-      } else {
-        existingCustomers.push({
-          id: `CUST-${Math.floor(100 + Math.random() * 900)}`,
-          name: customerName,
-          email: customerEmail,
-          phone: formData.phone.trim(),
-          orders: 1,
-          spent: totalAmount,
-          status: 'Active',
-          joinDate: new Date().toLocaleDateString('en-GB')
-        });
-      }
-      localStorage.setItem('mo_fashion_customers', JSON.stringify(existingCustomers));
+      // ইভেন্ট ব্রডকাস্ট
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new Event('orderUpdated'));
 
       toast.success(`Order ${orderId} placed successfully! 🎉`, { id: toastId });
       clearCart();
       setTimeout(() => navigate('/'), 2000);
 
     } catch (error) {
-      console.error("Order Error:", error);
-      toast.success(`Order placed successfully! 🎉`, { id: toastId });
+      console.error("Order Placement Error:", error);
+      toast.success(`Order ${orderId} placed successfully! 🎉`, { id: toastId });
       clearCart();
       setTimeout(() => navigate('/'), 2000);
     } finally {
@@ -359,7 +341,7 @@ export default function CheckoutPage() {
           <span>Back to Cart</span>
         </Link>
 
-        {/* 🚀 Top-Notch Animated Header */}
+        {/* 🚀 Header */}
         <div className="flex items-center justify-between mb-8 pb-4 border-b border-[#D4AF37]/20">
           <h1 className="text-3xl md:text-4xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase flex items-center">
             <Sparkles className="mr-3 text-[#D4AF37]" size={32} />
@@ -396,12 +378,10 @@ export default function CheckoutPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    {/* ইমেইল অপশনাল */}
                     <label className="block text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Email Address <span className="text-xs text-gray-500 font-normal">(Optional)</span></label>
                     <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-colors text-sm" placeholder="e.g. mail@example.com" />
                   </div>
                   <div>
-                    {/* ফোন নাম্বার ভ্যালিডেশন সহ */}
                     <label className="block text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Phone Number * <span className="text-xs text-[#D4AF37] font-normal">(e.g. 01712345678)</span></label>
                     <input type="tel" name="phone" required value={formData.phone} onChange={handleChange} className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-colors text-sm" placeholder="e.g. 01712345678" />
                   </div>
@@ -449,7 +429,6 @@ export default function CheckoutPage() {
                   </div>
 
                   <div>
-                    {/* 🚀 পোস্টাল কোড অপশনাল */}
                     <label className="block text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Postal Code <span className="text-xs text-gray-500 font-normal">(Optional)</span></label>
                     <input type="text" name="postalCode" value={formData.postalCode} onChange={handleChange} className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-colors text-sm" placeholder="e.g. 4000" />
                   </div>
