@@ -1,18 +1,17 @@
 import { useState, useEffect } from 'react';
 import { 
   Trash2, RefreshCcw, ArchiveX, Layers, Package, 
-  AlertTriangle, Image as ImageIcon, Sparkles, RefreshCw 
+  AlertTriangle, Image as ImageIcon, RefreshCw 
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
 import { 
   supabase, 
   getSupabaseRecycleBin, 
-  restoreFromRecycleBin, 
   permanentDeleteFromRecycleBin,
   saveSupabaseProduct,
   saveSupabaseCategory,
-  saveSupabaseCategory as updateCategoryCount
+  getSupabaseCategories
 } from '../../lib/supabase';
 
 export default function RecycleBin() {
@@ -21,7 +20,7 @@ export default function RecycleBin() {
   const [activeTab, setActiveTab] = useState<'categories' | 'products'>('categories');
   const [loading, setLoading] = useState(true);
 
-  // 🚀 ১. ক্লাউড ডাটাবেস ও লোকাল ব্যাকআপ থেকে রিসাইকেল বিনের ডাটা লোড
+  // 🚀 ১. ক্লাউড ডাটাবেস ও লোকাল ব্যাকআপ থেকে রিসাইকেল বিনের ডাটা ফেচ
   const fetchTrashData = async () => {
     setLoading(true);
 
@@ -78,7 +77,7 @@ export default function RecycleBin() {
 
     // Supabase Realtime Listener for Trash
     const channel = supabase
-      .channel('public:recycle_bin')
+      .channel('public:recycle_bin:management')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'recycle_bin' }, () => {
         fetchTrashData();
       })
@@ -113,7 +112,7 @@ export default function RecycleBin() {
     // ৩. ক্লাউডে ১-ক্লিক রিস্টোর (Supabase Cloud Upsert)
     try {
       await saveSupabaseCategory(cleanCategory);
-      if (trashId) await permanentDeleteFromRecycleBin(trashId);
+      if (trashId) await permanentDeleteFromRecycleBin(trashId, catId, 'categories');
 
       window.dispatchEvent(new Event('storage'));
       window.dispatchEvent(new Event('categoryUpdated'));
@@ -133,9 +132,7 @@ export default function RecycleBin() {
       setDeletedCategories(updatedBin);
       localStorage.setItem('mo_fashion_recycle_bin_categories', JSON.stringify(updatedBin));
 
-      if (category.trashId) {
-        await permanentDeleteFromRecycleBin(category.trashId);
-      }
+      await permanentDeleteFromRecycleBin(category.trashId || catId, catId, 'categories');
 
       toast.success(`Category "${catName}" permanently deleted from database.`);
     }
@@ -162,9 +159,9 @@ export default function RecycleBin() {
     const newActiveList = [cleanProduct, ...cleanActive];
     localStorage.setItem('mo_fashion_products', JSON.stringify(newActiveList));
 
-    // ৩. ক্যাটাগরি প্রোডাক্ট কাউন্ট আপডেট
+    // ৩. ক্যাটাগরি প্রোডাক্ট কাউন্ট অটোমেটিক বাড়ানো
     try {
-      const activeCats = JSON.parse(localStorage.getItem('mo_fashion_categories') || '[]');
+      const activeCats = await getSupabaseCategories();
       if (Array.isArray(activeCats) && activeCats.length > 0) {
         const updatedCats = activeCats.map((cat: any) => {
           const count = newActiveList.filter((p: any) => 
@@ -175,7 +172,7 @@ export default function RecycleBin() {
         });
         localStorage.setItem('mo_fashion_categories', JSON.stringify(updatedCats));
         for (const c of updatedCats) {
-          await updateCategoryCount(c).catch(() => null);
+          await saveSupabaseCategory(c).catch(() => null);
         }
       }
     } catch (e) {}
@@ -183,7 +180,7 @@ export default function RecycleBin() {
     // ৪. ক্লাউড ডাটাবেসে সেভ (Supabase Cloud Upsert)
     try {
       await saveSupabaseProduct(cleanProduct);
-      if (trashId) await permanentDeleteFromRecycleBin(trashId);
+      if (trashId) await permanentDeleteFromRecycleBin(trashId, pId, 'products');
 
       window.dispatchEvent(new Event('storage'));
       window.dispatchEvent(new Event('productUpdated'));
@@ -204,22 +201,20 @@ export default function RecycleBin() {
       setDeletedProducts(updatedBin);
       localStorage.setItem('mo_fashion_recycle_bin_products', JSON.stringify(updatedBin));
 
-      if (product.trashId) {
-        await permanentDeleteFromRecycleBin(product.trashId);
-      }
+      await permanentDeleteFromRecycleBin(product.trashId || pId, pId, 'products');
 
       toast.success(`Product "${pName}" permanently deleted from database.`);
     }
   };
 
   // ==========================================
-  // 🚀 EMPTY BIN LOGIC (চিরতরে মুছে ফেলা)
+  // 🚀 EMPTY BIN LOGIC (পার্মানেন্ট ওয়াইপ)
   // ==========================================
   const handleEmptyBin = async () => {
     if (activeTab === 'categories' && deletedCategories.length > 0) {
       if (window.confirm("Are you sure you want to permanently delete ALL categories in the recycle bin?")) {
         for (const cat of deletedCategories) {
-          if (cat.trashId) await permanentDeleteFromRecycleBin(cat.trashId);
+          await permanentDeleteFromRecycleBin(cat.trashId || cat.id, String(cat.id || cat._id), 'categories');
         }
         setDeletedCategories([]);
         localStorage.setItem('mo_fashion_recycle_bin_categories', JSON.stringify([]));
@@ -228,7 +223,7 @@ export default function RecycleBin() {
     } else if (activeTab === 'products' && deletedProducts.length > 0) {
       if (window.confirm("Are you sure you want to permanently delete ALL products in the recycle bin?")) {
         for (const p of deletedProducts) {
-          if (p.trashId) await permanentDeleteFromRecycleBin(p.trashId);
+          await permanentDeleteFromRecycleBin(p.trashId || p.id, String(p.id || p._id), 'products');
         }
         setDeletedProducts([]);
         localStorage.setItem('mo_fashion_recycle_bin_products', JSON.stringify([]));

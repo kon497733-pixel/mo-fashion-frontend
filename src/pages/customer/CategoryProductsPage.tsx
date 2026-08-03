@@ -1,17 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { ChevronLeft, ShoppingBag, Image as ImageIcon, Tag, Search, RefreshCw, Layers } from 'lucide-react';
+import { ChevronLeft, ShoppingBag, Image as ImageIcon, Tag, Search, RefreshCw, Layers, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCartStore } from '../../store/useCartStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
-import { supabase } from '../../lib/supabase';
+import { 
+  supabase, 
+  getSupabaseProducts, 
+  getSupabaseCategories 
+} from '../../lib/supabase';
 
 export default function CategoryProductsPage() {
   const params = useParams<any>();
   const location = useLocation();
 
-  // 🚀 ১. ট্রিপল-লেভেল পারফেক্ট ক্যাটাগরি নাম এক্সট্রাকটর (কখনো খালি "" হবে না)
+  // 🚀 ১. ট্রিপল-লেভেল পারফেক্ট ক্যাটাগরি নাম এক্সট্রাকটর (কখনো খালি/উধাও হবে না)
   const extractCategoryName = (): string => {
     let raw = params.categoryName || params.category || params.name || params.id;
     
@@ -32,7 +36,22 @@ export default function CategoryProductsPage() {
   const { settings } = useSettingsStore();
   const safeSettings = settings as any;
 
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>(() => {
+    try {
+      const savedProds = localStorage.getItem('mo_fashion_products');
+      if (savedProds) {
+        const parsed = JSON.parse(savedProds);
+        const targetCatLower = decodedCategoryName.toLowerCase().trim();
+        return parsed.filter((p: any) => {
+          if (!p || !p.category) return false;
+          const pCatLower = String(p.category).toLowerCase().trim();
+          return pCatLower === targetCatLower || pCatLower.includes(targetCatLower) || targetCatLower.includes(pCatLower);
+        });
+      }
+    } catch (e) {}
+    return [];
+  });
+
   const [categoryInfo, setCategoryInfo] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -47,14 +66,14 @@ export default function CategoryProductsPage() {
   }, []);
 
   // 🚀 ২. সরাসরি Supabase ক্লাউড ডাটাবেস থেকে ১০০% লাইভ ডাটা ফেচিং (All Devices Sync)
-  const fetchCategoryProductsLive = async () => {
+  const fetchCategoryProductsLive = async (isSilent = false) => {
     if (!decodedCategoryName) {
       setLoading(false);
       return;
     }
 
     try {
-      setLoading(true);
+      if (!isSilent && products.length === 0) setLoading(true);
 
       // ১. সরাসরি ক্লাউড ডাটাবেস থেকে সব প্রোডাক্ট ফেচ
       const { data: cloudProducts, error: prodErr } = await supabase
@@ -86,7 +105,7 @@ export default function CategoryProductsPage() {
         setProducts(matchedLocal);
       }
 
-      // ২. সরাসরি ক্লাউড ডাটাবেস থেকে ক্যাটাগরি ইনফো ফেচ
+      // ২. সরাসরি ক্লাউড ডাটাবেস থেকে ক্যাটাগরি ইনফো ফেচ (লাইভ ডিসক্রিপশন সহ)
       const { data: cloudCategories } = await supabase
         .from('categories')
         .select('*');
@@ -103,32 +122,34 @@ export default function CategoryProductsPage() {
     } catch (error) {
       console.warn("Category Products live fetch warning:", error);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchCategoryProductsLive();
 
-    // 🚀 ৩. Supabase WebSocket Realtime Channel (এডমিন থেকে যে ডিভাইসেই এড হোক, ১ সেকেন্ডে সিঙ্ক হবে)
+    // 🚀 ৩. Supabase WebSocket Realtime Channel (এডমিন থেকে যে ডিভাইসেই প্রোডাক্ট বা ডিসক্রিপশন এড/এডিট হোক, ১ সেকেন্ডে সিঙ্ক হবে)
     const channel = supabase
       .channel(`public:category:live:${decodedCategoryName}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
-        fetchCategoryProductsLive();
+        fetchCategoryProductsLive(true);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
-        fetchCategoryProductsLive();
+        fetchCategoryProductsLive(true);
       })
       .subscribe();
 
-    const handleStorageChange = () => fetchCategoryProductsLive();
+    const handleStorageChange = () => fetchCategoryProductsLive(true);
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('productUpdated', handleStorageChange);
+    window.addEventListener('categoryUpdated', handleStorageChange);
 
     return () => {
       supabase.removeChannel(channel);
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('productUpdated', handleStorageChange);
+      window.removeEventListener('categoryUpdated', handleStorageChange);
     };
   }, [decodedCategoryName, location.pathname]);
 
@@ -182,7 +203,7 @@ export default function CategoryProductsPage() {
           <span>Back to Collections</span>
         </Link>
 
-        {/* 🚀 Category Header Banner */}
+        {/* 🚀 Category Header Banner (Live Description & Name Sync) */}
         <div className="bg-[#1A1A1A] border border-[#D4AF37]/20 rounded-3xl p-6 sm:p-8 mb-10 shadow-2xl backdrop-blur-md relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/5 rounded-full blur-3xl pointer-events-none"></div>
 
@@ -192,17 +213,18 @@ export default function CategoryProductsPage() {
                 <span className="p-2 bg-[#D4AF37]/10 text-[#D4AF37] rounded-xl border border-[#D4AF37]/30">
                   <Layers size={22} />
                 </span>
-                <span className="text-xs font-bold uppercase tracking-widest text-[#D4AF37] bg-[#D4AF37]/10 px-3 py-1 rounded-full border border-[#D4AF37]/20">
-                  Live Collection Showcase
+                <span className="text-xs font-bold uppercase tracking-widest text-[#D4AF37] bg-[#D4AF37]/10 px-3 py-1 rounded-full border border-[#D4AF37]/20 flex items-center">
+                  <Sparkles size={12} className="mr-1.5 animate-pulse text-[#D4AF37]" /> Live Collection Showcase
                 </span>
               </div>
 
-              {/* 🚀 ক্যাটাগরি নাম (কখনো খালি হবে না) */}
+              {/* 🚀 ক্যাটাগরি নাম (এডমিন প্যানেল থেকে এডিট করলে সাথে সাথে চেঞ্জ হবে) */}
               <h1 className="text-3xl md:text-5xl font-serif font-bold text-white uppercase tracking-wider mb-3">
-                {decodedCategoryName || 'All Products'}
+                {categoryInfo?.name || decodedCategoryName || 'All Products'}
               </h1>
 
-              <p className="text-gray-400 text-sm max-w-xl leading-relaxed">
+              {/* 🚀 ক্যাটাগরি বিবরণ/ডিসক্রিপশন (এডমিন প্যানেল থেকে এডিট করলে সাথে সাথে চেঞ্জ হবে) */}
+              <p className="text-gray-400 text-sm max-w-xl leading-relaxed font-medium">
                 {categoryInfo?.description || `Explore our handpicked selection of items in ${decodedCategoryName || 'this collection'}.`}
               </p>
             </div>
@@ -232,7 +254,7 @@ export default function CategoryProductsPage() {
         )}
 
         {/* 📦 Products Grid */}
-        {loading ? (
+        {loading && products.length === 0 ? (
           <div className="text-center py-20 text-[#D4AF37] animate-pulse flex flex-col items-center justify-center space-y-3">
             <RefreshCw size={36} className="animate-spin text-[#D4AF37]" />
             <p className="font-medium text-lg">Fetching live items in {decodedCategoryName}...</p>

@@ -64,7 +64,7 @@ export default function Products() {
     variants: [] as { name: string, options: string }[]
   });
 
-  // 🚀 ক্যাটাগরির প্রোডাক্ট সংখ্যা (Count) ক্লাউড ডাটাবেস ও লোকালস্টোরেজে আপডেট করার ফাংশন
+  // 🚀 ক্যাটাগরির প্রোডাক্ট সংখ্যা (Count) ক্লাউড ডাটাবেস ও লোকালস্টোরেজে রিয়েল-টাইম আপডেট করার ফাংশন
   const updateCategoryProductCounts = async (currentProductsList: any[]) => {
     try {
       const activeCategories = await getSupabaseCategories();
@@ -92,7 +92,7 @@ export default function Products() {
     }
   };
 
-  // 🚀 ২. 5G স্পিড রিয়েল-টাইম ক্লাউড সিঙ্ক ও লোকাল ডাটা মার্জ
+  // 🚀 ২. 5G স্পিড রিয়েল-টাইম ক্লাউড সিঙ্ক ও লোকাল ডাটা মার্জ (যাতে কোনো প্রোডাক্ট উধাও না হয়)
   const fetchProducts = async () => {
     setLoading(true);
 
@@ -141,7 +141,7 @@ export default function Products() {
     const savedCats = JSON.parse(localStorage.getItem('mo_fashion_categories') || '[]');
     setCategories(savedCats.length > 0 ? savedCats : [{ name: "Men's Collection" }]);
 
-    // 🚀 ৩. Supabase Realtime WebSocket Listener (সব ডিভাইসে রিয়েল-টাইম ব্রডকাস্ট)
+    // 🚀 ৩. Supabase Realtime WebSocket Listener (সব ডিভাইসে ১ সেকেন্ডে রিয়েল-টাইম ব্রডকাস্ট)
     const channel = supabase
       .channel('public:products:management:5g')
       .on(
