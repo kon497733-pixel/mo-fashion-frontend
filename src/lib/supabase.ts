@@ -361,7 +361,7 @@ export const saveSupabaseCustomer = async (customerData: Record<string, any>) =>
 };
 
 // =========================================================
-// 📦 7. RECYCLE BIN SERVICES (Soft Delete & 1-Click Restoration)
+// 📦 7. UNIVERSAL RECYCLE BIN SERVICES (Soft Delete & Live Sync)
 // =========================================================
 
 export const getSupabaseRecycleBin = async () => {
@@ -385,10 +385,11 @@ export const getSupabaseRecycleBin = async () => {
   return cached ? JSON.parse(cached) : [];
 };
 
-// 🗑️ Soft Delete: Moves item to recycle_bin and removes from original table
-export const moveToRecycleBin = async (originalTable: string, item: Record<string, any>) => {
+// 🗑️ Universal Soft Delete: Moves item (Product or Category) to recycle_bin and removes from active table
+export const moveToRecycleBin = async (originalTable: 'products' | 'categories' | 'orders' | 'coupons', item: Record<string, any>) => {
   const itemId = String(item.id || item._id || Date.now());
   const trashId = `TRASH-${Date.now()}`;
+  const deletedAtStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   const trashPayload = {
     id: trashId,
@@ -396,15 +397,36 @@ export const moveToRecycleBin = async (originalTable: string, item: Record<strin
     itemId: itemId,
     name: String(item.name || item.code || item.orderId || 'Deleted Item'),
     data: item,
-    deletedAt: new Date().toISOString()
+    deletedAt: deletedAtStr
   };
 
   try {
-    // 1. Save to recycle_bin
+    // 1. Insert into Supabase recycle_bin table
     await supabase.from('recycle_bin').insert([trashPayload]);
 
-    // 2. Remove from original table
+    // 2. Delete from original Supabase table
     await supabase.from(originalTable).delete().eq('id', itemId);
+
+    // 3. Update Local Storage for Recycle Bin Backups
+    const binKey = originalTable === 'categories' 
+      ? 'mo_fashion_recycle_bin_categories' 
+      : 'mo_fashion_recycle_bin_products';
+    
+    const existingBin = JSON.parse(localStorage.getItem(binKey) || '[]');
+    const updatedBin = [{ ...item, deletedAt: deletedAtStr }, ...existingBin];
+    localStorage.setItem(binKey, JSON.stringify(updatedBin));
+
+    // 4. Remove item from Active Local Storage list
+    const activeKey = originalTable === 'categories' ? 'mo_fashion_categories' : 'mo_fashion_products';
+    const activeItems = JSON.parse(localStorage.getItem(activeKey) || '[]');
+    const remainingActive = activeItems.filter((i: any) => String(i.id || i._id) !== itemId);
+    localStorage.setItem(activeKey, JSON.stringify(remainingActive));
+
+    // 5. Trigger Realtime Events across all open tabs/pages
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('productUpdated'));
+    window.dispatchEvent(new Event('categoryUpdated'));
+    window.dispatchEvent(new Event('recycleBinUpdated'));
 
     return trashPayload;
   } catch (err: any) {
@@ -413,16 +435,41 @@ export const moveToRecycleBin = async (originalTable: string, item: Record<strin
   }
 };
 
-// ♻️ Restore: Moves item back to original table and deletes from recycle_bin
+// ♻️ Universal Restore: Moves item back to active table and removes from recycle_bin
 export const restoreFromRecycleBin = async (trashRecord: Record<string, any>) => {
-  const { originalTable, data: originalData, id: trashId } = trashRecord;
+  const { originalTable, data: originalData, id: trashId, itemId } = trashRecord;
+  const targetId = String(itemId || originalData?.id || originalData?._id);
 
   try {
-    // 1. Restore to original table
-    await supabase.from(originalTable).upsert([originalData], { onConflict: 'id' });
+    // 1. Restore to original table in Supabase
+    if (originalTable && originalData) {
+      await supabase.from(originalTable).upsert([originalData], { onConflict: 'id' });
+    }
 
-    // 2. Remove from recycle_bin
-    await supabase.from('recycle_bin').delete().eq('id', trashId);
+    // 2. Delete from Supabase recycle_bin
+    if (trashId) {
+      await supabase.from('recycle_bin').delete().eq('id', trashId);
+    }
+
+    // 3. Restore in Local Storage active lists
+    const activeKey = originalTable === 'categories' ? 'mo_fashion_categories' : 'mo_fashion_products';
+    const activeItems = JSON.parse(localStorage.getItem(activeKey) || '[]');
+    const cleanActive = activeItems.filter((i: any) => String(i.id || i._id) !== targetId);
+    localStorage.setItem(activeKey, JSON.stringify([originalData, ...cleanActive]));
+
+    // 4. Remove from Local Storage Recycle Bin
+    const binKey = originalTable === 'categories' 
+      ? 'mo_fashion_recycle_bin_categories' 
+      : 'mo_fashion_recycle_bin_products';
+    const existingBin = JSON.parse(localStorage.getItem(binKey) || '[]');
+    const updatedBin = existingBin.filter((i: any) => String(i.id || i._id) !== targetId);
+    localStorage.setItem(binKey, JSON.stringify(updatedBin));
+
+    // 5. Trigger Realtime Events across all open tabs/pages
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('productUpdated'));
+    window.dispatchEvent(new Event('categoryUpdated'));
+    window.dispatchEvent(new Event('recycleBinUpdated'));
 
     return true;
   } catch (err: any) {

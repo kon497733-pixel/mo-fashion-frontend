@@ -225,23 +225,29 @@ export default function Products() {
     setFormData({ ...formData, variants: updatedVariants });
   };
 
-  // 🗑️ ডিলিট প্রোডাক্ট (রিসাইকেল বিনে প্রেরণ ও মাল্টি-ডিভাইস সিঙ্ক)
+  // 🗑️ ডিলিট প্রোডাক্ট (লাইভ স্টোর থেকে রিমুভ, রিসাইকেল বিনে প্রেরণ ও ক্যাটাগরি কাউন্ট আপডেট)
   const handleDelete = async (product: any) => {
     const pId = String(product._id || product.id);
     const pName = product.name || 'Product';
 
     if (window.confirm(`Are you sure you want to move "${pName}" to Recycle Bin?`)) {
+      // ১. একটিভ লিস্ট থেকে রিমুভ
       const remaining = products.filter(p => String(p._id || p.id) !== pId);
       setProducts(remaining);
       localStorage.setItem('mo_fashion_products', JSON.stringify(remaining));
 
+      // ২. সফট-ডিলিট ক্লাউড ও লোকাল রিসাইকেল বিন সার্ভিস
       try {
         await moveToRecycleBin('products', product);
         await deleteSupabaseProduct(pId);
         try { await notifyProductChange('Deleted', pName); } catch(e){}
-        toast.success("Product moved to Recycle Bin! 🗑️");
+        
+        window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new Event('productUpdated'));
+
+        toast.success(`"${pName}" moved to Recycle Bin & removed from live store! 🗑️`);
       } catch (e) {
-        toast.success("Product deleted locally.");
+        toast.success("Product removed locally.");
       }
     }
   };
@@ -304,6 +310,7 @@ export default function Products() {
     
     // উইন্ডো ইভেন্ট ট্রিগার
     window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('productUpdated'));
 
     setIsSaving(true);
     setIsModalOpen(false);
