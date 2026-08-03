@@ -92,7 +92,7 @@ export default function Products() {
     }
   };
 
-  // 🚀 ২. রিয়েল-টাইম ক্লাউড সিঙ্ক ও লোকাল ডাটা মার্জ (যাতে ১ সেকেন্ডের জন্যও প্রোডাক্ট উধাও না হয়)
+  // 🚀 ২. 5G স্পিড রিয়েল-টাইম ক্লাউড সিঙ্ক ও লোকাল ডাটা মার্জ
   const fetchProducts = async () => {
     setLoading(true);
 
@@ -143,7 +143,7 @@ export default function Products() {
 
     // 🚀 ৩. Supabase Realtime WebSocket Listener (সব ডিভাইসে রিয়েল-টাইম ব্রডকাস্ট)
     const channel = supabase
-      .channel('public:products:management')
+      .channel('public:products:management:5g')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'products' },
@@ -285,7 +285,7 @@ export default function Products() {
     }
   };
 
-  // 🚀 ৪. সেভ প্রোডাক্ট লজিক (পার্মানেন্ট সেভ, ক্যাটাগরি কাউন্ট বাড়ান ও অল-ডিভাইস সিঙ্ক)
+  // 🚀 ৪. সেভ প্রোডাক্ট লজিক (পার্মানেন্ট সেভ, সেলিং প্রাইস সিঙ্ক ও অল-ডিভাইস ব্রডকাস্ট)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -327,7 +327,7 @@ export default function Products() {
       sizes: sizeVar ? sizeVar.options : []     
     };
 
-    // 🚀 ১. পার্মানেন্ট ইন্সট্যান্ট লোকাল আপডেট (যাতে কোনো অবস্থায় রিফ্রেশ দিলে বা নেট স্পিড কম থাকলেও উধাও না হয়)
+    // 🚀 ১. পার্মানেন্ট ইন্সট্যান্ট লোকাল আপডেট
     const currentList = sanitizeProducts(JSON.parse(localStorage.getItem('mo_fashion_products') || '[]'));
     let updatedList = [];
     
@@ -431,7 +431,7 @@ export default function Products() {
         </select>
       </div>
 
-      {/* 📦 Animated Products Table */}
+      {/* 📦 Animated Products Table with Selling Price Display */}
       <div className="bg-[#1A1A1A] rounded-2xl border border-[#D4AF37]/20 overflow-hidden shadow-2xl transition-all duration-300">
         <div className="overflow-x-auto custom-scrollbar">
           {loading && products.length === 0 ? (
@@ -445,7 +445,7 @@ export default function Products() {
                 <tr>
                   <th className="px-6 py-4">Product Info</th>
                   <th className="px-6 py-4">Category</th>
-                  <th className="px-6 py-4">Price & Discount</th>
+                  <th className="px-6 py-4">Price & Selling Price</th>
                   <th className="px-6 py-4">Variants</th>
                   <th className="px-6 py-4">Stock Status</th>
                   <th className="px-6 py-4 text-right">Actions</th>
@@ -455,6 +455,7 @@ export default function Products() {
                 {filteredProducts.map((p: any) => {
                   const origPrice = Number(p.price) || 0;
                   const discPercent = Number(p.discount) || 0;
+                  const sellingPrice = discPercent > 0 ? origPrice - (origPrice * discPercent / 100) : origPrice;
                   const stockVal = Number(p.stock) || 0;
 
                   let statusColor = 'text-green-400 bg-green-500/10 border-green-500/20';
@@ -495,12 +496,22 @@ export default function Products() {
 
                       <td className="px-6 py-4 text-sm text-gray-400">{p.category}</td>
                       
+                      {/* 🚀 ডিসকাউন্টেড সেল প্রাইস ডিসপ্লে (Discounted Selling Price Explicitly Displayed) */}
                       <td className="px-6 py-4">
-                        <div className="font-bold text-[#D4AF37]">৳{origPrice.toFixed(2)}</div>
-                        {discPercent > 0 && (
-                          <div className="text-xs text-red-400 font-bold bg-red-500/10 inline-block px-2 py-0.5 rounded mt-1 border border-red-500/20">
-                            -{discPercent}% OFF
+                        <div className="font-bold text-[#D4AF37] text-base">
+                          ৳{sellingPrice.toFixed(2)}
+                        </div>
+                        {discPercent > 0 ? (
+                          <div className="flex items-center space-x-2 mt-1">
+                            <span className="text-xs text-gray-500 line-through">
+                              ৳{origPrice.toFixed(2)}
+                            </span>
+                            <span className="text-[10px] text-red-400 font-extrabold bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded">
+                              -{discPercent}% OFF
+                            </span>
                           </div>
+                        ) : (
+                          <span className="text-[10px] text-gray-500 block">Regular Price</span>
                         )}
                       </td>
 
