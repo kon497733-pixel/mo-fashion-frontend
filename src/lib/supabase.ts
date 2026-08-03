@@ -20,16 +20,15 @@ export const getSupabaseSettings = async () => {
     const { data, error } = await supabase
       .from('settings')
       .select('*')
-      .limit(1)
-      .single();
+      .limit(1);
 
-    if (error && error.code !== 'PGRST116') {
-      console.warn('Supabase Settings Fetch Error:', error.message);
+    if (error) {
+      console.warn('Supabase Settings Fetch Warning:', error.message);
     }
 
-    if (data) {
-      localStorage.setItem('mo_fashion_settings', JSON.stringify(data));
-      return data;
+    if (data && data.length > 0) {
+      localStorage.setItem('mo_fashion_settings', JSON.stringify(data[0]));
+      return data[0];
     }
   } catch (err) {
     console.warn('Supabase Network Error:', err);
@@ -39,36 +38,38 @@ export const getSupabaseSettings = async () => {
   return cached ? JSON.parse(cached) : null;
 };
 
-// ২. সেটিংস লাইভ সেভ ও সিঙ্ক করা (Save Settings)
+// ২. সেটিংস লাইভ সেভ ও সিঙ্ক করা (Save Settings - 100% Safe Clean Payload)
 export const updateSupabaseSettings = async (newSettings: Record<string, any>) => {
   try {
-    const { data: existing } = await supabase.from('settings').select('id').limit(1).single();
+    // পোস্টগ্রেস ডাটাবেস এরর এড়াতে অনাকাঙ্ক্ষিত ইন্টারনাল কী রিমুভ করা
+    const { _id, created_at, id, __v, ...cleanPayload } = newSettings;
+
+    // সেটিংসের বিদ্যমান রো চেক করা
+    const { data: rows } = await supabase.from('settings').select('id').limit(1);
 
     let response;
-    if (existing && existing.id) {
+    if (rows && rows.length > 0 && rows[0].id) {
       response = await supabase
         .from('settings')
-        .update({ ...newSettings, updated_at: new Date().toISOString() })
-        .eq('id', existing.id)
-        .select()
-        .single();
+        .update({ ...cleanPayload, updated_at: new Date().toISOString() })
+        .eq('id', rows[0].id)
+        .select();
     } else {
       response = await supabase
         .from('settings')
-        .insert([{ ...newSettings, updated_at: new Date().toISOString() }])
-        .select()
-        .single();
+        .insert([{ ...cleanPayload, updated_at: new Date().toISOString() }])
+        .select();
     }
 
     if (response.error) {
-      throw response.error;
+      console.error('Supabase Error Payload:', response.error);
+      throw new Error(response.error.message || 'Failed to save settings to Supabase');
     }
 
-    if (response.data) {
-      localStorage.setItem('mo_fashion_settings', JSON.stringify(response.data));
-      window.dispatchEvent(new Event('settingsUpdated'));
-      return response.data;
-    }
+    const savedData = (response.data && response.data.length > 0) ? response.data[0] : newSettings;
+    localStorage.setItem('mo_fashion_settings', JSON.stringify(savedData));
+    window.dispatchEvent(new Event('settingsUpdated'));
+    return savedData;
   } catch (err: any) {
     console.error('Failed to update Supabase Settings:', err.message || err);
     throw err;
@@ -103,21 +104,21 @@ export const getSupabaseProducts = async () => {
 export const saveSupabaseProduct = async (productData: Record<string, any>) => {
   try {
     const targetId = String(productData._id || productData.id || Date.now());
+    const { _id, ...cleanProduct } = productData;
     const payload = {
-      ...productData,
+      ...cleanProduct,
       id: targetId,
     };
 
     const { data, error } = await supabase
       .from('products')
       .upsert([payload], { onConflict: 'id' })
-      .select()
-      .single();
+      .select();
 
     if (error) throw error;
 
-    if (data) {
-      return data;
+    if (data && data.length > 0) {
+      return data[0];
     }
   } catch (err: any) {
     console.error('Failed to save Supabase Product:', err.message || err);
