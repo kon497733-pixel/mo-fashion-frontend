@@ -24,7 +24,7 @@ export default function Orders() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // 🛡️ সেফ নম্বর পার্সার (৳NaN বা 0.00 হওয়া ১০০% ফিক্স)
+  // 🛡️ সেফ নম্বর পার্সার
   const parseSafeNumber = (val: any): number => {
     if (val === null || val === undefined) return 0;
     if (typeof val === 'number') return isNaN(val) ? 0 : val;
@@ -33,9 +33,9 @@ export default function Orders() {
     return isNaN(num) ? 0 : num;
   };
 
-  // 🛡️ কাস্টমারের ফুল নেম পার্সার
+  // 🛡️ সেফ কাস্টমার নাম পার্সার
   const getCustomerFullName = (order: any): string => {
-    if (!order) return 'Valued Customer';
+    if (!order) return 'Customer';
     
     if (order.customer && String(order.customer).trim() !== '' && String(order.customer).trim() !== 'Customer') {
       return String(order.customer).trim();
@@ -58,7 +58,7 @@ export default function Orders() {
       return `Customer (${order.phone})`;
     }
 
-    return 'Valued Customer';
+    return 'Customer';
   };
 
   // 🛡️ সেফ ডেলিভারি ঠিকানা পার্সার
@@ -79,6 +79,19 @@ export default function Orders() {
 
     const clean = String(addr).replace(/(,\s*)+/g, ', ').replace(/^,\s*/, '').replace(/,\s*$/, '').trim();
     return clean ? (clean.toLowerCase().includes('bangladesh') ? clean : `${clean}, Bangladesh`) : 'Bangladesh';
+  };
+
+  // 🛡️ প্রোডাক্ট থাম্বনেইল ফটো এক্সট্রাক্টর (Photo Loader)
+  const getItemImage = (item: any): string => {
+    if (!item) return '';
+    let img = item.image || item.imageUrl || item.productImage;
+    if (!img && Array.isArray(item.images) && item.images[0]) {
+      img = item.images[0];
+    }
+    if (typeof img === 'string' && img.trim() !== '' && img !== 'No Image' && !img.includes('via.placeholder')) {
+      return img.trim();
+    }
+    return '';
   };
 
   // 🚀 ১০০% রিয়েল প্রোডাক্ট আইটেম ডিকোডার (Photo, Name, Qty, Size, Color & Variants Display)
@@ -102,23 +115,12 @@ export default function Orders() {
     if (Array.isArray(raw) && raw.length > 0) return raw;
     if (raw && typeof raw === 'object' && !Array.isArray(raw)) return [raw];
 
-    // 🚀 স্মার্ট ফলব্যাক
-    const totalAmt = parseSafeNumber(order.total || order.orderSummary?.total);
-    if (totalAmt > 0) {
-      return [{
-        name: order.productName || order.item_name || 'Ordered Fashion Item',
-        price: parseSafeNumber(order.subtotal || order.orderSummary?.subtotal || totalAmt),
-        quantity: parseSafeNumber(order.itemsCount) || 1,
-        image: order.productImage || order.imageUrl || ''
-      }];
-    }
-
     return [];
   };
 
-  // 🚀 সেফ শিপিং চার্জ ও অর্ডার সমরি পার্সার (Shipping Fee ৳60/৳150 Guaranteed Display)
+  // 🛡️ সেফ অর্ডার সমরি পার্সার
   const getOrderSummaryObj = (order: any): any => {
-    if (!order) return { subtotal: 0, shipping: 60, tax: 0, discount: 0, total: 0 };
+    if (!order) return { subtotal: 0, shipping: 0, tax: 0, discount: 0, total: 0 };
     
     let summary = order.orderSummary || order.order_summary;
     if (typeof summary === 'string') {
@@ -126,11 +128,7 @@ export default function Orders() {
     }
 
     const totalNum = parseSafeNumber(order.total || summary?.total);
-    const addressStr = getFullAddress(order).toLowerCase();
-    const isInsideCTG = addressStr.includes('chattogram') || addressStr.includes('chittagong');
-    const defaultShipping = isInsideCTG ? 60 : 150;
-
-    const shipNum = parseSafeNumber(summary?.shipping !== undefined ? summary.shipping : order.shipping) || (totalNum > 0 ? defaultShipping : 0);
+    const shipNum = parseSafeNumber(summary?.shipping !== undefined ? summary.shipping : order.shipping);
     const subNum = parseSafeNumber(summary?.subtotal !== undefined ? summary.subtotal : order.subtotal) || (totalNum > shipNum ? totalNum - shipNum : totalNum);
     const taxNum = parseSafeNumber(summary?.tax !== undefined ? summary.tax : order.tax);
     const discNum = parseSafeNumber(summary?.discount !== undefined ? summary.discount : order.discount);
@@ -145,7 +143,7 @@ export default function Orders() {
     };
   };
 
-  // 🛡️ অর্ডারের তারিখ ও সময়
+  // 🛡️ অর্ডারের নিখুঁত তারিখ ও সময় (Exact Date & Time)
   const getFormattedDateTime = (order: any): string => {
     if (!order) return 'Recent';
     const rawDate = order.createdAt || order.created_at || order.date;
@@ -198,9 +196,9 @@ export default function Orders() {
   useEffect(() => {
     fetchOrders();
 
-    // 🚀 ২. Supabase WebSocket Realtime Listener (সব ডিভাইসে ১ সেকেন্ডে ব্রডকাস্ট হবে)
+    // 🚀 ২. Supabase WebSocket Realtime Listener
     const channel = supabase
-      .channel('public:orders:admin:live:instant:v10')
+      .channel('public:orders:admin:live:real:v11')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
@@ -229,7 +227,7 @@ export default function Orders() {
     setIsModalOpen(true);
   };
 
-  // 🚀 ৩. অর্ডারের স্ট্যাটাস ক্লাউড ডাটাবেসে রিয়েল-টাইম আপডেট করা
+  // 🚀 ৩. অর্ডারের স্ট্যাটাস লাইভ আপডেট
   const handleUpdateStatus = async (newStatus: string) => {
     if (!selectedOrder) return;
     const orderId = String(selectedOrder._id || selectedOrder.id || selectedOrder.orderId);
@@ -252,7 +250,7 @@ export default function Orders() {
     }
   };
 
-  // 🚀 ৪. ডাটাবেস থেকে অর্ডার ডিলিট করা
+  // 🚀 ৪. ডাটাবেস থেকে অর্ডার ডিলিট
   const handleDeleteOrder = async (id: string) => {
     const targetId = String(id);
     if (window.confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
@@ -301,7 +299,7 @@ export default function Orders() {
               <Package className="mr-3 text-[#D4AF37] animate-bounce" size={28} /> Orders Management
             </h1>
             <span className="bg-[#D4AF37]/10 text-[#D4AF37] text-xs font-bold px-3.5 py-1.5 rounded-full border border-[#D4AF37]/30 flex items-center animate-pulse shadow-sm">
-              Worldwide Cloud Live Sync
+              100% Real Live Sync
             </span>
           </div>
           <p className="text-sm text-gray-400 mt-1">Track, process, and manage live customer orders from Supabase Cloud DB</p>
@@ -444,7 +442,7 @@ export default function Orders() {
         </div>
       </div>
 
-      {/* 🪟 View Full Order Details Modal (A to Z Details with Image, Size, Color & Shipping Fee) */}
+      {/* 🪟 View Full Order Details Modal (Photo, Name, Size, Color & Quantity 100% Real Display) */}
       {isModalOpen && selectedOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md transition-opacity duration-300">
           <div className="bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
@@ -534,7 +532,7 @@ export default function Orders() {
                     <p className="text-gray-500 text-xs italic text-center py-4">No product item details recorded.</p>
                   ) : (
                     getOrderItemsList(selectedOrder).map((item: any, idx: number) => {
-                      const itemImage = item.image || item.imageUrl || (item.images && item.images[0]) || '';
+                      const itemImg = getItemImage(item);
                       const itemQty = parseSafeNumber(item.quantity) || 1;
                       const itemPrice = parseSafeNumber(item.price);
                       const itemSubtotal = itemQty * itemPrice;
@@ -542,28 +540,28 @@ export default function Orders() {
                       return (
                         <div key={idx} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 bg-[#1A1A1A] rounded-xl border border-gray-800 gap-3">
                           <div className="flex items-center space-x-3.5">
-                            <div className="w-14 h-14 rounded-xl bg-[#111111] border border-gray-700 overflow-hidden shrink-0 flex items-center justify-center">
-                              {itemImage && !itemImage.includes('via.placeholder') ? (
-                                <img src={itemImage} alt={item.name} className="w-full h-full object-cover" />
+                            <div className="w-14 h-14 rounded-xl bg-[#111111] border border-[#D4AF37]/30 overflow-hidden shrink-0 flex items-center justify-center shadow-md">
+                              {itemImg ? (
+                                <img src={itemImg} alt={item.name} className="w-full h-full object-cover" />
                               ) : (
-                                <ImageIcon size={22} className="text-[#D4AF37]/60" />
+                                <ImageIcon size={22} className="text-[#D4AF37]/50" />
                               )}
                             </div>
                             <div>
-                              <p className="font-bold text-white text-sm line-clamp-1">{item.name || 'Fashion Item'}</p>
+                              <p className="font-bold text-white text-sm line-clamp-1">{item.name || 'Ordered Fashion Item'}</p>
                               
-                              {/* 🚀 কাস্টমারের নির্বাচিত রিয়েল ভ্যারিয়েন্ট: Color, Size, Quantity */}
+                              {/* 🚀 কাস্টমারের নির্বাচিত রিয়েল ভ্যারিয়েন্ট: Qty, Size, Color */}
                               <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-gray-400">
                                 <span className="text-[#D4AF37] font-bold bg-[#D4AF37]/10 px-2 py-0.5 rounded border border-[#D4AF37]/20">
                                   Qty: x{itemQty}
                                 </span>
-                                {item.size && (
-                                  <span className="bg-gray-800 px-2 py-0.5 rounded text-gray-300">
+                                {item.size && String(item.size).trim() !== '' && (
+                                  <span className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-800">
                                     Size: <strong className="text-white">{item.size}</strong>
                                   </span>
                                 )}
-                                {item.color && (
-                                  <span className="bg-gray-800 px-2 py-0.5 rounded text-gray-300">
+                                {item.color && String(item.color).trim() !== '' && (
+                                  <span className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-800">
                                     Color: <strong className="text-white">{item.color}</strong>
                                   </span>
                                 )}
@@ -581,7 +579,7 @@ export default function Orders() {
                   )}
                 </div>
 
-                {/* 3. Cost & Coupon Breakdown (Guaranteed Shipping Fee Display) */}
+                {/* 3. Cost & Coupon Breakdown */}
                 {(() => {
                   const summary = getOrderSummaryObj(selectedOrder);
                   const subtotalNum = parseSafeNumber(summary.subtotal);
@@ -599,7 +597,7 @@ export default function Orders() {
 
                       <div className="flex justify-between text-gray-400">
                         <span>Shipping Fee:</span>
-                        <span className="text-[#D4AF37] font-bold">৳{shipNum.toFixed(2)}</span>
+                        <span className="text-white font-medium">৳{shipNum.toFixed(2)}</span>
                       </div>
 
                       {taxNum > 0 && (
