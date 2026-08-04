@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { 
   Search, X, Package, Clock, CheckCircle, Truck, MapPin, 
-  Trash2, Tag, RefreshCw, Sparkles, User
+  Trash2, Tag, RefreshCw, Sparkles, User, Image as ImageIcon,
+  CreditCard, Calendar, Phone, Mail, Navigation, DollarSign
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
@@ -24,8 +25,8 @@ export default function Orders() {
   const [loading, setLoading] = useState(true);
 
   // 🚀 ১. সরাসরি Supabase Cloud Database থেকে ১০০% লাইভ অল-ডিভাইস অর্ডার ফেচিং (A to Z Details Sync)
-  const fetchOrders = async () => {
-    setLoading(true);
+  const fetchOrders = async (isSilent = false) => {
+    if (!isSilent && orders.length === 0) setLoading(true);
 
     let localOrders: any[] = [];
     const savedLocal = localStorage.getItem('mo_fashion_orders');
@@ -47,7 +48,7 @@ export default function Orders() {
       console.warn("Supabase Cloud Orders fetch fallback, using local cache.");
       setOrders(localOrders);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
 
@@ -56,17 +57,20 @@ export default function Orders() {
 
     // 🚀 ২. Supabase WebSocket Realtime Listener (কাস্টমার অন্য যেকোনো ডিভাইস থেকে অর্ডার করলে ১ সেকেন্ডে এডমিন প্যানেলে সিঙ্ক হবে)
     const channel = supabase
-      .channel('public:orders:admin:live:guaranteed')
+      .channel('public:orders:admin:fast:stream')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
-        () => {
-          fetchOrders();
+        (payload) => {
+          fetchOrders(true);
+          if (payload.eventType === 'INSERT') {
+            toast.success("New Order Received Live! 🛒", { duration: 4000 });
+          }
         }
       )
       .subscribe();
 
-    const handleStorageChange = () => fetchOrders();
+    const handleStorageChange = () => fetchOrders(true);
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('orderUpdated', handleStorageChange);
 
@@ -82,7 +86,7 @@ export default function Orders() {
     setIsModalOpen(true);
   };
 
-  // 🚀 ৩. অর্ডারের স্ট্যাটাস ক্লাউড ডাটাবেসে রিয়েল-টাইম আপডেট করা (Pending, Processing, Shipped, Delivered, Cancelled)
+  // 🚀 ৩. অর্ডারের স্ট্যাটাস ক্লাউড ডাটাবেসে রিয়েল-টাইম আপডেট করা
   const handleUpdateStatus = async (newStatus: string) => {
     if (!selectedOrder) return;
     const orderId = String(selectedOrder._id || selectedOrder.id || selectedOrder.orderId);
@@ -130,7 +134,7 @@ export default function Orders() {
   const validOrders = Array.isArray(orders) ? orders : [];
   const filteredOrders = validOrders.filter((order: any) => {
     const customerName = order.customerInfo 
-      ? `${order.customerInfo.firstName || ''} ${order.customerInfo.lastName || ''}` 
+      ? `${order.customerInfo.firstName || ''} ${order.customerInfo.lastName || ''}`.trim() 
       : (order.customer || 'Unknown Customer');
     const orderIdStr = String(order.orderId || order.id || order._id || '');
     const phoneStr = String(order.phone || order.customerInfo?.phone || '');
@@ -165,7 +169,7 @@ export default function Orders() {
         </div>
 
         <button 
-          onClick={fetchOrders}
+          onClick={() => fetchOrders(false)}
           className="p-2.5 bg-[#111111] hover:bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 rounded-xl transition-all duration-200 active:scale-95 flex items-center space-x-2 font-bold text-xs"
           title="Refresh Live Orders"
         >
@@ -190,7 +194,7 @@ export default function Orders() {
           <select 
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] cursor-pointer text-sm transition-colors"
+            className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] cursor-pointer text-sm transition-colors font-semibold"
           >
             <option value="All">All Status ({validOrders.length})</option>
             <option value="Pending">Pending</option>
@@ -210,8 +214,8 @@ export default function Orders() {
               <tr>
                 <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Order ID</th>
                 <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Customer</th>
-                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Date</th>
-                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Total</th>
+                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Date & Time</th>
+                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Total Amount</th>
                 <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Status</th>
                 <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider text-right">Action</th>
               </tr>
@@ -229,17 +233,27 @@ export default function Orders() {
               ) : (
                 filteredOrders.map((order: any) => {
                   const customerName = order.customerInfo 
-                    ? `${order.customerInfo.firstName || ''} ${order.customerInfo.lastName || ''}` 
+                    ? `${order.customerInfo.firstName || ''} ${order.customerInfo.lastName || ''}`.trim() 
                     : (order.customer || 'Unknown Customer');
                   const customerEmail = order.customerInfo ? order.customerInfo.email : (order.email || 'N/A');
                   const customerPhone = order.customerInfo ? order.customerInfo.phone : (order.phone || '');
                   
                   let orderDate = 'Recent';
-                  if (order.createdAt) orderDate = new Date(order.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-                  else if (order.date) orderDate = order.date;
+                  if (order.createdAt) {
+                    try {
+                      orderDate = new Date(order.createdAt).toLocaleString('en-GB', { 
+                        day: 'numeric', month: 'short', year: 'numeric', 
+                        hour: '2-digit', minute: '2-digit', hour12: true 
+                      });
+                    } catch(e) {
+                      orderDate = order.date || 'Recent';
+                    }
+                  } else if (order.date) {
+                    orderDate = order.date;
+                  }
 
                   const orderTotal = order.orderSummary ? order.orderSummary.total : (order.total || 0);
-                  const displayOrderId = order.orderId || order._id || order.id || '';
+                  const displayOrderId = order.orderId || order.id || order._id || '';
 
                   return (
                     <tr key={displayOrderId || Math.random()} className="hover:bg-[#111111] transition-all duration-200 group">
@@ -250,7 +264,7 @@ export default function Orders() {
                         <p className="font-bold text-white group-hover:text-[#D4AF37] transition-colors">{customerName}</p>
                         <p className="text-xs text-gray-400">{customerPhone ? `Phone: ${customerPhone}` : customerEmail}</p>
                       </td>
-                      <td className="px-6 py-4 text-gray-400 text-sm">{orderDate}</td>
+                      <td className="px-6 py-4 text-gray-400 text-xs font-medium">{orderDate}</td>
                       <td className="px-6 py-4 font-bold text-[#D4AF37]">৳{Number(orderTotal).toFixed(2)}</td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center w-max border transition-all duration-300 ${
@@ -305,16 +319,19 @@ export default function Orders() {
         </div>
       </div>
 
-      {/* 🪟 View Full Order Details Modal (A to Z Details) */}
+      {/* 🪟 View Full Order Details Modal (A to Z Full Customer & Product Breakdown) */}
       {isModalOpen && selectedOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md transition-opacity duration-300">
           <div className="bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
             
+            {/* Modal Header */}
             <div className="flex justify-between items-center p-6 border-b border-[#D4AF37]/20 bg-[#111111]">
-              <h2 className="text-xl font-serif font-bold text-[#D4AF37] uppercase flex items-center tracking-wide">
-                <Sparkles className="mr-2 text-[#D4AF37]" size={22} />
-                Order ID: {selectedOrder.orderId || selectedOrder.id || selectedOrder._id}
-              </h2>
+              <div className="flex items-center space-x-2">
+                <Sparkles className="text-[#D4AF37]" size={22} />
+                <h2 className="text-xl font-serif font-bold text-[#D4AF37] uppercase tracking-wide">
+                  Order Details: {selectedOrder.orderId || selectedOrder.id || selectedOrder._id}
+                </h2>
+              </div>
               <button 
                 onClick={() => setIsModalOpen(false)} 
                 className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition-colors"
@@ -325,87 +342,149 @@ export default function Orders() {
             
             <div className="overflow-y-auto custom-scrollbar p-6 space-y-6">
               
-              {/* Customer Info */}
-              <div className="bg-[#111111] p-5 rounded-2xl border border-gray-800/80 shadow-md">
-                <h3 className="text-[#D4AF37] font-bold mb-4 uppercase tracking-wider text-xs border-b border-gray-800 pb-2 flex items-center">
-                  <User size={16} className="mr-2 text-[#D4AF37]" /> Customer Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-gray-500 text-xs">Full Name</p>
-                    <p className="text-white font-medium text-sm">
-                      {selectedOrder.customerInfo ? `${selectedOrder.customerInfo.firstName || ''} ${selectedOrder.customerInfo.lastName || ''}` : selectedOrder.customer}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500 text-xs">Email Address</p>
-                    <p className="text-white font-medium text-sm">{selectedOrder.customerInfo ? selectedOrder.customerInfo.email : selectedOrder.email}</p>
-                  </div>
-                  <div className="md:col-span-2 flex items-start space-x-2.5 mt-2 bg-[#1A1A1A] p-3 rounded-xl border border-gray-800">
-                    <MapPin size={18} className="text-[#D4AF37] mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-gray-500 text-xs font-semibold">Shipping Address</p>
-                      <p className="text-white font-medium text-sm mt-0.5">
-                        {selectedOrder.customerInfo 
-                          ? `${selectedOrder.customerInfo.address || ''}, ${selectedOrder.customerInfo.city || ''} ${selectedOrder.customerInfo.postalCode ? '- ' + selectedOrder.customerInfo.postalCode : ''}` 
-                          : selectedOrder.address}
-                      </p>
-                      <p className="text-[#D4AF37] text-xs font-bold mt-1">Phone Number: {selectedOrder.customerInfo ? selectedOrder.customerInfo.phone : selectedOrder.phone}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Order Items & Breakdown */}
-              <div className="bg-[#111111] p-5 rounded-2xl border border-gray-800/80 shadow-md">
-                <h3 className="text-[#D4AF37] font-bold mb-4 uppercase tracking-wider text-xs border-b border-gray-800 pb-2 flex items-center">
-                  <Package size={16} className="mr-2 text-[#D4AF37]" /> Order Summary
-                </h3>
-                
-                <div className="space-y-3 mb-4">
-                  {(selectedOrder.orderItems || selectedOrder.items || []).map((item: any, idx: number) => (
-                    <div key={idx} className="flex justify-between items-center text-sm border-b border-gray-800/60 pb-2.5 last:border-0 last:pb-0">
-                      <div>
-                        <span className="text-white font-medium">{item.name || 'Fashion Item'}</span>
-                        <span className="text-[#D4AF37] font-bold text-xs ml-2 bg-[#D4AF37]/10 px-2 py-0.5 rounded-md border border-[#D4AF37]/20">
-                          x{item.quantity || 1}
-                        </span>
-                        {item.size && <span className="text-xs text-gray-500 ml-2">Size: {item.size}</span>}
-                      </div>
-                      <span className="text-white font-bold">৳{(Number(item.price) * Number(item.quantity || 1)).toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex justify-between items-center mb-2 text-sm pt-2 border-t border-gray-800/60">
-                  <span className="text-gray-400">Payment Method:</span>
-                  <span className="text-white font-medium bg-gray-800/80 px-2.5 py-1 rounded-md text-xs">{selectedOrder.paymentDetails?.method || selectedOrder.paymentMethod || 'N/A'}</span>
-                </div>
-                
-                <div className="flex justify-between items-center mb-3 text-sm">
-                  <span className="text-gray-400">Shipping Charge:</span>
-                  <span className="text-white font-medium">৳{Number(selectedOrder.orderSummary?.shipping || 0).toFixed(2)}</span>
-                </div>
-
-                {selectedOrder.orderSummary?.couponCode && (
-                  <div className="flex justify-between items-center mb-3 text-sm text-green-400 bg-green-500/10 p-2.5 rounded-xl border border-green-500/20">
-                    <span className="flex items-center font-bold text-xs">
-                      <Tag size={14} className="mr-1.5" />
-                      Coupon Applied ({selectedOrder.orderSummary.couponCode})
-                    </span>
-                    <span className="font-bold">-৳{Number(selectedOrder.orderSummary.discount || 0).toFixed(2)}</span>
-                  </div>
-                )}
-
-                <div className="flex justify-between items-center pt-3 border-t border-gray-800">
-                  <span className="text-white font-bold text-base">Total Amount:</span>
-                  <span className="text-[#D4AF37] font-bold text-2xl tracking-wide">
-                    ৳{Number(selectedOrder.orderSummary?.total || selectedOrder.total || 0).toFixed(2)}
+              {/* 1. Customer Bio & Delivery Address */}
+              <div className="bg-[#111111] p-5 rounded-2xl border border-gray-800/80 shadow-md space-y-3">
+                <div className="flex justify-between items-center border-b border-gray-800 pb-2">
+                  <h3 className="text-[#D4AF37] font-bold uppercase tracking-wider text-xs flex items-center">
+                    <User size={16} className="mr-2 text-[#D4AF37]" /> Customer Bio & Shipping Info
+                  </h3>
+                  <span className="text-[10px] text-gray-400 flex items-center">
+                    <Calendar size={12} className="mr-1 text-[#D4AF37]" />
+                    {selectedOrder.createdAt 
+                      ? new Date(selectedOrder.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) 
+                      : (selectedOrder.date || 'Recent')}
                   </span>
                 </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                  <div>
+                    <p className="text-gray-500 text-xs font-semibold">Full Name</p>
+                    <p className="text-white font-bold text-sm mt-0.5">
+                      {selectedOrder.customerInfo 
+                        ? `${selectedOrder.customerInfo.firstName || ''} ${selectedOrder.customerInfo.lastName || ''}`.trim() 
+                        : (selectedOrder.customer || 'N/A')}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-gray-500 text-xs font-semibold">Email Address</p>
+                    <p className="text-white font-medium text-sm mt-0.5 flex items-center">
+                      <Mail size={12} className="mr-1.5 text-gray-500" />
+                      {selectedOrder.customerInfo?.email || selectedOrder.email || 'N/A'}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-gray-500 text-xs font-semibold">Phone Number</p>
+                    <p className="text-[#D4AF37] font-bold text-sm mt-0.5 flex items-center">
+                      <Phone size={12} className="mr-1.5 text-[#D4AF37]" />
+                      {selectedOrder.customerInfo?.phone || selectedOrder.phone || 'N/A'}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-gray-500 text-xs font-semibold">Payment Method</p>
+                    <p className="text-white font-bold text-sm mt-0.5 flex items-center">
+                      <CreditCard size={12} className="mr-1.5 text-[#D4AF37]" />
+                      {selectedOrder.paymentDetails?.method || selectedOrder.paymentMethod || 'Cash on Delivery'}
+                    </p>
+                  </div>
+
+                  <div className="md:col-span-2 bg-[#1A1A1A] p-3.5 rounded-xl border border-gray-800 flex items-start space-x-3 mt-1">
+                    <MapPin size={20} className="text-[#D4AF37] mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Full Delivery Address</p>
+                      <p className="text-white font-medium text-sm mt-1 leading-relaxed">
+                        {selectedOrder.customerInfo 
+                          ? `${selectedOrder.customerInfo.address || ''}, ${selectedOrder.customerInfo.city || ''} ${selectedOrder.customerInfo.postalCode && selectedOrder.customerInfo.postalCode !== 'N/A' ? '- ' + selectedOrder.customerInfo.postalCode : ''}, ${selectedOrder.customerInfo.country || 'Bangladesh'}` 
+                          : (selectedOrder.address || 'N/A')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Status Update Action */}
+              {/* 2. Itemized Products List with Photos */}
+              <div className="bg-[#111111] p-5 rounded-2xl border border-gray-800/80 shadow-md">
+                <h3 className="text-[#D4AF37] font-bold mb-4 uppercase tracking-wider text-xs border-b border-gray-800 pb-2 flex items-center">
+                  <Package size={16} className="mr-2 text-[#D4AF37]" /> Ordered Items ({selectedOrder.orderItems?.length || selectedOrder.items || 1})
+                </h3>
+                
+                <div className="space-y-3.5 mb-4 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+                  {(selectedOrder.orderItems || selectedOrder.items || []).map((item: any, idx: number) => {
+                    const itemImage = item.image || item.imageUrl || (item.images && item.images[0]) || '';
+                    const itemQty = Number(item.quantity) || 1;
+                    const itemPrice = Number(item.price) || 0;
+                    const itemSubtotal = itemQty * itemPrice;
+
+                    return (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-[#1A1A1A] rounded-xl border border-gray-800 hover:border-gray-700 transition-colors">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-12 h-12 rounded-lg bg-[#111111] border border-gray-700 overflow-hidden shrink-0 flex items-center justify-center">
+                            {itemImage && !itemImage.includes('via.placeholder') ? (
+                              <img src={itemImage} alt={item.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <ImageIcon size={18} className="text-gray-600" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-bold text-white text-sm line-clamp-1">{item.name || 'Fashion Product'}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              Qty: <span className="text-[#D4AF37] font-bold">x{itemQty}</span> 
+                              {item.size ? ` | Size: ${item.size}` : ''}
+                              {item.color ? ` | Color: ${item.color}` : ''}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <p className="font-bold text-[#D4AF37] text-sm">৳{itemSubtotal.toFixed(2)}</p>
+                          {itemQty > 1 && <p className="text-[10px] text-gray-500">৳{itemPrice.toFixed(2)} each</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* 3. Cost & Coupon Breakdown */}
+                <div className="pt-3 border-t border-gray-800/80 space-y-2 text-xs">
+                  <div className="flex justify-between text-gray-400">
+                    <span>Subtotal:</span>
+                    <span className="text-white font-medium">৳{Number(selectedOrder.orderSummary?.subtotal || selectedOrder.subtotal || (selectedOrder.total - (selectedOrder.orderSummary?.shipping || 0))).toFixed(2)}</span>
+                  </div>
+
+                  <div className="flex justify-between text-gray-400">
+                    <span>Shipping Fee:</span>
+                    <span className="text-white font-medium">৳{Number(selectedOrder.orderSummary?.shipping || selectedOrder.shipping || 0).toFixed(2)}</span>
+                  </div>
+
+                  {selectedOrder.orderSummary?.tax > 0 && (
+                    <div className="flex justify-between text-gray-400">
+                      <span>Tax:</span>
+                      <span className="text-white font-medium">৳{Number(selectedOrder.orderSummary.tax).toFixed(2)}</span>
+                    </div>
+                  )}
+
+                  {selectedOrder.orderSummary?.couponCode && (
+                    <div className="flex justify-between items-center text-green-400 bg-green-500/10 p-2 rounded-xl border border-green-500/20 font-bold">
+                      <span className="flex items-center">
+                        <Tag size={12} className="mr-1.5" />
+                        Coupon Discount ({selectedOrder.orderSummary.couponCode}):
+                      </span>
+                      <span>-৳{Number(selectedOrder.orderSummary.discount || 0).toFixed(2)}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-center pt-2.5 border-t border-gray-800 text-sm">
+                    <span className="text-white font-bold">Grand Total Amount:</span>
+                    <span className="text-[#D4AF37] font-bold text-xl">
+                      ৳{Number(selectedOrder.orderSummary?.total || selectedOrder.total || 0).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Order Status Actions */}
               <div className="bg-[#111111] p-5 rounded-2xl border border-gray-800">
                 <label className="block text-gray-300 text-xs uppercase tracking-wider mb-3 font-bold">Update Order Status Live</label>
                 <div className="flex flex-wrap gap-2.5">
