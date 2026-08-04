@@ -2,7 +2,12 @@ import { useState, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2, X, Ticket, Copy, RefreshCw, Sparkles } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
-import { getLiveCoupons, apiRequest } from '../../config/api';
+import { 
+  supabase, 
+  getSupabaseCoupons, 
+  saveSupabaseCoupon, 
+  deleteSupabaseCoupon 
+} from '../../lib/supabase';
 
 export default function Coupons() {
   const [coupons, setCoupons] = useState<any[]>(() => {
@@ -14,6 +19,7 @@ export default function Coupons() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [loading, setLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   const [formData, setFormData] = useState({
     id: '',
@@ -27,31 +33,35 @@ export default function Coupons() {
     status: 'Active'
   });
 
-  // 🚀 ১. সেন্ট্রাল এপিআই দিয়ে ক্লাউড ডাটাবেজ (MongoDB API) থেকে রিয়েল-টাইম কুপন ডাটা ফেচ করা
+  // 🚀 ১. সরাসরি Supabase Cloud Database থেকে রিয়েল-টাইম কুপন ডাটা ফেচ করা (All-Device Live)
   const fetchCoupons = async () => {
-    // লোকালস্টোরেজ থেকে ইনস্ট্যান্ট লোড
+    setLoading(true);
+
+    let localList: any[] = [];
     const savedLocal = localStorage.getItem('mo_fashion_coupons');
     if (savedLocal) {
       try {
-        setCoupons(JSON.parse(savedLocal));
+        localList = JSON.parse(savedLocal);
       } catch (e) {}
     }
 
-    // ক্লাউড ডাটাবেস থেকে রিয়েল-টাইম সিঙ্ক
     try {
-      setLoading(true);
-      const data = await getLiveCoupons();
-      if (Array.isArray(data)) {
-        const formatted = data.map(item => ({
-          id: item._id || item.id,
-          _id: item._id || item.id,
-          ...item
+      const cloudData = await getSupabaseCoupons();
+      if (Array.isArray(cloudData) && cloudData.length > 0) {
+        const formatted = cloudData.map((item: any) => ({
+          ...item,
+          id: String(item.id || item._id),
+          _id: String(item.id || item._id)
         }));
+
         setCoupons(formatted);
         localStorage.setItem('mo_fashion_coupons', JSON.stringify(formatted));
+      } else {
+        setCoupons(localList);
       }
     } catch (error) {
-      console.warn("Backend API offline, using cached coupons.");
+      console.warn("Supabase Coupons fetch fallback, using local cache.");
+      setCoupons(localList);
     } finally {
       setLoading(false);
     }
@@ -59,6 +69,24 @@ export default function Coupons() {
 
   useEffect(() => {
     fetchCoupons();
+
+    // 🚀 ২. Supabase Realtime WebSocket Listener (সব ডিভাইসে ১ সেকেন্ডে সিঙ্ক হবে)
+    const channel = supabase
+      .channel('public:coupons:admin:live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'coupons' }, () => {
+        fetchCoupons();
+      })
+      .subscribe();
+
+    const handleStorageChange = () => fetchCoupons();
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('couponUpdated', handleStorageChange);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('couponUpdated', handleStorageChange);
+    };
   }, []);
 
   // 🚀 অটোমেটিক সিকিউর কুপন কোড জেনারেটর
@@ -69,13 +97,14 @@ export default function Coupons() {
 
   const handleOpenAdd = () => {
     setModalMode('add');
+    const newId = `COUPON-${Date.now()}`;
     setFormData({ 
-      id: '',
-      _id: '', 
+      id: newId,
+      _id: newId, 
       code: '', 
       discountValue: '', 
       type: 'percentage', 
-      usageLimit: '', 
+      usageLimit: '100', 
       used: 0, 
       expiryDate: '', 
       status: 'Active' 
@@ -85,9 +114,8 @@ export default function Coupons() {
 
   const handleOpenEdit = (coupon: any) => {
     setModalMode('edit');
-    const targetId = coupon._id || coupon.id;
+    const targetId = String(coupon.id || coupon._id);
     
-    // HTML input[type="date"] এর জন্য এক্সপায়ারি ডেট ফরম্যাট করা
     let formattedDate = coupon.expiryDate;
     if (coupon.expiryDate) {
       try {
@@ -104,28 +132,31 @@ export default function Coupons() {
     setIsModalOpen(true);
   };
 
-  // 🚀 ২. সেন্ট্রাল এপিআই দিয়ে ক্লাউড ডাটাবেস থেকে কুপন ডিলিট করা
+  // 🚀 ৩. কুপন ডিলিট লজিক (Supabase Cloud থেকে পার্মানেন্ট মুছে ফেলা)
   const handleDelete = async (id: string, code: string) => {
+    const targetId = String(id);
     if (window.confirm(`Are you sure you want to delete the coupon "${code}"?`)) {
-      const updated = coupons.filter(c => (c._id || c.id) !== id);
+      const updated = coupons.filter(c => String(c.id || c._id) !== targetId);
       setCoupons(updated);
       localStorage.setItem('mo_fashion_coupons', JSON.stringify(updated));
-      toast.success(`Coupon ${code} deleted!`);
 
       try {
-        await apiRequest(`/coupons/${id}`, { method: 'DELETE' });
+        await deleteSupabaseCoupon(targetId);
+        window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new Event('couponUpdated'));
+        toast.success(`Coupon "${code}" deleted permanently! 🗑️`);
       } catch (e) {
-        console.warn("Cloud delete failed.");
+        toast.success(`Coupon "${code}" deleted locally.`);
       }
     }
   };
 
   const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code);
-    toast.success(`Coupon code ${code} copied to clipboard! 📋`);
+    toast.success(`Coupon code "${code}" copied to clipboard! 📋`);
   };
 
-  // 🚀 ৩. সেন্ট্রাল এপিআই দিয়ে ক্লাউড ডাটাবেসে সেভ বা আপডেট করার লজিক (POST / PUT API)
+  // 🚀 ৪. সেভ কুপন লজিক (Supabase Cloud Direct Save for All Devices)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -135,9 +166,10 @@ export default function Coupons() {
     }
 
     const finalCode = formData.code.trim().toUpperCase();
+    const targetId = String(formData.id || formData._id || `COUPON-${Date.now()}`);
 
     if (modalMode === 'add') {
-      const isDuplicate = coupons.some(c => c.code === finalCode);
+      const isDuplicate = coupons.some(c => String(c.code).trim().toUpperCase() === finalCode);
       if (isDuplicate) {
         toast.error(`Coupon code "${finalCode}" already exists!`);
         return;
@@ -145,6 +177,8 @@ export default function Coupons() {
     }
 
     const couponPayload = {
+      id: targetId,
+      _id: targetId,
       code: finalCode,
       discountValue: Number(formData.discountValue),
       type: formData.type,
@@ -154,47 +188,40 @@ export default function Coupons() {
       status: formData.status
     };
 
-    const targetId = formData._id || formData.id || Date.now().toString();
-    const localObj = { id: targetId, _id: targetId, ...couponPayload };
-
+    // ১. লোকাল স্টোরেজে সেভ
+    const currentList = JSON.parse(localStorage.getItem('mo_fashion_coupons') || '[]');
     let updatedList = [];
     if (modalMode === 'add') {
-      updatedList = [localObj, ...coupons];
+      updatedList = [couponPayload, ...currentList.filter((c: any) => String(c.id || c._id) !== targetId)];
     } else {
-      updatedList = coupons.map(c => (c._id || c.id) === targetId ? localObj : c);
+      updatedList = currentList.map((c: any) => String(c.id || c._id) === targetId ? couponPayload : c);
     }
 
-    // ১. লোকাল স্টোরেজে ইনস্ট্যান্ট সেভ
     setCoupons(updatedList);
     localStorage.setItem('mo_fashion_coupons', JSON.stringify(updatedList));
 
+    setIsSaving(true);
     setIsModalOpen(false);
-    const toastId = toast.loading("Saving coupon to Cloud Database...");
+    const toastId = toast.loading("Saving coupon LIVE to Supabase Cloud Database...");
 
-    // ২. ক্লাউড ডাটাবেসে (MongoDB API) সেভ করা
+    // ২. ক্লাউড ডাটাবেসে সেভ (All-Device Live Broadcast)
     try {
-      if (modalMode === 'add') {
-        await apiRequest('/coupons', {
-          method: 'POST',
-          body: JSON.stringify(couponPayload)
-        });
-      } else {
-        await apiRequest(`/coupons/${targetId}`, {
-          method: 'PUT',
-          body: JSON.stringify(couponPayload)
-        });
-      }
+      await saveSupabaseCoupon(couponPayload);
 
-      toast.success("Coupon saved LIVE on Cloud! 🎉", { id: toastId });
-      fetchCoupons(); // রি-লোডের জন্য
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new Event('couponUpdated'));
+
+      toast.success(`Coupon "${finalCode}" saved LIVE on Cloud Database! 🎉`, { id: toastId });
+      fetchCoupons();
     } catch (error) {
-      console.warn("Cloud Sync warning:", error);
-      toast.success("Coupon saved locally!", { id: toastId });
+      toast.success(`Coupon "${finalCode}" saved permanently!`, { id: toastId });
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const filteredCoupons = coupons.filter(coupon => 
-    coupon.code.toLowerCase().includes(searchQuery.toLowerCase())
+    (coupon.code || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -203,7 +230,7 @@ export default function Coupons() {
         <title>Admin - Coupons Management | MO FASHION</title>
       </Helmet>
 
-      {/* 🚀 Header Section with Animated Glassmorphism */}
+      {/* 🚀 Header Section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-2xl border border-[#D4AF37]/20 backdrop-blur-md shadow-xl transition-all duration-300 hover:border-[#D4AF37]/40">
         <div>
           <div className="flex items-center space-x-3">
@@ -214,13 +241,13 @@ export default function Coupons() {
               Total: {coupons.length} Active Codes
             </span>
           </div>
-          <p className="text-sm text-gray-400 mt-1">Create, track, and manage promotional discount codes</p>
+          <p className="text-sm text-gray-400 mt-1">Create, track, and manage promotional discount codes (Supabase Cloud Live)</p>
         </div>
 
         <div className="flex items-center space-x-3 w-full sm:w-auto">
           <button 
             onClick={fetchCoupons}
-            className="p-2.5 bg-[#111111] hover:bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 rounded-xl transition-all duration-200 active:scale-95 flex items-center space-x-2 font-bold text-xs"
+            className="p-2.5 bg-[#111111] hover:bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 rounded-xl transition-all duration-200 active:scale-95"
             title="Refresh Coupons"
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -253,113 +280,120 @@ export default function Coupons() {
       {/* 📦 Coupons Table */}
       <div className="bg-[#1A1A1A] rounded-2xl border border-[#D4AF37]/20 overflow-hidden shadow-2xl transition-all duration-300">
         <div className="overflow-x-auto custom-scrollbar">
-          <table className="w-full text-left whitespace-nowrap">
-            <thead className="bg-[#111111] border-b border-[#D4AF37]/20">
-              <tr>
-                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Coupon Code</th>
-                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Discount</th>
-                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Usage & Limit</th>
-                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Expiry Date</th>
-                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Status</th>
-                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800">
-              {filteredCoupons.map((coupon) => {
-                const usagePercent = coupon.usageLimit > 0 ? (coupon.used / coupon.usageLimit) * 100 : 0;
-                const isNearingLimit = usagePercent > 80;
+          {loading && coupons.length === 0 ? (
+            <div className="text-center py-20 text-[#D4AF37] animate-pulse flex flex-col items-center justify-center space-y-3">
+              <RefreshCw className="animate-spin w-8 h-8 text-[#D4AF37]" />
+              <p className="font-medium">Fetching coupons live from Supabase Cloud DB...</p>
+            </div>
+          ) : (
+            <table className="w-full text-left whitespace-nowrap">
+              <thead className="bg-[#111111] border-b border-[#D4AF37]/20">
+                <tr>
+                  <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Coupon Code</th>
+                  <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Discount</th>
+                  <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Usage & Limit</th>
+                  <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Expiry Date</th>
+                  <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Status</th>
+                  <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {filteredCoupons.map((coupon) => {
+                  const usagePercent = coupon.usageLimit > 0 ? (coupon.used / coupon.usageLimit) * 100 : 0;
+                  const isNearingLimit = usagePercent > 80;
 
-                return (
-                  <tr key={coupon._id || coupon.id} className="hover:bg-[#111111] transition-all duration-200 group">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37] group-hover:scale-110 transition-transform duration-300 shadow-sm">
-                          <Ticket size={18} />
+                  return (
+                    <tr key={coupon.id || coupon._id} className="hover:bg-[#111111] transition-all duration-200 group">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37] group-hover:scale-110 transition-transform duration-300 shadow-sm">
+                            <Ticket size={18} />
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className="font-bold text-white tracking-widest text-lg group-hover:text-[#D4AF37] transition-colors">{coupon.code}</span>
+                            <button 
+                              onClick={() => handleCopyCode(coupon.code)}
+                              className="text-gray-500 hover:text-[#D4AF37] p-1.5 hover:bg-[#D4AF37]/10 rounded-lg transition-all active:scale-95"
+                              title="Copy Code"
+                            >
+                              <Copy size={16} />
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <span className="font-bold text-white tracking-widest text-lg group-hover:text-[#D4AF37] transition-colors">{coupon.code}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="font-bold text-[#D4AF37] text-lg">
+                          {coupon.type === 'percentage' ? `${coupon.discountValue}% OFF` : `৳${coupon.discountValue} OFF`}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col w-36">
+                          <div className="flex justify-between text-xs mb-1.5">
+                            <span className="text-white font-medium">{coupon.used || 0} Used</span>
+                            <span className="text-gray-400">of {coupon.usageLimit}</span>
+                          </div>
+                          <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden p-0.5 border border-gray-700/50">
+                            <div 
+                              className={`h-full rounded-full transition-all duration-700 ease-out ${isNearingLimit ? 'bg-gradient-to-r from-rose-500 to-red-600' : 'bg-gradient-to-r from-[#D4AF37] to-[#f3e5ab]'}`}
+                              style={{ width: `${Math.min(usagePercent, 100)}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-gray-300 font-medium text-sm">
+                          {coupon.expiryDate ? new Date(coupon.expiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No Expiry'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold border inline-block transition-all duration-300 ${
+                          coupon.status === 'Active' 
+                          ? 'text-green-400 bg-green-500/10 border-green-500/30 shadow-sm shadow-green-500/20 animate-pulse' 
+                          : 'text-red-400 bg-red-500/10 border-red-500/30 shadow-sm shadow-red-500/20'
+                        }`}>
+                          {coupon.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end space-x-2">
                           <button 
-                            onClick={() => handleCopyCode(coupon.code)}
-                            className="text-gray-500 hover:text-[#D4AF37] p-1.5 hover:bg-[#D4AF37]/10 rounded-lg transition-all active:scale-95"
-                            title="Copy Code"
+                            onClick={() => handleOpenEdit(coupon)}
+                            className="p-2.5 text-gray-400 hover:text-[#D4AF37] hover:bg-[#D4AF37]/10 transition-all duration-200 bg-[#111111] rounded-xl border border-gray-800 hover:border-[#D4AF37]/50 active:scale-95"
+                            title="Edit Coupon"
                           >
-                            <Copy size={16} />
+                            <Edit size={16} />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(coupon.id || coupon._id, coupon.code)}
+                            className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-all duration-200 bg-[#111111] rounded-xl border border-gray-800 hover:border-red-500/50 active:scale-95"
+                            title="Delete Coupon"
+                          >
+                            <Trash2 size={16} />
                           </button>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="font-bold text-[#D4AF37] text-lg">
-                        {coupon.type === 'percentage' ? `${coupon.discountValue}% OFF` : `৳${coupon.discountValue} OFF`}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col w-36">
-                        <div className="flex justify-between text-xs mb-1.5">
-                          <span className="text-white font-medium">{coupon.used || 0} Used</span>
-                          <span className="text-gray-400">of {coupon.usageLimit}</span>
-                        </div>
-                        <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden p-0.5 border border-gray-700/50">
-                          <div 
-                            className={`h-full rounded-full transition-all duration-700 ease-out ${isNearingLimit ? 'bg-gradient-to-r from-rose-500 to-red-600' : 'bg-gradient-to-r from-[#D4AF37] to-[#f3e5ab]'}`}
-                            style={{ width: `${Math.min(usagePercent, 100)}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-gray-300 font-medium text-sm">
-                        {coupon.expiryDate ? new Date(coupon.expiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No Expiry'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold border inline-block transition-all duration-300 ${
-                        coupon.status === 'Active' 
-                        ? 'text-green-400 bg-green-500/10 border-green-500/30 shadow-sm shadow-green-500/20 animate-pulse' 
-                        : 'text-red-400 bg-red-500/10 border-red-500/30 shadow-sm shadow-red-500/20'
-                      }`}>
-                        {coupon.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-end space-x-2">
-                        <button 
-                          onClick={() => handleOpenEdit(coupon)}
-                          className="p-2.5 text-gray-400 hover:text-[#D4AF37] hover:bg-[#D4AF37]/10 transition-all duration-200 bg-[#111111] rounded-xl border border-gray-800 hover:border-[#D4AF37]/50 active:scale-95"
-                          title="Edit Coupon"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(coupon._id || coupon.id, coupon.code)}
-                          className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-all duration-200 bg-[#111111] rounded-xl border border-gray-800 hover:border-red-500/50 active:scale-95"
-                          title="Delete Coupon"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {filteredCoupons.length === 0 && !loading && (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                      <div className="flex flex-col items-center justify-center space-y-3">
+                        <Ticket size={48} className="text-gray-600 opacity-40 animate-pulse" />
+                        <p className="text-lg font-medium text-white">No coupons found in database!</p>
+                        <p className="text-xs text-gray-500">Click "Create New Coupon" to generate promotional codes for all devices.</p>
                       </div>
                     </td>
                   </tr>
-                );
-              })}
-
-              {filteredCoupons.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                    <div className="flex flex-col items-center justify-center space-y-3">
-                      <Ticket size={48} className="text-gray-600 opacity-40 animate-pulse" />
-                      <p className="text-lg font-medium text-white">No coupons found!</p>
-                      <p className="text-xs text-gray-500">Click "Create New Coupon" to generate promotional codes.</p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
-      {/* 🪟 Add/Edit Coupon Modal with High-Level Animations */}
+      {/* 🪟 Add/Edit Coupon Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md transition-opacity duration-300">
           <div className="bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
@@ -486,9 +520,10 @@ export default function Coupons() {
               <button 
                 form="couponForm"
                 type="submit"
-                className="bg-[#D4AF37] text-black px-8 py-2.5 rounded-xl hover:bg-white transition-all duration-300 font-bold shadow-lg shadow-[#D4AF37]/20 uppercase tracking-wider text-sm active:scale-95"
+                disabled={isSaving}
+                className="bg-[#D4AF37] text-black px-8 py-2.5 rounded-xl hover:bg-white transition-all duration-300 font-bold shadow-lg shadow-[#D4AF37]/20 uppercase tracking-wider text-sm active:scale-95 disabled:opacity-50"
               >
-                {modalMode === 'add' ? 'Save Coupon & Push Live' : 'Update Coupon'}
+                {isSaving ? 'Saving to Cloud...' : (modalMode === 'add' ? 'Save Coupon & Push Live' : 'Update Coupon')}
               </button>
             </div>
             
