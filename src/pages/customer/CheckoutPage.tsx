@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronLeft, CreditCard, Smartphone, Banknote, Tag, MapPin, Sparkles, ShieldCheck, Navigation } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -190,7 +190,7 @@ export default function CheckoutPage() {
     setSelectedThana(thanas[0] || '');
   };
 
-  // 🚀 রিয়েল-টাইম সাবটোটাল ও প্রোডাক্ট আইটেম প্রস্তুতি (নাম ও ছবি কখনো ফাকা হবে না)
+  // 🚀 রিয়েল-টাইম সাবটোটাল ও প্রোডাক্ট আইটেম প্রস্তুতি (০% ডিফল্ট / কাস্টমারের নির্বাচিত সাইজ ও কালারসহ)
   let subtotalAfterProductDiscount = 0;
   const formattedOrderItems = items.map((cartItem: any) => {
     const dbProduct = dbProducts.find(p => String(p.id || p._id) === String(cartItem.id));
@@ -218,13 +218,14 @@ export default function CheckoutPage() {
       originalPrice: Number(origPrice.toFixed(2)),
       discount: discountPercent,
       quantity: Number(cartItem.quantity) || 1,
-      size: String(cartItem.size || 'Standard'),
-      color: String(cartItem.color || 'Default'),
-      image: productImage || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600'
+      size: cartItem.size || '',
+      color: cartItem.color || '',
+      selectedVariants: cartItem.selectedVariants || [],
+      image: productImage
     };
   });
 
-  // 🚀 শিপিং চার্জ হিসাব (কখনো ৳0.00 হবে না)
+  // 🚀 চট্টগ্রাম এলাকা বা ঢাকার ভেতরের শিপিং চার্জ
   const isInsideChattogram = selectedDistrict.toLowerCase().includes('chattogram') || selectedDistrict.toLowerCase().includes('chittagong') || selectedDivision.toLowerCase().includes('chattogram');
   const shippingInside = safeSettings.shippingInside !== undefined ? Number(safeSettings.shippingInside) : 60;
   const shippingOutside = safeSettings.shippingOutside !== undefined ? Number(safeSettings.shippingOutside) : 150;
@@ -302,7 +303,7 @@ export default function CheckoutPage() {
     const customerEmail = formData.email.trim() || `${formData.phone.trim()}@mofashion.com`;
     const fullLocationStr = `${selectedThana}, ${selectedDistrict}, ${selectedDivision}`;
 
-    // 🚀 A to Z পূর্ণাঙ্গ অর্ডার পে-লোড (শিপিং চার্জ, কুপন ডিসকাউন্ট ও ফটো সহ)
+    // 🚀 A to Z পূর্ণাঙ্গ অর্ডার পে-লোড (০% ডিফল্ট / শিপিং চার্জ, কুপন ডিসকাউন্ট ও ফটো সহ)
     const orderPayload = {
       id: orderId,
       _id: orderId,

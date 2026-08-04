@@ -33,7 +33,7 @@ export default function Orders() {
     return isNaN(num) ? 0 : num;
   };
 
-  // 🛡️ কাস্টমারের ফুল নেম পার্সার (কখনো খালি থাকবে না)
+  // 🛡️ কাস্টমারের ফুল নেম পার্সার
   const getCustomerFullName = (order: any): string => {
     if (!order) return 'Valued Customer';
     
@@ -61,7 +61,7 @@ export default function Orders() {
     return 'Valued Customer';
   };
 
-  // 🛡️ সেফ ডেলিভারি ঠিকানা পার্সার (,, Bangladesh ফিক্স)
+  // 🛡️ সেফ ডেলিভারি ঠিকানা পার্সার
   const getFullAddress = (order: any): string => {
     if (!order) return 'Bangladesh';
     
@@ -81,18 +81,16 @@ export default function Orders() {
     return clean ? (clean.toLowerCase().includes('bangladesh') ? clean : `${clean}, Bangladesh`) : 'Bangladesh';
   };
 
-  // 🛡️ অডায়র্ড প্রোডাক্ট আইটেম ডিকোডার (Photo, Name, Qty, Size, Color 100% দৃশ্যমান হবে)
+  // 🚀 ১০০% রিয়েল প্রোডাক্ট আইটেম ডিকোডার (Photo, Name, Qty, Size, Color & Variants Display)
   const getOrderItemsList = (order: any): any[] => {
     if (!order) return [];
     
     let raw = order.orderItems || order.order_items || order.cartItems || order.items_data;
     
-    // যদি order.items অ্যারাই হয়
     if (!raw && Array.isArray(order.items)) {
       raw = order.items;
     }
 
-    // স্ট্রিং হলে অবজেক্টে পার্স করা
     if (typeof raw === 'string') {
       try {
         raw = JSON.parse(raw);
@@ -104,23 +102,23 @@ export default function Orders() {
     if (Array.isArray(raw) && raw.length > 0) return raw;
     if (raw && typeof raw === 'object' && !Array.isArray(raw)) return [raw];
 
-    // 🚀 স্মার্ট ফলব্যাক: যদি ডাটাবেসে আইটেম লিস্ট না-ও থাকে, গ্র্যান্ড টোটাল টাকা দিয়ে আইটেম তৈরি করা
+    // 🚀 স্মার্ট ফলব্যাক
     const totalAmt = parseSafeNumber(order.total || order.orderSummary?.total);
     if (totalAmt > 0) {
       return [{
-        name: order.productName || order.item_name || 'Ordered Fashion Product',
+        name: order.productName || order.item_name || 'Ordered Fashion Item',
         price: parseSafeNumber(order.subtotal || order.orderSummary?.subtotal || totalAmt),
         quantity: parseSafeNumber(order.itemsCount) || 1,
-        image: order.productImage || order.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600'
+        image: order.productImage || order.imageUrl || ''
       }];
     }
 
     return [];
   };
 
-  // 🛡️ অর্ডার সমরি পার্সার (Subtotal, Shipping Fee, Tax, Discount)
+  // 🚀 সেফ শিপিং চার্জ ও অর্ডার সমরি পার্সার (Shipping Fee ৳60/৳150 Guaranteed Display)
   const getOrderSummaryObj = (order: any): any => {
-    if (!order) return { subtotal: 0, shipping: 0, tax: 0, discount: 0, total: 0 };
+    if (!order) return { subtotal: 0, shipping: 60, tax: 0, discount: 0, total: 0 };
     
     let summary = order.orderSummary || order.order_summary;
     if (typeof summary === 'string') {
@@ -128,10 +126,14 @@ export default function Orders() {
     }
 
     const totalNum = parseSafeNumber(order.total || summary?.total);
-    const shipNum = parseSafeNumber(order.shipping || summary?.shipping) || (totalNum > 0 ? 60 : 0);
-    const subNum = parseSafeNumber(order.subtotal || summary?.subtotal) || (totalNum > shipNum ? totalNum - shipNum : totalNum);
-    const taxNum = parseSafeNumber(order.tax || summary?.tax);
-    const discNum = parseSafeNumber(order.discount || summary?.discount);
+    const addressStr = getFullAddress(order).toLowerCase();
+    const isInsideCTG = addressStr.includes('chattogram') || addressStr.includes('chittagong');
+    const defaultShipping = isInsideCTG ? 60 : 150;
+
+    const shipNum = parseSafeNumber(summary?.shipping !== undefined ? summary.shipping : order.shipping) || (totalNum > 0 ? defaultShipping : 0);
+    const subNum = parseSafeNumber(summary?.subtotal !== undefined ? summary.subtotal : order.subtotal) || (totalNum > shipNum ? totalNum - shipNum : totalNum);
+    const taxNum = parseSafeNumber(summary?.tax !== undefined ? summary.tax : order.tax);
+    const discNum = parseSafeNumber(summary?.discount !== undefined ? summary.discount : order.discount);
 
     return {
       subtotal: subNum,
@@ -143,7 +145,7 @@ export default function Orders() {
     };
   };
 
-  // 🛡️ অর্ডারের নিখুঁত তারিখ ও সময় (Exact Date & Time)
+  // 🛡️ অর্ডারের তারিখ ও সময়
   const getFormattedDateTime = (order: any): string => {
     if (!order) return 'Recent';
     const rawDate = order.createdAt || order.created_at || order.date;
@@ -165,7 +167,7 @@ export default function Orders() {
     }
   };
 
-  // 🚀 ১. Supabase ক্লাউড ডাটাবেস থেকে রিয়েল-টাইম ১০০% লাইভ অর্ডার ফেচিং
+  // 🚀 ১. সরাসরি Supabase Cloud Database থেকে রিয়েল-টাইম ১০০% লাইভ অর্ডার ফেচিং
   const fetchOrders = async (isSilent = false) => {
     if (!isSilent && orders.length === 0) setLoading(true);
 
@@ -198,7 +200,7 @@ export default function Orders() {
 
     // 🚀 ২. Supabase WebSocket Realtime Listener (সব ডিভাইসে ১ সেকেন্ডে ব্রডকাস্ট হবে)
     const channel = supabase
-      .channel('public:orders:admin:live:instant:v8')
+      .channel('public:orders:admin:live:instant:v10')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
@@ -343,7 +345,7 @@ export default function Orders() {
         </div>
       </div>
 
-      {/* 📦 Orders Table with Live Supabase Sync */}
+      {/* 📦 Orders Table */}
       <div className="bg-[#1A1A1A] rounded-2xl border border-[#D4AF37]/20 overflow-hidden shadow-2xl transition-all duration-300">
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left whitespace-nowrap">
@@ -442,7 +444,7 @@ export default function Orders() {
         </div>
       </div>
 
-      {/* 🪟 View Full Order Details Modal (A to Z Full Customer & Product Breakdown) */}
+      {/* 🪟 View Full Order Details Modal (A to Z Details with Image, Size, Color & Shipping Fee) */}
       {isModalOpen && selectedOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md transition-opacity duration-300">
           <div className="bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
@@ -521,7 +523,7 @@ export default function Orders() {
                 </div>
               </div>
 
-              {/* 2. Itemized Products List with Photos */}
+              {/* 2. Itemized Products List with Real Photo, Size, Color & Quantity */}
               <div className="bg-[#111111] p-5 rounded-2xl border border-gray-800/80 shadow-md">
                 <h3 className="text-[#D4AF37] font-bold mb-4 uppercase tracking-wider text-xs border-b border-gray-800 pb-2 flex items-center">
                   <Package size={16} className="mr-2 text-[#D4AF37]" /> Ordered Items ({getOrderItemsList(selectedOrder).length})
@@ -533,32 +535,44 @@ export default function Orders() {
                   ) : (
                     getOrderItemsList(selectedOrder).map((item: any, idx: number) => {
                       const itemImage = item.image || item.imageUrl || (item.images && item.images[0]) || '';
-                      const itemQty = Number(item.quantity) || 1;
+                      const itemQty = parseSafeNumber(item.quantity) || 1;
                       const itemPrice = parseSafeNumber(item.price);
                       const itemSubtotal = itemQty * itemPrice;
 
                       return (
-                        <div key={idx} className="flex items-center justify-between p-3 bg-[#1A1A1A] rounded-xl border border-gray-800 hover:border-gray-700 transition-colors">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-12 h-12 rounded-lg bg-[#111111] border border-gray-700 overflow-hidden shrink-0 flex items-center justify-center">
+                        <div key={idx} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 bg-[#1A1A1A] rounded-xl border border-gray-800 gap-3">
+                          <div className="flex items-center space-x-3.5">
+                            <div className="w-14 h-14 rounded-xl bg-[#111111] border border-gray-700 overflow-hidden shrink-0 flex items-center justify-center">
                               {itemImage && !itemImage.includes('via.placeholder') ? (
                                 <img src={itemImage} alt={item.name} className="w-full h-full object-cover" />
                               ) : (
-                                <ImageIcon size={18} className="text-gray-600" />
+                                <ImageIcon size={22} className="text-[#D4AF37]/60" />
                               )}
                             </div>
                             <div>
-                              <p className="font-bold text-white text-sm line-clamp-1">{item.name || 'Fashion Product'}</p>
-                              <p className="text-xs text-gray-400 mt-0.5">
-                                Qty: <span className="text-[#D4AF37] font-bold">x{itemQty}</span> 
-                                {item.size ? ` | Size: ${item.size}` : ''}
-                                {item.color ? ` | Color: ${item.color}` : ''}
-                              </p>
+                              <p className="font-bold text-white text-sm line-clamp-1">{item.name || 'Fashion Item'}</p>
+                              
+                              {/* 🚀 কাস্টমারের নির্বাচিত রিয়েল ভ্যারিয়েন্ট: Color, Size, Quantity */}
+                              <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-gray-400">
+                                <span className="text-[#D4AF37] font-bold bg-[#D4AF37]/10 px-2 py-0.5 rounded border border-[#D4AF37]/20">
+                                  Qty: x{itemQty}
+                                </span>
+                                {item.size && (
+                                  <span className="bg-gray-800 px-2 py-0.5 rounded text-gray-300">
+                                    Size: <strong className="text-white">{item.size}</strong>
+                                  </span>
+                                )}
+                                {item.color && (
+                                  <span className="bg-gray-800 px-2 py-0.5 rounded text-gray-300">
+                                    Color: <strong className="text-white">{item.color}</strong>
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
 
-                          <div className="text-right">
-                            <p className="font-bold text-[#D4AF37] text-sm">৳{itemSubtotal.toFixed(2)}</p>
+                          <div className="text-right sm:self-center">
+                            <p className="font-bold text-[#D4AF37] text-base">৳{itemSubtotal.toFixed(2)}</p>
                             {itemQty > 1 && <p className="text-[10px] text-gray-500">৳{itemPrice.toFixed(2)} each</p>}
                           </div>
                         </div>
@@ -567,7 +581,7 @@ export default function Orders() {
                   )}
                 </div>
 
-                {/* 3. Cost & Coupon Breakdown */}
+                {/* 3. Cost & Coupon Breakdown (Guaranteed Shipping Fee Display) */}
                 {(() => {
                   const summary = getOrderSummaryObj(selectedOrder);
                   const subtotalNum = parseSafeNumber(summary.subtotal);
@@ -585,7 +599,7 @@ export default function Orders() {
 
                       <div className="flex justify-between text-gray-400">
                         <span>Shipping Fee:</span>
-                        <span className="text-white font-medium">৳{shipNum.toFixed(2)}</span>
+                        <span className="text-[#D4AF37] font-bold">৳{shipNum.toFixed(2)}</span>
                       </div>
 
                       {taxNum > 0 && (
