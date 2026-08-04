@@ -298,7 +298,7 @@ export const deleteSupabaseCoupon = async (id: string) => {
 };
 
 // =========================================================
-// 📦 5. ORDERS SERVICES (Smart Retry & Unstoppable All-Device Live Order Save)
+// 📦 5. ORDERS SERVICES (PostgrestFilterBuilder .catch Fix)
 // =========================================================
 
 export const getSupabaseOrders = async () => {
@@ -323,26 +323,19 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
   const targetId = String(orderData.id || orderData.orderId || orderData._id || `ORD-${Date.now()}`);
   const { _id, updated_at, ...cleanOrder } = orderData;
   
-  // 🚀 ১. সম্পূর্ণ স্ট্রং পেলোড
+  const itemsArray = Array.isArray(cleanOrder.orderItems) 
+    ? cleanOrder.orderItems 
+    : (Array.isArray(cleanOrder.items) ? cleanOrder.items : []);
+
   const payload: Record<string, any> = {
     ...cleanOrder,
     id: targetId,
     orderId: String(cleanOrder.orderId || targetId),
-    customer: String(cleanOrder.customer || 'Customer'),
-    email: String(cleanOrder.email || cleanOrder.customerInfo?.email || ''),
-    phone: String(cleanOrder.phone || cleanOrder.customerInfo?.phone || ''),
-    address: String(cleanOrder.address || ''),
-    date: String(cleanOrder.date || new Date().toLocaleDateString('en-GB')),
-    total: Number(cleanOrder.total || cleanOrder.orderSummary?.total || 0),
-    status: String(cleanOrder.status || 'Pending'),
-    items: Number(cleanOrder.items || 1),
-    paymentMethod: String(cleanOrder.paymentMethod || cleanOrder.paymentDetails?.method || 'Cash on Delivery'),
-    customerInfo: typeof cleanOrder.customerInfo === 'object' ? cleanOrder.customerInfo : {},
-    orderItems: Array.isArray(cleanOrder.orderItems) ? cleanOrder.orderItems : [],
-    orderSummary: typeof cleanOrder.orderSummary === 'object' ? cleanOrder.orderSummary : {}
+    orderItems: itemsArray,
+    items: itemsArray,
+    itemsCount: Number(cleanOrder.itemsCount || itemsArray.length || 1)
   };
 
-  // 🚀 ২. লোকাল ব্রাউজার ব্যাকআপ
   try {
     const existing = JSON.parse(localStorage.getItem('mo_fashion_orders') || '[]');
     const filtered = Array.isArray(existing) ? existing.filter((o: any) => String(o.id || o.orderId || o._id) !== targetId) : [];
@@ -351,43 +344,40 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
     window.dispatchEvent(new Event('orderUpdated'));
   } catch (e) {}
 
-  // 🚀 ৩. ক্লাউড ডাটাবেস সেভ উইথ স্মার্ট ফলব্যাক (স্মার্ট রিট্রাই)
-  try {
-    const { data, error } = await supabase
-      .from('orders')
-      .upsert([payload], { onConflict: 'id' })
-      .select();
+  const { data, error } = await supabase
+    .from('orders')
+    .upsert([payload], { onConflict: 'id' })
+    .select();
 
-    if (!error && data && data.length > 0) return data[0];
+  if (error) {
+    console.error('Supabase Order Save Error:', error.message);
+    
+    // 🚀 .catch() টাইপস্ক্রিপ্ট এরর ফিক্স (Proper Try/Catch Block)
+    const basicPayload = {
+      id: targetId,
+      orderId: String(cleanOrder.orderId || targetId),
+      customer: String(cleanOrder.customer || 'Customer'),
+      email: String(cleanOrder.email || ''),
+      phone: String(cleanOrder.phone || ''),
+      address: String(cleanOrder.address || ''),
+      date: String(cleanOrder.date || ''),
+      total: Number(cleanOrder.total || 0),
+      subtotal: Number(cleanOrder.subtotal || cleanOrder.orderSummary?.subtotal || 0),
+      shipping: Number(cleanOrder.shipping || cleanOrder.orderSummary?.shipping || 0),
+      status: String(cleanOrder.status || 'Pending'),
+      paymentMethod: String(cleanOrder.paymentMethod || 'Cash on Delivery'),
+      orderItems: itemsArray,
+      orderSummary: cleanOrder.orderSummary || {}
+    };
 
-    // 🚀 স্মার্ট রিট্রাই: যদি কোনো জটিল কলামের জন্য সুপাবেস রিজেক্ট করে, তবে সাধারণ কলাম নিয়ে গ্যারান্টিড সেভ হবে!
-    if (error) {
-      console.warn("Retrying order save with basic schema:", error.message);
-      const basicPayload = {
-        id: targetId,
-        orderId: String(cleanOrder.orderId || targetId),
-        customer: String(cleanOrder.customer || 'Customer'),
-        email: String(cleanOrder.email || ''),
-        phone: String(cleanOrder.phone || ''),
-        address: String(cleanOrder.address || ''),
-        date: String(cleanOrder.date || ''),
-        total: Number(cleanOrder.total || 0),
-        status: String(cleanOrder.status || 'Pending'),
-        items: Number(cleanOrder.items || 1),
-        paymentMethod: String(cleanOrder.paymentMethod || 'Cash on Delivery')
-      };
-
-      const { data: retryData } = await supabase
-        .from('orders')
-        .upsert([basicPayload], { onConflict: 'id' })
-        .select();
-
-      if (retryData && retryData.length > 0) return retryData[0];
+    try {
+      await supabase.from('orders').upsert([basicPayload], { onConflict: 'id' });
+    } catch (retryErr) {
+      console.warn("Basic Order retry warning:", retryErr);
     }
-  } catch (err: any) {
-    console.warn("Supabase Order save exception:", err);
   }
 
+  if (data && data.length > 0) return data[0];
   return payload;
 };
 
@@ -409,7 +399,7 @@ export const deleteSupabaseOrder = async (id: string) => {
 };
 
 // =========================================================
-// 📦 6. CUSTOMERS SERVICES (Unstoppable Live Customer Save)
+// 📦 6. CUSTOMERS SERVICES
 // =========================================================
 
 export const getSupabaseCustomers = async () => {
@@ -431,21 +421,9 @@ export const getSupabaseCustomers = async () => {
 };
 
 export const saveSupabaseCustomer = async (customerData: Record<string, any>) => {
-  const targetId = String(customerData.id || customerData._id || `CUST-${customerData.phone || Date.now()}`);
+  const targetId = String(customerData.id || customerData._id || `CUST-${Date.now()}`);
   const { _id, updated_at, ...cleanCustomer } = customerData;
-  
-  const payload = {
-    ...cleanCustomer,
-    id: targetId,
-    name: String(cleanCustomer.name || 'Customer'),
-    email: String(cleanCustomer.email || ''),
-    phone: String(cleanCustomer.phone || ''),
-    address: String(cleanCustomer.address || ''),
-    orders: Number(cleanCustomer.orders || 1),
-    spent: Number(cleanCustomer.spent || 0),
-    status: String(cleanCustomer.status || 'Active'),
-    joinDate: String(cleanCustomer.joinDate || new Date().toLocaleDateString('en-GB'))
-  };
+  const payload = { ...cleanCustomer, id: targetId };
 
   try {
     const existing = JSON.parse(localStorage.getItem('mo_fashion_customers') || '[]');
@@ -460,11 +438,8 @@ export const saveSupabaseCustomer = async (customerData: Record<string, any>) =>
       .from('customers')
       .upsert([payload], { onConflict: 'id' })
       .select();
-
     if (data && data.length > 0) return data[0];
-  } catch (err: any) {
-    console.warn("Supabase Customer save exception:", err);
-  }
+  } catch (err: any) {}
 
   return payload;
 };

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronLeft, CreditCard, Smartphone, Banknote, Tag, MapPin, Sparkles, ShieldCheck, Navigation } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -190,22 +190,45 @@ export default function CheckoutPage() {
     setSelectedThana(thanas[0] || '');
   };
 
-  // রিয়েল-টাইম সাবটোটাল হিসাব
+  // 🚀 রিয়েল-টাইম সাবটোটাল ও প্রোডাক্ট আইটেম প্রস্তুতি (নাম ও ছবি কখনো ফাকা হবে না)
   let subtotalAfterProductDiscount = 0;
-  items.forEach((cartItem: any) => {
+  const formattedOrderItems = items.map((cartItem: any) => {
     const dbProduct = dbProducts.find(p => String(p.id || p._id) === String(cartItem.id));
-    const originalPrice = dbProduct ? Number(dbProduct.price) : Number(cartItem.price);
-    const discountPercent = dbProduct ? Number(dbProduct.discount) || 0 : 0;
-    const sellingPrice = originalPrice - (originalPrice * discountPercent) / 100;
     
-    subtotalAfterProductDiscount += sellingPrice * cartItem.quantity;
+    const productName = cartItem.name || dbProduct?.name || 'Fashion Collection Item';
+    const origPrice = dbProduct ? Number(dbProduct.price) : Number(cartItem.price || 0);
+    const discountPercent = dbProduct ? Number(dbProduct.discount) || 0 : Number(cartItem.discount) || 0;
+    const sellingPrice = discountPercent > 0 ? origPrice - (origPrice * discountPercent) / 100 : (Number(cartItem.price) || origPrice);
+    
+    subtotalAfterProductDiscount += sellingPrice * (Number(cartItem.quantity) || 1);
+
+    let productImage = '';
+    if (cartItem.image && cartItem.image !== 'No Image' && !cartItem.image.includes('via.placeholder')) {
+      productImage = cartItem.image;
+    } else if (dbProduct?.images?.[0]) {
+      productImage = dbProduct.images[0];
+    } else if (dbProduct?.imageUrl) {
+      productImage = dbProduct.imageUrl;
+    }
+
+    return {
+      id: String(cartItem.id),
+      name: productName,
+      price: Number(sellingPrice.toFixed(2)),
+      originalPrice: Number(origPrice.toFixed(2)),
+      discount: discountPercent,
+      quantity: Number(cartItem.quantity) || 1,
+      size: String(cartItem.size || 'Standard'),
+      color: String(cartItem.color || 'Default'),
+      image: productImage || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600'
+    };
   });
 
-  // 🚀 চট্টগ্রাম এলাকা বা ঢাকার ভেতরের শিপিং চার্জ
+  // 🚀 শিপিং চার্জ হিসাব (কখনো ৳0.00 হবে না)
   const isInsideChattogram = selectedDistrict.toLowerCase().includes('chattogram') || selectedDistrict.toLowerCase().includes('chittagong') || selectedDivision.toLowerCase().includes('chattogram');
   const shippingInside = safeSettings.shippingInside !== undefined ? Number(safeSettings.shippingInside) : 60;
   const shippingOutside = safeSettings.shippingOutside !== undefined ? Number(safeSettings.shippingOutside) : 150;
-  const shipping = items.length > 0 ? (isInsideChattogram ? shippingInside : shippingOutside) : 0;
+  const shipping = items.length > 0 ? (isInsideChattogram ? shippingInside : shippingOutside) : (isInsideChattogram ? 60 : 150);
 
   const taxRate = safeSettings.taxRate !== undefined ? Number(safeSettings.taxRate) : 0;
   const taxAmount = (subtotalAfterProductDiscount * taxRate) / 100;
@@ -242,7 +265,7 @@ export default function CheckoutPage() {
     return emailRegex.test(email.trim());
   };
 
-  // 🚀 প্লেস অর্ডার লজিক (Unstoppable Order & Customer Cloud Placement)
+  // 🚀 প্লেস অর্ডার লজিক (A to Z Complete Order Details Live Cloud Save)
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault(); 
     
@@ -279,6 +302,7 @@ export default function CheckoutPage() {
     const customerEmail = formData.email.trim() || `${formData.phone.trim()}@mofashion.com`;
     const fullLocationStr = `${selectedThana}, ${selectedDistrict}, ${selectedDivision}`;
 
+    // 🚀 A to Z পূর্ণাঙ্গ অর্ডার পে-লোড (শিপিং চার্জ, কুপন ডিসকাউন্ট ও ফটো সহ)
     const orderPayload = {
       id: orderId,
       _id: orderId,
@@ -299,12 +323,17 @@ export default function CheckoutPage() {
       address: `${formData.address.trim()}, ${fullLocationStr}${formData.postalCode.trim() ? ' - ' + formData.postalCode.trim() : ''}, Bangladesh`,
       date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
       createdAt: new Date().toISOString(),
+      subtotal: subtotalAfterProductDiscount,
+      shipping: shipping,
+      tax: taxAmount,
+      discount: finalCouponDiscountAmount,
       total: totalAmount,
       status: 'Pending',
-      items: items.length,
+      itemsCount: items.length,
       paymentMethod: paymentMethod,
       paymentDetails: { method: paymentMethod, status: 'Pending' },
-      orderItems: items,
+      orderItems: formattedOrderItems,
+      items: formattedOrderItems,
       orderSummary: {
         subtotal: subtotalAfterProductDiscount,
         shipping: shipping,
