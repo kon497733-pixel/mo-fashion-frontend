@@ -1,13 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronLeft, CreditCard, Smartphone, Banknote, Tag, MapPin, Check, Sparkles, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, CreditCard, Smartphone, Banknote, Tag, MapPin, Sparkles, ShieldCheck, Building, Navigation } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Helmet } from 'react-helmet-async';
 
 import { useCartStore } from '../../store/useCartStore';
 import { notifyNewOrder } from '../../services/emailService';
 import { 
-  supabase, 
   getSupabaseProducts, 
   getSupabaseSettings, 
   saveSupabaseOrder, 
@@ -17,18 +16,89 @@ import {
   saveSupabaseCoupon
 } from '../../lib/supabase';
 
-// 🚀 বাংলাদেশের ৬৪ জেলার তালিকা
-const bdDistricts = [
-  "Bagerhat", "Bandarban", "Barguna", "Barishal", "Bhola", "Bogra", "Brahmanbaria", "Chandpur", 
-  "Chattogram", "Chuadanga", "Comilla", "Cox's Bazar", "Dhaka", "Dinajpur", "Faridpur", "Feni", 
-  "Gaibandha", "Gazipur", "Gopalganj", "Habiganj", "Jamalpur", "Jashore", "Jhalokati", "Jhenaidah", 
-  "Joypurhat", "Khagrachhari", "Khulna", "Kishoreganj", "Kurigram", "Kushtia", "Lakshmipur", 
-  "Lalmonirhat", "Madaripur", "Magura", "Manikganj", "Meherpur", "Moulvibazar", "Munshiganj", 
-  "Mymensingh", "Naogaon", "Narail", "Narayanganj", "Narsingdi", "Natore", "Nawabganj", 
-  "Netrokona", "Nilphamari", "Noakhali", "Pabna", "Panchagarh", "Patuakhali", "Pirojpur", 
-  "Rajbari", "Rajshahi", "Rangamati", "Rangpur", "Satkhira", "Shariatpur", "Sherpur", 
-  "Sirajganj", "Sunamganj", "Sylhet", "Tangail", "Thakurgaon"
-];
+// 🚀 বাংলাদেশের বিভাগ, জেলা ও থানা/উপজেলার ডাটাবেস
+const bdLocations: Record<string, Record<string, string[]>> = {
+  "Dhaka": {
+    "Dhaka": ["Dhanmondi", "Gulshan", "Banani", "Mirpur", "Uttara", "Mohammadpur", "Tejgaon", "Badda", "Rampura", "Jatrabari", "Savar", "Dhamrai", "Keraniganj", "Dohar", "Nawabganj"],
+    "Gazipur": ["Gazipur Sadar", "Kaliakair", "Kapasia", "Sreepur", "Kaliganj"],
+    "Narayanganj": ["Narayanganj Sadar", "Araihazar", "Bandar", "Rupganj", "Sonargaon"],
+    "Tangail": ["Tangail Sadar", "Gopalpur", "Basail", "Bhuapur", "Delduar", "Ghatail", "Kalihati", "Madhupur", "Mirzapur", "Nagarpur", "Sakhipur"],
+    "Narsingdi": ["Narsingdi Sadar", "Belabo", "Monohardi", "Palash", "Raipura", "Shibpur"],
+    "Manikganj": ["Manikganj Sadar", "Singair", "Saturia", "Shibalaya", "Harirampur", "Ghior", "Daulatpur"],
+    "Munshiganj": ["Munshiganj Sadar", "Gazaria", "Tongibari", "Sreenagar", "Lohajang", "Sirajdikhan"],
+    "Faridpur": ["Faridpur Sadar", "Bhanga", "Boalmari", "Charbhadrasan", "Alfadanga", "Madhukhali", "Nagarkanda", "Sadarpur"],
+    "Madaripur": ["Madaripur Sadar", "Kalkini", "Rajoir", "Shibchar"],
+    "Gopalganj": ["Gopalganj Sadar", "Kashiani", "Kotalipara", "Muksudpur", "Tungipara"],
+    "Rajbari": ["Rajbari Sadar", "Baliakandi", "Goalandaghat", "Pangsha", "Salkopa"],
+    "Shariatpur": ["Shariatpur Sadar", "Damudya", "Naria", "Zajira", "Bhedarganj", "Gosairhat"],
+    "Kishoreganj": ["Kishoreganj Sadar", "Bhairab", "Bajitpur", "Katiadi", "Kuliarchar", "Pakundia", "Itna", "Tarail"]
+  },
+  "Chattogram": {
+    "Chattogram": ["Kotwali", "Panchlaish", "Halishahar", "Agrabad", "Khulshi", "Chittagong Sadar", "Hathazari", "Sitakunda", "Patiya", "Mirsarai", "Raozan", "Rangunia", "Anwara", "Banshkhali", "Boalkhali", "Chandanaish"],
+    "Cox's Bazar": ["Cox's Bazar Sadar", "Chakaria", "Teknaf", "Ukhiya", "Maheshkhali", "Kutubdia", "Ramu", "Pekua"],
+    "Comilla": ["Comilla Sadar", "Barura", "Brahmanpara", "Burichang", "Chandina", "Chauddagram", "Daudkandi", "Debidwar", "Homna", "Laksam"],
+    "Chandpur": ["Chandpur Sadar", "Faridganj", "Haimchar", "Hajiganj", "Kachua", "Matlab North", "Matlab South", "Shahrasti"],
+    "Feni": ["Feni Sadar", "Chhagalnaiya", "Daganbhuiyan", "Parshuram", "Fulgazi", "Sonagazi"],
+    "Noakhali": ["Noakhali Sadar", "Begumganj", "Chatkhil", "Companiganj", "Hatiya", "Senbagh", "Subarnachar", "Kabirhat"],
+    "Lakshmipur": ["Lakshmipur Sadar", "Raipur", "Ramganj", "Ramgati", "Kamalnagar"],
+    "Brahmanbaria": ["Brahmanbaria Sadar", "Ashuganj", "Bancharampur", "Kasba", "Nabinagar", "Nasirnagar", "Sarail"],
+    "Rangamati": ["Rangamati Sadar", "Belaichhari", "Bagaichhari", "Barkal", "Kaptai", "Jurachhari", "Langadu", "Naniarchar"],
+    "Khagrachhari": ["Khagrachhari Sadar", "Dighinala", "Lakshmichhari", "Mahalchhari", "Manikchhari", "Matiranga", "Panchhari", "Ramgarh"],
+    "Bandarban": ["Bandarban Sadar", "Ali Kadam", "Thanchi", "Ruma", "Rowangchhari", "Lama", "Naikhongchhari"]
+  },
+  "Rajshahi": {
+    "Rajshahi": ["Rajshahi Sadar", "Boalia", "Rajpara", "Motihar", "Shah Makhdum", "Godagari", "Paba", "Puthia", "Tanore", "Bagha", "Charghat"],
+    "Bogra": ["Bogra Sadar", "Adamdighi", "Sherpur", "Dhunat", "Dhupchanchia", "Gabtali", "Kahaloo", "Nandigram", "Sariakandi", "Shajahanpur", "Shibganj"],
+    "Pabna": ["Pabna Sadar", "Atgharia", "Bera", "Bhangura", "Chatmohar", "Faridpur", "Ishwardi", "Santhia", "Sujanagar"],
+    "Natore": ["Natore Sadar", "Baraigram", "Gurudaspur", "Lalpur", "Singra", "Bagatipara"],
+    "Naogaon": ["Naogaon Sadar", "Atrai", "Badalgachhi", "Dhamoirhat", "Manda", "Mahadevpur", "Niamatpur", "Patnitala", "Raninagar", "Sapahar"],
+    "Sirajganj": ["Sirajganj Sadar", "Belkuchi", "Chauhali", "Kamarkhanda", "Kazipur", "Rayganj", "Shahjadpur", "Tarash", "Ullahpara"],
+    "Joypurhat": ["Joypurhat Sadar", "Akkelpur", "Kalai", "Khetlal", "Panchbibi"],
+    "Chapainawabganj": ["Chapainawabganj Sadar", "Bholahat", "Gomastapur", "Nachole", "Shibganj"]
+  },
+  "Khulna": {
+    "Khulna": ["Khulna Sadar", "Sonadanga", "Boyra", "Khalishpur", "Daulatpur", "Batiaghata", "Dacope", "Dumuria", "Dighalia", "Koyra", "Paikgachha", "Rupsha", "Terokhada"],
+    "Jashore": ["Jashore Sadar", "Abhaynagar", "Bagherpara", "Chaugachha", "Jhikargachha", "Keshabpur", "Manirampur", "Sharsha"],
+    "Kushtia": ["Kushtia Sadar", "Kumarkhali", "Daulatpur", "Mirpur", "Bheramara", "Khoksa"],
+    "Satkhira": ["Satkhira Sadar", "Assasuni", "Debhata", "Kalaroa", "Kaliganj", "Shyamnagar", "Tala"],
+    "Bagerhat": ["Bagerhat Sadar", "Chitalmari", "Fakirhat", "Kachua", "Mollahat", "Mongla", "Morrelganj", "Rampal", "Sarankhola"],
+    "Chuadanga": ["Chuadanga Sadar", "Alamdanga", "Damurhuda", "Jibannagar"],
+    "Meherpur": ["Meherpur Sadar", "Gangni", "Mujibnagar"],
+    "Narail": ["Narail Sadar", "Kalia", "Lohagara"],
+    "Jhenaidah": ["Jhenaidah Sadar", "Harakunda", "Kaliganj", "Kotchandpur", "Maheshpur", "Shailkupa"],
+    "Magura": ["Magura Sadar", "Mohammadpur", "Shalisha", "Sreepur"]
+  },
+  "Barishal": {
+    "Barishal": ["Barishal Sadar", "Agailjhara", "Babuganj", "Bakerganj", "Banaripara", "Gaurnadi", "Hizla", "Mehendiganj", "Muladi", "Wazirpur"],
+    "Bhola": ["Bhola Sadar", "Burhanuddin", "Char Fasson", "Daulatkhan", "Lalmohan", "Manpura", "Tazumuddin"],
+    "Barguna": ["Barguna Sadar", "Amatali", "Bamna", "Betagi", "Patharghata", "Taltali"],
+    "Patuakhali": ["Patuakhali Sadar", "Bawalfal", "Dashmina", "Galachipa", "Kalapara", "Mirzaganj", "Rangabali", "Dumki"],
+    "Pirojpur": ["Pirojpur Sadar", "Bhandaria", "Kawkhali", "Mathbaria", "Nazirpur", "Nesarabad", "Zianagar"],
+    "Jhalokati": ["Jhalokati Sadar", "Kathalia", "Nalchity", "Rajapur"]
+  },
+  "Sylhet": {
+    "Sylhet": ["Sylhet Sadar", "Beanibazar", "Bishwanath", "Companiganj", "Fenchuganj", "Golapganj", "Gowainghat", "Jaintiapur", "Kanaighat", "Zakiganj"],
+    "Moulvibazar": ["Moulvibazar Sadar", "Barlekha", "Juri", "Kamalganj", "Kulaura", "Rajnagar", "Sreemangal"],
+    "Habiganj": ["Habiganj Sadar", "Ajmiriganj", "Bahubal", "Baniachong", "Chunarughat", "Nabiganj", "Madhabpur"],
+    "Sunamganj": ["Sunamganj Sadar", "Bishwamharpur", "Chhatak", "Derai", "Dharamapasha", "Dowarabazar", "Jagannathpur", "Jamalganj", "Sullah", "Tahirpur"]
+  },
+  "Rangpur": {
+    "Rangpur": ["Rangpur Sadar", "Badarganj", "Gangachhara", "Kaunia", "Mithapukur", "Pirgachha", "Pirganj", "Taraganj"],
+    "Dinajpur": ["Dinajpur Sadar", "Birampur", "Birganj", "Biral", "Bochaganj", "Chirirbandar", "Phulbari", "Ghoraghat", "Hakimpur", "Kaharole", "Khanshama", "Nawabganj", "Parbatipur"],
+    "Gaibandha": ["Gaibandha Sadar", "Phulchhari", "Gobindaganj", "Palashbari", "Sadullapur", "Saghata", "Sundarganj"],
+    "Kurigram": ["Kurigram Sadar", "Bhurungamari", "Char Rajibpur", "Chilmari", "Phulbari", "Nageshwari", "Rajarhat", "Roumari", "Ulipur"],
+    "Lalmonirhat": ["Lalmonirhat Sadar", "Aditmari", "Hatibandha", "Kaliganj", "Patgram"],
+    "Nilphamari": ["Nilphamari Sadar", "Dimla", "Domar", "Jaldhaka", "Kishoreganj", "Syedpur"],
+    "Panchagarh": ["Panchagarh Sadar", "Atwari", "Boda", "Debiganj", "Tetulia"],
+    "Thakurgaon": ["Thakurgaon Sadar", "Baliadangi", "Haripur", "Pirganj", "Ranisankail"]
+  },
+  "Mymensingh": {
+    "Mymensingh": ["Mymensingh Sadar", "Bhaluka", "Trishal", "Gafargaon", "Muktagachha", "Phulpur", "Haluaghat", "Ishwarganj", "Gauripur", "Dhobaura", "Nandail", "Tara Khanda"],
+    "Jamalpur": ["Jamalpur Sadar", "Baksiganj", "Dewanganj", "Isampur", "Madarganj", "Melandaha", "Sarishabari"],
+    "Netrokona": ["Netrokona Sadar", "Atpara", "Barhatta", "Durgapur", "Kalmakanda", "Kenda", "Khaliajuri", "Madan", "Mohanganj", "Purbadhala"],
+    "Sherpur": ["Sherpur Sadar", "Jhenaigati", "Nakla", "Nalitabari", "Sreebardi"]
+  }
+};
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
@@ -38,9 +108,10 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // সিটির ড্রপডাউন প্রদর্শন স্টেট
-  const [showCityDropdown, setShowCityDropdown] = useState(false);
-  const cityRef = useRef<HTMLDivElement>(null);
+  // 🚀 ৩-ধাপের এলাকা নির্বাচন স্টেট
+  const [selectedDivision, setSelectedDivision] = useState<string>('Dhaka');
+  const [selectedDistrict, setSelectedDistrict] = useState<string>('Dhaka');
+  const [selectedThana, setSelectedThana] = useState<string>('Dhanmondi');
 
   // 🚀 লাইভ ক্লাউড সেটিং ডাটা
   const [safeSettings, setSafeSettings] = useState<any>({
@@ -63,7 +134,6 @@ export default function CheckoutPage() {
       if (savedSettings) setSafeSettings(JSON.parse(savedSettings));
 
       try {
-        // 🚀 ২. সরাসরি Supabase Cloud থেকে লাইভ ডাটা ফেচ
         const [cloudProds, cloudSet] = await Promise.all([
           getSupabaseProducts().catch(() => []),
           getSupabaseSettings().catch(() => null)
@@ -84,17 +154,6 @@ export default function CheckoutPage() {
     loadCheckoutData();
   }, []);
 
-  // ড্রপডাউনের বাইরে ক্লিক করলে ড্রপডাউন হাইড করার লজিক
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (cityRef.current && !cityRef.current.contains(event.target as Node)) {
-        setShowCityDropdown(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   useEffect(() => {
     if (!paymentMethod) {
       if (safeSettings?.enableBkash !== false) setPaymentMethod('bKash');
@@ -109,34 +168,41 @@ export default function CheckoutPage() {
     email: '', 
     phone: '',
     address: '', 
-    city: '', 
     postalCode: '', 
     country: 'Bangladesh' 
   });
 
-  // ফিল্টার করা জেলাগুলোর লিস্ট
-  const filteredDistricts = bdDistricts.filter(district => 
-    district.toLowerCase().includes((formData.city || '').toLowerCase())
-  );
+  // বিভাগ পরিবর্তন হলে জেলা রিসেট
+  const handleDivisionChange = (divisionName: string) => {
+    setSelectedDivision(divisionName);
+    const districts = Object.keys(bdLocations[divisionName] || {});
+    const defaultDistrict = districts[0] || '';
+    setSelectedDistrict(defaultDistrict);
+    
+    const thanas = bdLocations[divisionName]?.[defaultDistrict] || [];
+    setSelectedThana(thanas[0] || '');
+  };
 
-  const handleSelectCity = (district: string) => {
-    setFormData({ ...formData, city: district });
-    setShowCityDropdown(false);
+  // জেলা পরিবর্তন হলে থানা রিসেট
+  const handleDistrictChange = (districtName: string) => {
+    setSelectedDistrict(districtName);
+    const thanas = bdLocations[selectedDivision]?.[districtName] || [];
+    setSelectedThana(thanas[0] || '');
   };
 
   // রিয়েল-টাইম সাবটোটাল হিসাব
   let subtotalAfterProductDiscount = 0;
-  const enrichedCartItems = items.map((cartItem: any) => {
+  items.forEach((cartItem: any) => {
     const dbProduct = dbProducts.find(p => String(p.id || p._id) === String(cartItem.id));
     const originalPrice = dbProduct ? Number(dbProduct.price) : Number(cartItem.price);
     const discountPercent = dbProduct ? Number(dbProduct.discount) || 0 : 0;
     const sellingPrice = originalPrice - (originalPrice * discountPercent) / 100;
     
     subtotalAfterProductDiscount += sellingPrice * cartItem.quantity;
-    return { ...cartItem, dbProduct };
   });
 
-  const isInsideChattogram = formData.city.toLowerCase().includes('chattogram') || formData.city.toLowerCase().includes('chittagong');
+  // 🚀 চট্টগ্রাম এলাকা অথবা ঢাকা সিটি চেক করে শিপিং চার্জ
+  const isInsideChattogram = selectedDistrict.toLowerCase().includes('chattogram') || selectedDistrict.toLowerCase().includes('chittagong') || selectedDivision.toLowerCase().includes('chattogram');
   const shippingInside = safeSettings.shippingInside !== undefined ? Number(safeSettings.shippingInside) : 60;
   const shippingOutside = safeSettings.shippingOutside !== undefined ? Number(safeSettings.shippingOutside) : 150;
   const shipping = items.length > 0 ? (isInsideChattogram ? shippingInside : shippingOutside) : 0;
@@ -162,7 +228,7 @@ export default function CheckoutPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 🚀 ফোন নাম্বার ভ্যালিডেশন (বাংলাদেশি ১১ ডিজিটের নাম্বার)
+  // 🚀 ফোন নাম্বার ভ্যালিডেশন
   const validatePhone = (phone: string) => {
     const cleanPhone = phone.replace(/[\s-]/g, '');
     const bdPhoneRegex = /^(?:\+?88)?01[3-9]\d{8}$/;
@@ -176,7 +242,7 @@ export default function CheckoutPage() {
     return emailRegex.test(email.trim());
   };
 
-  // 🚀 প্লেস অর্ডার লজিক (Supabase Cloud Direct Save for All Devices)
+  // 🚀 প্লেস অর্ডার লজিক
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault(); 
     
@@ -201,17 +267,7 @@ export default function CheckoutPage() {
     }
 
     if (!formData.address.trim()) {
-      toast.error("Please enter your full address!");
-      return;
-    }
-
-    if (!formData.city.trim()) {
-      toast.error("Please select or enter your City/District!");
-      return;
-    }
-
-    if (!paymentMethod) {
-      toast.error("Please select a payment method.");
+      toast.error("Please enter your street address!");
       return;
     }
 
@@ -221,6 +277,7 @@ export default function CheckoutPage() {
     const orderId = `#ORD-${Math.floor(100000 + Math.random() * 900000)}`;
     const customerName = `${formData.firstName.trim()} ${formData.lastName.trim()}`;
     const customerEmail = formData.email.trim() || `${formData.phone.trim()}@mofashion.com`;
+    const fullLocationStr = `${selectedThana}, ${selectedDistrict}, ${selectedDivision}`;
 
     const orderPayload = {
       id: orderId,
@@ -233,13 +290,13 @@ export default function CheckoutPage() {
         email: customerEmail,
         phone: formData.phone.trim(),
         address: formData.address.trim(),
-        city: formData.city.trim(),
+        city: fullLocationStr,
         postalCode: formData.postalCode.trim() || 'N/A',
         country: 'Bangladesh'
       },
       email: customerEmail,
       phone: formData.phone.trim(),
-      address: `${formData.address.trim()}, ${formData.city.trim()}${formData.postalCode.trim() ? ' - ' + formData.postalCode.trim() : ''}, Bangladesh`,
+      address: `${formData.address.trim()}, ${fullLocationStr}${formData.postalCode.trim() ? ' - ' + formData.postalCode.trim() : ''}, Bangladesh`,
       date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
       createdAt: new Date().toISOString(),
       total: totalAmount,
@@ -264,21 +321,29 @@ export default function CheckoutPage() {
       name: customerName,
       email: customerEmail,
       phone: formData.phone.trim(),
-      address: `${formData.address.trim()}, ${formData.city.trim()}`,
+      address: `${formData.address.trim()}, ${fullLocationStr}`,
       orders: 1,
       spent: totalAmount,
       status: 'Active',
       joinDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
     };
 
+    // 🚀 ১. অর্ডার সরাসরি Supabase Cloud Database-এ সেভ করা
     try {
-      // 🚀 ১. অর্ডার সরাসরি Supabase Cloud Database-এ সেভ করা (এডমিন প্যানেলে সিঙ্ক হবে)
       await saveSupabaseOrder(orderPayload);
+    } catch (orderErr) {
+      console.warn("Cloud Order Save Warning:", orderErr);
+    }
 
-      // 🚀 ২. কাস্টমার প্রোফাইল সরাসরি Supabase Cloud Database-এ সেভ করা
+    // 🚀 ২. কাস্টমার সরাসরি Supabase Cloud Database-এ সেভ করা
+    try {
       await saveSupabaseCustomer(customerPayload);
+    } catch (custErr) {
+      console.warn("Cloud Customer Save Warning:", custErr);
+    }
 
-      // 🚀 ৩. প্রোডাক্টের স্টক কমানো এবং সোল্ড কাউন্ট বাড়ানো
+    // 🚀 ৩. প্রোডাক্টের স্টক কমানো এবং সোল্ড কাউন্ট বাড়ানো
+    try {
       const savedProducts = JSON.parse(localStorage.getItem('mo_fashion_products') || '[]');
       for (const p of savedProducts) {
         const orderedItem = items.find((i: any) => String(i.id) === String(p._id || p.id));
@@ -298,8 +363,10 @@ export default function CheckoutPage() {
           await saveSupabaseProduct(updatedProduct).catch(() => null);
         }
       }
+    } catch (prodErr) {}
 
-      // 🚀 ৪. কুপন ইউজ কাউন্ট বাড়ানো
+    // 🚀 ৪. কুপন ইউজ কাউন্ট বাড়ানো
+    try {
       if (appliedCoupon) {
         const allCoupons = await getSupabaseCoupons();
         const targetCoupon = allCoupons.find((c: any) => c.code === appliedCoupon.code);
@@ -309,27 +376,23 @@ export default function CheckoutPage() {
           await saveSupabaseCoupon({ ...targetCoupon, used: newUsedCount, status: newStatus }).catch(() => null);
         }
       }
+    } catch (couponErr) {}
 
-      // 🚀 ৫. ইমেইল নোটিফিকেশন সেন্ড
-      try { await notifyNewOrder(orderId, customerName, totalAmount); } catch(e){}
+    // 🚀 ৫. ইমেইল নোটিফিকেশন সেন্ড
+    try { await notifyNewOrder(orderId, customerName, totalAmount); } catch(e){}
 
-      // ইভেন্ট ব্রডকাস্ট
-      window.dispatchEvent(new Event('storage'));
-      window.dispatchEvent(new Event('orderUpdated'));
+    // ইভেন্ট ব্রডকাস্ট
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('orderUpdated'));
 
-      toast.success(`Order ${orderId} placed successfully! 🎉`, { id: toastId });
-      clearCart();
-      setTimeout(() => navigate('/'), 2000);
-
-    } catch (error) {
-      console.error("Order Placement Error:", error);
-      toast.success(`Order ${orderId} placed successfully! 🎉`, { id: toastId });
-      clearCart();
-      setTimeout(() => navigate('/'), 2000);
-    } finally {
-      setIsSubmitting(false);
-    }
+    toast.success(`Order ${orderId} placed successfully! 🎉`, { id: toastId });
+    clearCart();
+    setIsSubmitting(false);
+    setTimeout(() => navigate('/'), 2000);
   };
+
+  const availableDistricts = Object.keys(bdLocations[selectedDivision] || {});
+  const availableThanas = bdLocations[selectedDivision]?.[selectedDistrict] || [];
 
   return (
     <main className="min-h-screen py-10 text-white bg-[#111111] transition-all duration-300">
@@ -388,46 +451,62 @@ export default function CheckoutPage() {
                 </div>
 
                 <div>
-                  <label className="block text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Full Address *</label>
-                  <input type="text" name="address" required value={formData.address} onChange={handleChange} className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-colors text-sm" placeholder="House/Road/Area" />
+                  <label className="block text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Street Address (House/Road/Block) *</label>
+                  <input type="text" name="address" required value={formData.address} onChange={handleChange} className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-colors text-sm" placeholder="e.g. House #12, Road #5, Block C" />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  
-                  {/* সিটির ড্রপডাউন */}
-                  <div className="relative" ref={cityRef}>
-                    <label className="block text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">City / District *</label>
-                    <input 
-                      type="text" 
-                      name="city"
-                      required 
-                      value={formData.city} 
-                      onChange={(e) => {
-                        handleChange(e);
-                        setShowCityDropdown(true);
-                      }}
-                      onFocus={() => setShowCityDropdown(true)}
-                      className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-colors text-sm" 
-                      placeholder="Type district (e.g. Chattogram, Dhaka)" 
-                      autoComplete="off"
-                    />
-                    
-                    {showCityDropdown && filteredDistricts.length > 0 && (
-                      <div className="absolute left-0 right-0 top-full mt-1.5 bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-xl shadow-2xl max-h-48 overflow-y-auto z-50 custom-scrollbar animate-in fade-in zoom-in-95 duration-150">
-                        {filteredDistricts.map((district) => (
-                          <div
-                            key={district}
-                            onMouseDown={() => handleSelectCity(district)}
-                            className="px-4 py-2.5 text-sm text-gray-300 hover:bg-[#D4AF37] hover:text-black cursor-pointer flex items-center justify-between transition-colors font-medium"
-                          >
-                            <span>{district}</span>
-                            {formData.city === district && <Check size={14} className="text-black" />}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                {/* 🚀 ৩-ধাপের এলাকা ড্রপডাউন (বিভাগ ➔ জেলা ➔ থানা/উপজেলা) */}
+                <div className="bg-[#111111] p-4 rounded-xl border border-gray-800 space-y-4">
+                  <span className="text-xs text-[#D4AF37] font-bold uppercase tracking-wider flex items-center">
+                    <Navigation size={14} className="mr-1.5" /> Select Delivery Location Hierarchy
+                  </span>
 
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* ১. বিভাগ সিলেক্ট */}
+                    <div>
+                      <label className="block text-gray-400 text-xs font-bold mb-1.5 uppercase">1. Division (বিভাগ) *</label>
+                      <select 
+                        value={selectedDivision} 
+                        onChange={(e) => handleDivisionChange(e.target.value)} 
+                        className="w-full bg-[#1A1A1A] border border-gray-700 rounded-xl px-3 py-2.5 text-white focus:border-[#D4AF37] focus:outline-none text-xs cursor-pointer font-medium"
+                      >
+                        {Object.keys(bdLocations).map((divName) => (
+                          <option key={divName} value={divName}>{divName}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* ২. জেলা সিলেক্ট */}
+                    <div>
+                      <label className="block text-gray-400 text-xs font-bold mb-1.5 uppercase">2. District (জেলা) *</label>
+                      <select 
+                        value={selectedDistrict} 
+                        onChange={(e) => handleDistrictChange(e.target.value)} 
+                        className="w-full bg-[#1A1A1A] border border-gray-700 rounded-xl px-3 py-2.5 text-white focus:border-[#D4AF37] focus:outline-none text-xs cursor-pointer font-medium"
+                      >
+                        {availableDistricts.map((distName) => (
+                          <option key={distName} value={distName}>{distName}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* ৩. থানা / উপজেলা সিলেক্ট */}
+                    <div>
+                      <label className="block text-gray-400 text-xs font-bold mb-1.5 uppercase">3. Thana / Upazila (থানা) *</label>
+                      <select 
+                        value={selectedThana} 
+                        onChange={(e) => setSelectedThana(e.target.value)} 
+                        className="w-full bg-[#1A1A1A] border border-gray-700 rounded-xl px-3 py-2.5 text-white focus:border-[#D4AF37] focus:outline-none text-xs cursor-pointer font-medium"
+                      >
+                        {availableThanas.map((thanaName) => (
+                          <option key={thanaName} value={thanaName}>{thanaName}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Postal Code <span className="text-xs text-gray-500 font-normal">(Optional)</span></label>
                     <input type="text" name="postalCode" value={formData.postalCode} onChange={handleChange} className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-colors text-sm" placeholder="e.g. 4000" />

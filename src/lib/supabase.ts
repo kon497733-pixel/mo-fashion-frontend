@@ -85,7 +85,7 @@ export const updateSupabaseSettings = async (newSettings: Record<string, any>) =
 };
 
 // =========================================================
-// 📦 2. PRODUCTS SERVICES
+// 📦 2. PRODUCTS SERVICES (Schema Error Fixed)
 // =========================================================
 
 export const getSupabaseProducts = async () => {
@@ -108,8 +108,9 @@ export const getSupabaseProducts = async () => {
 
 export const saveSupabaseProduct = async (productData: Record<string, any>) => {
   const targetId = String(productData.id || productData._id || `PROD-${Date.now()}`);
-  const { _id, imageUrl, updated_at, ...cleanProduct } = productData;
   
+  // 🚀 _id, imageUrl, updated_at প্রপার্টিগুলো ক্লাউডে পাঠানোর আগে মুছে ফেলা হলো
+  const { _id, imageUrl, updated_at, ...cleanProduct } = productData;
   const payload = {
     ...cleanProduct,
     id: targetId,
@@ -179,8 +180,8 @@ export const getSupabaseCategories = async () => {
 
 export const saveSupabaseCategory = async (categoryData: Record<string, any>) => {
   const targetId = String(categoryData.id || categoryData._id || `CAT-${Date.now()}`);
-  const { _id, updated_at, ...cleanCategory } = categoryData;
   
+  const { _id, updated_at, ...cleanCategory } = categoryData;
   const payload = {
     ...cleanCategory,
     id: targetId,
@@ -227,7 +228,7 @@ export const deleteSupabaseCategory = async (id: string) => {
 };
 
 // =========================================================
-// 📦 4. COUPONS SERVICES (100% Date Check & All-Device Sync)
+// 📦 4. COUPONS SERVICES
 // =========================================================
 
 export const getSupabaseCoupons = async () => {
@@ -251,7 +252,6 @@ export const getSupabaseCoupons = async () => {
 export const saveSupabaseCoupon = async (couponData: Record<string, any>) => {
   const targetId = String(couponData.id || couponData._id || `COUPON-${Date.now()}`);
   const { _id, updated_at, ...cleanCoupon } = couponData;
-  
   const payload = {
     ...cleanCoupon,
     id: targetId,
@@ -298,7 +298,7 @@ export const deleteSupabaseCoupon = async (id: string) => {
 };
 
 // =========================================================
-// 📦 5. ORDERS SERVICES (100% A to Z Details Live Save)
+// 📦 5. ORDERS SERVICES (All-Device Live Placement Fix)
 // =========================================================
 
 export const getSupabaseOrders = async () => {

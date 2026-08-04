@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Search, X, Package, Clock, CheckCircle, Truck, MapPin, 
-  Trash2, Tag, RefreshCw, Sparkles, User, DollarSign
+  Trash2, Tag, RefreshCw, Sparkles, User
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';

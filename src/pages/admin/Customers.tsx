@@ -17,7 +17,7 @@ export default function Customers() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // 🚀 ১. সরাসরি Supabase Cloud Database থেকে রিয়েল-টাইম কাস্টমার ও তাদের অর্ডার ডাটা ফেচিং (অক্ষত রাখা হয়েছে)
+  // 🚀 ১. সরাসরি Supabase Cloud Database থেকে রিয়েল-টাইম কাস্টমার ও তাদের অর্ডার ডাটা ফেচিং (All-Device Sync)
   const fetchCustomersAndOrders = async () => {
     setLoading(true);
 
@@ -80,9 +80,9 @@ export default function Customers() {
   useEffect(() => {
     fetchCustomersAndOrders();
 
-    // 🚀 ২. Supabase Realtime WebSocket Listener (অল-ডিভাইস লাইভ সিঙ্ক)
+    // 🚀 ২. Supabase Realtime WebSocket Listener (সব ডিভাইসে ১ সেকেন্ডে লাইভ সিঙ্ক)
     const channel = supabase
-      .channel('public:customers:admin:live')
+      .channel('public:customers:admin:live:guaranteed')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, () => {
         fetchCustomersAndOrders();
       })
@@ -102,7 +102,7 @@ export default function Customers() {
     };
   }, []);
 
-  // 🚀 ৩. কাস্টমার ব্লক / আনব্লক করার লজিক (Supabase Cloud-এ সেভ)
+  // 🚀 ৩. কাস্টমার ব্লক / আনব্লক করার লজিক (Supabase Cloud-এ পার্মানেন্ট সেভ)
   const handleToggleStatus = async (customer: any) => {
     const targetId = String(customer.id || customer._id);
     const isCurrentlyActive = customer.status === 'Active';
@@ -159,7 +159,7 @@ export default function Customers() {
   return (
     <div className="text-white pb-10 transition-all duration-300">
       <Helmet>
-        <title>Admin - Customers | MO FASHION</title>
+        <title>Admin - Customers Management | MO FASHION</title>
       </Helmet>
 
       {/* 🚀 Header Section */}
