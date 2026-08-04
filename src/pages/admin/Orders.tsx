@@ -23,7 +23,7 @@ export default function Orders() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // 🚀 ১. সরাসরি Supabase Cloud Database থেকে ১০০% লাইভ অল-ডিভাইস অর্ডার ফেচিং
+  // 🚀 ১. সরাসরি Supabase Cloud Database থেকে ১০০% লাইভ অল-ডিভাইস অর্ডার ফেচিং (A to Z Details Sync)
   const fetchOrders = async () => {
     setLoading(true);
 
@@ -56,7 +56,7 @@ export default function Orders() {
 
     // 🚀 ২. Supabase WebSocket Realtime Listener (কাস্টমার অন্য যেকোনো ডিভাইস থেকে অর্ডার করলে ১ সেকেন্ডে এডমিন প্যানেলে সিঙ্ক হবে)
     const channel = supabase
-      .channel('public:orders:admin:live')
+      .channel('public:orders:admin:live:guaranteed')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
@@ -82,14 +82,14 @@ export default function Orders() {
     setIsModalOpen(true);
   };
 
-  // 🚀 ৩. অর্ডারের স্ট্যাটাস ক্লাউড ডাটাবেসে আপডেট করা (Pending, Processing, Shipped, Delivered)
+  // 🚀 ৩. অর্ডারের স্ট্যাটাস ক্লাউড ডাটাবেসে রিয়েল-টাইম আপডেট করা (Pending, Processing, Shipped, Delivered, Cancelled)
   const handleUpdateStatus = async (newStatus: string) => {
     if (!selectedOrder) return;
     const orderId = String(selectedOrder._id || selectedOrder.id || selectedOrder.orderId);
 
     const updatedOrderObj = { ...selectedOrder, status: newStatus };
 
-    // ১. লোকাল স্টোরেজ আপডেট
+    // ১. লোকাল স্টোরেজ ইনস্ট্যান্ট আপডেট
     const updatedList = orders.map((o: any) => 
       String(o._id || o.id || o.orderId) === orderId ? updatedOrderObj : o
     );
@@ -97,7 +97,7 @@ export default function Orders() {
     localStorage.setItem('mo_fashion_orders', JSON.stringify(updatedList));
     setSelectedOrder(updatedOrderObj);
 
-    // ২. ক্লাউড ডাটাবেসে সেভ
+    // ২. ক্লাউড ডাটাবেসে পার্মানেন্ট সেভ
     try {
       await saveSupabaseOrder(updatedOrderObj);
       toast.success(`Order status updated to "${newStatus}" LIVE! 🎉`);
@@ -147,7 +147,7 @@ export default function Orders() {
   return (
     <div className="text-white pb-10 transition-all duration-300">
       <Helmet>
-        <title>Admin - Orders | MO FASHION</title>
+        <title>Admin - Orders Management | MO FASHION</title>
       </Helmet>
 
       {/* 🚀 Header Section */}
@@ -305,7 +305,7 @@ export default function Orders() {
         </div>
       </div>
 
-      {/* 🪟 View Full Order Details Modal */}
+      {/* 🪟 View Full Order Details Modal (A to Z Details) */}
       {isModalOpen && selectedOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md transition-opacity duration-300">
           <div className="bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
@@ -332,13 +332,13 @@ export default function Orders() {
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-gray-500 text-xs">Name</p>
+                    <p className="text-gray-500 text-xs">Full Name</p>
                     <p className="text-white font-medium text-sm">
                       {selectedOrder.customerInfo ? `${selectedOrder.customerInfo.firstName || ''} ${selectedOrder.customerInfo.lastName || ''}` : selectedOrder.customer}
                     </p>
                   </div>
                   <div>
-                    <p className="text-gray-500 text-xs">Email</p>
+                    <p className="text-gray-500 text-xs">Email Address</p>
                     <p className="text-white font-medium text-sm">{selectedOrder.customerInfo ? selectedOrder.customerInfo.email : selectedOrder.email}</p>
                   </div>
                   <div className="md:col-span-2 flex items-start space-x-2.5 mt-2 bg-[#1A1A1A] p-3 rounded-xl border border-gray-800">
@@ -347,10 +347,10 @@ export default function Orders() {
                       <p className="text-gray-500 text-xs font-semibold">Shipping Address</p>
                       <p className="text-white font-medium text-sm mt-0.5">
                         {selectedOrder.customerInfo 
-                          ? `${selectedOrder.customerInfo.address || ''}, ${selectedOrder.customerInfo.city || ''}` 
+                          ? `${selectedOrder.customerInfo.address || ''}, ${selectedOrder.customerInfo.city || ''} ${selectedOrder.customerInfo.postalCode ? '- ' + selectedOrder.customerInfo.postalCode : ''}` 
                           : selectedOrder.address}
                       </p>
-                      <p className="text-[#D4AF37] text-xs font-bold mt-1">Phone: {selectedOrder.customerInfo ? selectedOrder.customerInfo.phone : selectedOrder.phone}</p>
+                      <p className="text-[#D4AF37] text-xs font-bold mt-1">Phone Number: {selectedOrder.customerInfo ? selectedOrder.customerInfo.phone : selectedOrder.phone}</p>
                     </div>
                   </div>
                 </div>
@@ -370,6 +370,7 @@ export default function Orders() {
                         <span className="text-[#D4AF37] font-bold text-xs ml-2 bg-[#D4AF37]/10 px-2 py-0.5 rounded-md border border-[#D4AF37]/20">
                           x{item.quantity || 1}
                         </span>
+                        {item.size && <span className="text-xs text-gray-500 ml-2">Size: {item.size}</span>}
                       </div>
                       <span className="text-white font-bold">৳{(Number(item.price) * Number(item.quantity || 1)).toFixed(2)}</span>
                     </div>

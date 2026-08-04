@@ -1,9 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate } from 'react-router-dom';
-import { Trash2, Minus, Plus, ArrowRight, ShoppingBag, Ticket, Image as ImageIcon, ShieldCheck, Truck, RotateCcw, Tag } from 'lucide-react';
+import { Trash2, Minus, Plus, ArrowRight, ShoppingBag, Ticket, Image as ImageIcon, ShieldCheck, Truck, RotateCcw, Tag, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCartStore } from '../../store/useCartStore';
+import { 
+  supabase, 
+  getSupabaseProducts, 
+  getSupabaseSettings, 
+  getSupabaseCoupons 
+} from '../../lib/supabase';
 
 export default function CartPage() {
   const navigate = useNavigate();
@@ -14,6 +20,7 @@ export default function CartPage() {
   const [dbProducts, setDbProducts] = useState<any[]>([]);
   const [couponInput, setCouponInput] = useState('');
   const [deliveryArea, setDeliveryArea] = useState<'inside' | 'outside'>('inside');
+  const [isVerifyingCoupon, setIsVerifyingCoupon] = useState(false);
 
   // 🚀 লাইভ ক্লাউড সেটিং ডাটা
   const [siteSettings, setSiteSettings] = useState<any>({
@@ -24,36 +31,38 @@ export default function CartPage() {
     shippingOutside: 150,
   });
 
-  // 🚀 ১. ক্লাউড ডাটাবেস (MongoDB API) থেকে প্রোডাক্ট ও সেটিং সিঙ্ক করা
+  // 🚀 ১. সরাসরি Supabase Cloud Database থেকে প্রোডাক্ট ও সেটিংস সিঙ্ক করা
   useEffect(() => {
     if (typeof removeCoupon === 'function') removeCoupon();
 
     const loadCartData = async () => {
-      // ১. লোকাল স্টোরেজ থেকে ইনস্ট্যান্ট ডাটা
+      // ১. লোকাল স্টোরেজ থেকে ইনস্ট্যান্ট ডাটা (০ms লোড)
       const savedProducts = localStorage.getItem('mo_fashion_products');
-      if (savedProducts) setDbProducts(JSON.parse(savedProducts));
+      if (savedProducts) {
+        try { setDbProducts(JSON.parse(savedProducts)); } catch (e) {}
+      }
 
       const savedSettings = localStorage.getItem('mo_fashion_settings');
-      if (savedSettings) setSiteSettings(JSON.parse(savedSettings));
+      if (savedSettings) {
+        try { setSiteSettings(JSON.parse(savedSettings)); } catch (e) {}
+      }
 
-      // ২. ক্লাউড ডাটাবেস থেকে রিয়েল-টাইম সিঙ্ক
+      // ২. সরাসরি Supabase Cloud Database থেকে রিয়েল-টাইম সিঙ্ক
       try {
-        const [prodRes, settingsRes] = await Promise.all([
-          fetch('http://localhost:5000/api/products').catch(() => null),
-          fetch('http://localhost:5000/api/settings').catch(() => null)
+        const [cloudProds, cloudSet] = await Promise.all([
+          getSupabaseProducts().catch(() => []),
+          getSupabaseSettings().catch(() => null)
         ]);
 
-        if (prodRes && prodRes.ok) {
-          const cloudProds = await prodRes.json();
-          if (Array.isArray(cloudProds)) setDbProducts(cloudProds);
+        if (Array.isArray(cloudProds) && cloudProds.length > 0) {
+          setDbProducts(cloudProds);
         }
 
-        if (settingsRes && settingsRes.ok) {
-          const cloudSet = await settingsRes.json();
-          if (cloudSet) setSiteSettings(cloudSet);
+        if (cloudSet && Object.keys(cloudSet).length > 0) {
+          setSiteSettings(cloudSet);
         }
       } catch (e) {
-        console.warn("Backend API offline, using cached cart settings.");
+        console.warn("Supabase Cloud offline, using cached cart settings.");
       }
     };
 
@@ -113,7 +122,7 @@ export default function CartPage() {
   let subtotalAfterProductDiscount = 0;
 
   const enrichedCartItems = (items || []).map((cartItem: any) => {
-    const dbProduct = dbProducts.find((p) => String(p.id || p._id) === String(cartItem.id));
+    const dbProduct = dbProducts.find((p: any) => String(p.id || p._id) === String(cartItem.id));
     
     const originalPrice = dbProduct ? Number(dbProduct.price) : Number(cartItem.price);
     const discountPercent = dbProduct ? Number(dbProduct.discount) || 0 : 0;
@@ -143,9 +152,9 @@ export default function CartPage() {
   let couponDiscountAmount = 0;
   if (appliedCoupon) {
     if (appliedCoupon.discountType === 'percentage') {
-      couponDiscountAmount = (subtotalAfterProductDiscount * appliedCoupon.discountValue) / 100;
+      couponDiscountAmount = (subtotalAfterProductDiscount * Number(appliedCoupon.discountValue || 0)) / 100;
     } else {
-      couponDiscountAmount = appliedCoupon.discountValue;
+      couponDiscountAmount = Number(appliedCoupon.discountValue || 0);
     }
     if (couponDiscountAmount > subtotalAfterProductDiscount) {
       couponDiscountAmount = subtotalAfterProductDiscount;
@@ -162,7 +171,7 @@ export default function CartPage() {
   
   const grandTotal = Math.max(0, subtotalAfterCoupon + shipping + taxAmount);
 
-  // 🚀 ক্লাউড ডাটাবেসে কুপন ভ্যালিডেট করার API Call
+  // 🚀 ২. সরাসরি Supabase Cloud Database থেকে কুপন ভ্যালিডেট ও স্ট্রিক্ট তারিখ চেকিং (Strict Expiry Date Validation)
   const handleApplyCoupon = async () => {
     if (!couponInput.trim()) {
       toast.error('Please enter a coupon code!');
@@ -170,49 +179,88 @@ export default function CartPage() {
     }
 
     const inputCode = couponInput.trim().toUpperCase();
+    setIsVerifyingCoupon(true);
+    const toastId = toast.loading("Verifying coupon code live on Cloud Database...");
 
     try {
-      const res = await fetch('http://localhost:5000/api/coupons/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: inputCode })
-      });
+      // 🚀 ১. সরাসরি Supabase Cloud coupons টেবিল থেকে লাইভ কুয়েরি
+      const { data: cloudCoupons, error } = await supabase
+        .from('coupons')
+        .select('*');
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.coupon) {
-          applyCoupon({
-            code: data.coupon.code,
-            discountValue: Number(data.coupon.discountValue),
-            discountType: data.coupon.type?.toLowerCase() === 'percentage' ? 'percentage' : 'fixed'
-          } as any);
-          toast.success(`Coupon ${data.coupon.code} applied LIVE from Cloud!`);
-          setCouponInput('');
+      let allCoupons = cloudCoupons;
+
+      if (error || !Array.isArray(cloudCoupons) || cloudCoupons.length === 0) {
+        allCoupons = await getSupabaseCoupons();
+      }
+
+      if (Array.isArray(allCoupons) && allCoupons.length > 0) {
+        // ১. কুপন কোড ম্যাচিং
+        const validCoupon = allCoupons.find((c: any) => 
+          c.code && String(c.code).trim().toUpperCase() === inputCode
+        );
+
+        if (!validCoupon) {
+          toast.error(`Invalid Coupon Code "${inputCode}"!`, { id: toastId });
           return;
         }
-      }
-    } catch(e) {
-      console.warn("Cloud Coupon API offline, trying local coupons.");
-    }
 
-    const savedCoupons = JSON.parse(localStorage.getItem('mo_fashion_coupons') || '[]');
-    const validCoupon = savedCoupons.find((c: any) => c.code === inputCode && c.status === 'Active');
+        // ২. স্ট্যাটাস চেক
+        if (validCoupon.status !== 'Active') {
+          toast.error(`Coupon "${inputCode}" is currently inactive or disabled!`, { id: toastId });
+          return;
+        }
 
-    if (validCoupon) {
-      const discountValue = Number(validCoupon.discountValue || validCoupon.discount || 0);
-      const discountType = (validCoupon.type || 'percentage').toLowerCase(); 
-      if (typeof applyCoupon === 'function') {
-        applyCoupon({ code: validCoupon.code, discountValue, discountType } as any);
+        // ৩. ইউসেজ লিমিট চেক
+        const usedCount = Number(validCoupon.used) || 0;
+        const limitCount = Number(validCoupon.usageLimit) || 100;
+        if (usedCount >= limitCount) {
+          toast.error(`Coupon "${inputCode}" has reached its maximum usage limit!`, { id: toastId });
+          return;
+        }
+
+        // 🚀 ৪. স্ট্রিক্ট তারিখ অনুযায়ী মেয়াদী চেকিং (Strict Expiry Date Checking)
+        if (validCoupon.expiryDate) {
+          const expiry = new Date(validCoupon.expiryDate);
+          expiry.setHours(23, 59, 59, 999); // দিনের শেষ সেকেন্ড পর্যন্ত মেয়াদ গণ্য হবে
+          const now = new Date();
+
+          if (expiry.getTime() < now.getTime()) {
+            const formattedExpiry = new Date(validCoupon.expiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+            toast.error(`Coupon "${inputCode}" expired on ${formattedExpiry}!`, { id: toastId });
+            return;
+          }
+        }
+
+        // 🚀 ৫. কুপন সফলভাবে কার্টে অ্যাপ্লাই করা
+        const discountValue = Number(validCoupon.discountValue || validCoupon.discount || 0);
+        const discountType = (validCoupon.type || 'percentage').toLowerCase() === 'percentage' ? 'percentage' : 'fixed';
+
+        if (typeof applyCoupon === 'function') {
+          applyCoupon({
+            code: validCoupon.code,
+            discountValue: discountValue,
+            discountType: discountType
+          } as any);
+        }
+
+        const discText = discountType === 'percentage' ? `${discountValue}% OFF` : `৳${discountValue} OFF`;
+        toast.success(`Coupon "${validCoupon.code}" applied LIVE! You saved ${discText}! 🎉`, { id: toastId });
+        setCouponInput('');
+      } else {
+        toast.error('No active coupons found in database!', { id: toastId });
       }
-      toast.success(`Coupon ${validCoupon.code} applied successfully!`);
-      setCouponInput('');
-    } else {
-      toast.error('Invalid or expired coupon code!');
+
+    } catch (e) {
+      console.warn("Cloud Coupon Error:", e);
+      toast.error('Failed to verify coupon code.', { id: toastId });
+    } finally {
+      setIsVerifyingCoupon(false);
     }
   };
 
   return (
-    <main className="min-h-screen py-12 bg-[#0a0a0a] text-white">
+    <main className="min-h-screen py-12 bg-[#0a0a0a] text-white transition-all duration-300">
       <Helmet>
         <title>Shopping Cart | {siteSettings?.storeName || 'MO FASHION'}</title>
       </Helmet>
@@ -316,7 +364,7 @@ export default function CartPage() {
                         </button>
                       </div>
 
-                      {/* 🚀 ফিক্সড সাবটোটাল ডিসপ্লে (কখনো কেটে যাবে না) */}
+                      {/* 🚀 ফিক্সড সাবটোটাল ডিসপ্লে */}
                       <div className="text-right hidden sm:block mt-1">
                         <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Subtotal</p>
                         <p className="font-bold text-[#D4AF37] tracking-wide text-sm">{siteSettings.currency} {item.itemSubtotal.toFixed(2)}</p>
@@ -414,9 +462,14 @@ export default function CartPage() {
                       />
                       <button 
                         onClick={handleApplyCoupon}
-                        className="bg-gray-800 hover:bg-[#D4AF37] text-white hover:text-black px-6 transition-all duration-300 font-bold uppercase tracking-widest text-xs"
+                        disabled={isVerifyingCoupon || !couponInput.trim()}
+                        className="bg-gray-800 hover:bg-[#D4AF37] text-white hover:text-black px-6 transition-all duration-300 font-bold uppercase tracking-widest text-xs flex items-center justify-center space-x-1"
                       >
-                        Apply
+                        {isVerifyingCoupon ? (
+                          <RefreshCw size={14} className="animate-spin" />
+                        ) : (
+                          <span>Apply</span>
+                        )}
                       </button>
                     </div>
                   </div>

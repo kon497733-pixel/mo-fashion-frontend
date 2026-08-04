@@ -26,7 +26,7 @@ const mergeAndStore = (cloudData: any[], localKey: string) => {
   const map = new Map();
   [...localData, ...cloudData].forEach((item: any) => {
     if (item) {
-      const key = String(item.id || item._id);
+      const key = String(item.id || item._id || item.orderId);
       if (key && key !== 'undefined' && key !== 'null') {
         map.set(key, { ...map.get(key), ...item });
       }
@@ -108,9 +108,8 @@ export const getSupabaseProducts = async () => {
 
 export const saveSupabaseProduct = async (productData: Record<string, any>) => {
   const targetId = String(productData.id || productData._id || `PROD-${Date.now()}`);
-  
-  // 🚀 _id এবং imageUrl প্রপার্টি দুটি ক্লাউডে পাঠানোর আগে মুছে ফেলা হলো
   const { _id, imageUrl, updated_at, ...cleanProduct } = productData;
+  
   const payload = {
     ...cleanProduct,
     id: targetId,
@@ -180,8 +179,8 @@ export const getSupabaseCategories = async () => {
 
 export const saveSupabaseCategory = async (categoryData: Record<string, any>) => {
   const targetId = String(categoryData.id || categoryData._id || `CAT-${Date.now()}`);
-  
   const { _id, updated_at, ...cleanCategory } = categoryData;
+  
   const payload = {
     ...cleanCategory,
     id: targetId,
@@ -228,7 +227,7 @@ export const deleteSupabaseCategory = async (id: string) => {
 };
 
 // =========================================================
-// 📦 4. COUPONS SERVICES (Live All-Device Sync Fixed)
+// 📦 4. COUPONS SERVICES (100% Date Check & All-Device Sync)
 // =========================================================
 
 export const getSupabaseCoupons = async () => {
@@ -252,6 +251,7 @@ export const getSupabaseCoupons = async () => {
 export const saveSupabaseCoupon = async (couponData: Record<string, any>) => {
   const targetId = String(couponData.id || couponData._id || `COUPON-${Date.now()}`);
   const { _id, updated_at, ...cleanCoupon } = couponData;
+  
   const payload = {
     ...cleanCoupon,
     id: targetId,
@@ -298,7 +298,7 @@ export const deleteSupabaseCoupon = async (id: string) => {
 };
 
 // =========================================================
-// 📦 5. ORDERS SERVICES (Live All-Device Order Placement Fixed)
+// 📦 5. ORDERS SERVICES (100% A to Z Details Live Save)
 // =========================================================
 
 export const getSupabaseOrders = async () => {
@@ -322,7 +322,6 @@ export const getSupabaseOrders = async () => {
 export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
   const targetId = String(orderData.id || orderData._id || orderData.orderId || `ORD-${Date.now()}`);
   
-  // 🚀 _id এবং updated_at মুছে ফেলা হলো যাতে Supabase Order Upsert কখনো রিজেক্ট না হয়
   const { _id, updated_at, ...cleanOrder } = orderData;
   const payload = {
     ...cleanOrder,
@@ -487,7 +486,7 @@ export const restoreFromRecycleBin = async (trashRecord: Record<string, any>) =>
     }
 
     const activeKey = originalTable === 'categories' ? 'mo_fashion_categories' : 'mo_fashion_products';
-    const activeItems = JSON.parse(localStorage.getItem(activeKey) || '[]');
+    const activeItems = JSON.parse(localStorage.getItem('mo_fashion_categories') || '[]');
     const cleanActive = activeItems.filter((i: any) => String(i.id || i._id) !== targetId);
     localStorage.setItem(activeKey, JSON.stringify([originalData, ...cleanActive]));
 
