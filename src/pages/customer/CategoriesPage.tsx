@@ -13,23 +13,19 @@ export default function CategoriesPage() {
   const { settings } = useSettingsStore();
   const safeSettings = settings as any;
 
-  // 🚀 ১. পুরনো স্যাম্পল/ডামি ক্যাটাগরি ফিল্টার করার ফাংশন
+  // 🚀 ১. পুরনো স্যাম্পল/ডামি ক্যাটাগরি ফিল্টার করার স্মাট ফাংশন
   const sanitizeCategories = (catList: any[]) => {
     if (!Array.isArray(catList)) return [];
     return catList.filter((cat: any) => {
       if (!cat || !cat.name) return false;
       const nameLower = String(cat.name).toLowerCase().trim();
-      const isOldDummy = nameLower.includes('luxury golden watch') || 
-                         nameLower.includes('premium gold t-shirt') || 
-                         nameLower.includes('black signature hoodie') || 
-                         nameLower.includes('classic denim jacket') || 
-                         nameLower.includes('sample category') || 
-                         nameLower.includes('dummy');
+      const isOldDummy = nameLower.includes('sample category') || 
+                         nameLower.includes('dummy category');
       return !isOldDummy;
     });
   };
 
-  // 🚀 ২. ইনস্ট্যান্ট ০-মিলিমিটার ক্যাস লোডিং (লোকাল ক্যাশ থাকলে ইনস্ট্যান্ট লোড হবে)
+  // 🚀 ২. ইনস্ট্যান্ট ০-মিলিমিটার ক্যাস লোডিং (ক্লিক করার সাথে সাথে লোড হয়ে যাবে)
   const [categories, setCategories] = useState<any[]>(() => {
     try {
       const cachedCat = localStorage.getItem('mo_fashion_categories');
@@ -121,7 +117,7 @@ export default function CategoriesPage() {
 
     // 🚀 ৪. Supabase WebSocket Realtime Listener (সব ডিভাইসে রিয়েল-টাইম ব্রডকাস্ট)
     const catChannel = supabase
-      .channel('public:categories:page')
+      .channel('public:categories:page:5g')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
         fetchLiveCategoriesAndProducts(true);
       })

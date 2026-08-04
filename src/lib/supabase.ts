@@ -85,7 +85,7 @@ export const updateSupabaseSettings = async (newSettings: Record<string, any>) =
 };
 
 // =========================================================
-// 📦 2. PRODUCTS SERVICES (updated_at, imageUrl & _id Schema Error Fixed)
+// 📦 2. PRODUCTS SERVICES
 // =========================================================
 
 export const getSupabaseProducts = async () => {
@@ -109,15 +109,13 @@ export const getSupabaseProducts = async () => {
 export const saveSupabaseProduct = async (productData: Record<string, any>) => {
   const targetId = String(productData.id || productData._id || `PROD-${Date.now()}`);
   
-  // 🚀 updated_at, _id এবং imageUrl প্রপার্টি তিনটি ক্লাউডে পাঠানোর আগে মুছে ফেলা হলো (Schema Cache Error 100% Solved)
+  // 🚀 _id এবং imageUrl প্রপার্টি দুটি ক্লাউডে পাঠানোর আগে মুছে ফেলা হলো
   const { _id, imageUrl, updated_at, ...cleanProduct } = productData;
-  
   const payload = {
     ...cleanProduct,
     id: targetId,
   };
 
-  // ১. ব্রাউজার লোকাল ব্যাকআপ সেভ (লোকাল ব্যবহারের জন্য _id ও imageUrl রাখা হলো)
   try {
     const existing = JSON.parse(localStorage.getItem('mo_fashion_products') || '[]');
     const filtered = Array.isArray(existing) ? existing.filter((p: any) => String(p.id || p._id) !== targetId) : [];
@@ -127,7 +125,6 @@ export const saveSupabaseProduct = async (productData: Record<string, any>) => {
     window.dispatchEvent(new Event('productUpdated'));
   } catch (e) {}
 
-  // ২. ক্লাউড ডাটাবেসে পার্মানেন্ট সেভ (Clean Payload without updated_at, _id & imageUrl)
   const { data, error } = await supabase
     .from('products')
     .upsert([payload], { onConflict: 'id' })
@@ -231,7 +228,7 @@ export const deleteSupabaseCategory = async (id: string) => {
 };
 
 // =========================================================
-// 📦 4. COUPONS SERVICES
+// 📦 4. COUPONS SERVICES (Live All-Device Sync Fixed)
 // =========================================================
 
 export const getSupabaseCoupons = async () => {
@@ -253,30 +250,47 @@ export const getSupabaseCoupons = async () => {
 };
 
 export const saveSupabaseCoupon = async (couponData: Record<string, any>) => {
-  const targetId = String(couponData.id || couponData._id || Date.now());
+  const targetId = String(couponData.id || couponData._id || `COUPON-${Date.now()}`);
   const { _id, updated_at, ...cleanCoupon } = couponData;
-  const payload = { ...cleanCoupon, id: targetId };
+  const payload = {
+    ...cleanCoupon,
+    id: targetId,
+    code: String(cleanCoupon.code).trim().toUpperCase()
+  };
 
   try {
     const existing = JSON.parse(localStorage.getItem('mo_fashion_coupons') || '[]');
     const filtered = Array.isArray(existing) ? existing.filter((c: any) => String(c.id || c._id) !== targetId) : [];
     localStorage.setItem('mo_fashion_coupons', JSON.stringify([{ ...payload, _id: targetId }, ...filtered]));
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('couponUpdated'));
   } catch (e) {}
 
-  try {
-    const { data } = await supabase
-      .from('coupons')
-      .upsert([payload], { onConflict: 'id' })
-      .select();
-    if (data && data.length > 0) return data[0];
-  } catch (err: any) {}
+  const { data, error } = await supabase
+    .from('coupons')
+    .upsert([payload], { onConflict: 'id' })
+    .select();
 
+  if (error) {
+    console.error('Supabase Coupon Save Error:', error.message);
+    throw new Error(error.message);
+  }
+
+  if (data && data.length > 0) return data[0];
   return payload;
 };
 
 export const deleteSupabaseCoupon = async (id: string) => {
+  const targetId = String(id);
   try {
-    await supabase.from('coupons').delete().eq('id', String(id));
+    await supabase.from('coupons').delete().eq('id', targetId);
+    
+    const existing = JSON.parse(localStorage.getItem('mo_fashion_coupons') || '[]');
+    const filtered = existing.filter((c: any) => String(c.id || c._id) !== targetId);
+    localStorage.setItem('mo_fashion_coupons', JSON.stringify(filtered));
+
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('couponUpdated'));
     return true;
   } catch (err: any) {
     return true;
@@ -284,7 +298,7 @@ export const deleteSupabaseCoupon = async (id: string) => {
 };
 
 // =========================================================
-// 📦 5. ORDERS SERVICES
+// 📦 5. ORDERS SERVICES (Live All-Device Order Placement Fixed)
 // =========================================================
 
 export const getSupabaseOrders = async () => {
@@ -306,30 +320,49 @@ export const getSupabaseOrders = async () => {
 };
 
 export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
-  const targetId = String(orderData.id || orderData._id || orderData.orderId || Date.now());
+  const targetId = String(orderData.id || orderData._id || orderData.orderId || `ORD-${Date.now()}`);
+  
+  // 🚀 _id এবং updated_at মুছে ফেলা হলো যাতে Supabase Order Upsert কখনো রিজেক্ট না হয়
   const { _id, updated_at, ...cleanOrder } = orderData;
-  const payload = { ...cleanOrder, id: targetId };
+  const payload = {
+    ...cleanOrder,
+    id: targetId,
+    orderId: String(cleanOrder.orderId || targetId)
+  };
 
   try {
     const existing = JSON.parse(localStorage.getItem('mo_fashion_orders') || '[]');
-    const filtered = Array.isArray(existing) ? existing.filter((o: any) => String(o.id || o._id) !== targetId) : [];
+    const filtered = Array.isArray(existing) ? existing.filter((o: any) => String(o.id || o._id || o.orderId) !== targetId) : [];
     localStorage.setItem('mo_fashion_orders', JSON.stringify([{ ...payload, _id: targetId }, ...filtered]));
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('orderUpdated'));
   } catch (e) {}
 
-  try {
-    const { data } = await supabase
-      .from('orders')
-      .upsert([payload], { onConflict: 'id' })
-      .select();
-    if (data && data.length > 0) return data[0];
-  } catch (err: any) {}
+  const { data, error } = await supabase
+    .from('orders')
+    .upsert([payload], { onConflict: 'id' })
+    .select();
 
+  if (error) {
+    console.error('Supabase Order Save Error:', error.message);
+    throw new Error(error.message);
+  }
+
+  if (data && data.length > 0) return data[0];
   return payload;
 };
 
 export const deleteSupabaseOrder = async (id: string) => {
+  const targetId = String(id);
   try {
-    await supabase.from('orders').delete().eq('id', String(id));
+    await supabase.from('orders').delete().eq('id', targetId);
+
+    const existing = JSON.parse(localStorage.getItem('mo_fashion_orders') || '[]');
+    const filtered = existing.filter((o: any) => String(o.id || o._id || o.orderId) !== targetId);
+    localStorage.setItem('mo_fashion_orders', JSON.stringify(filtered));
+
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('orderUpdated'));
     return true;
   } catch (err: any) {
     return true;
@@ -359,7 +392,7 @@ export const getSupabaseCustomers = async () => {
 };
 
 export const saveSupabaseCustomer = async (customerData: Record<string, any>) => {
-  const targetId = String(customerData.id || customerData._id || Date.now());
+  const targetId = String(customerData.id || customerData._id || `CUST-${Date.now()}`);
   const { _id, updated_at, ...cleanCustomer } = customerData;
   const payload = { ...cleanCustomer, id: targetId };
 

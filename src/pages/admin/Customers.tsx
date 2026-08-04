@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Mail, Phone, Ban, CheckCircle, Trash2, User, RefreshCw, Sparkles } from 'lucide-react';
+import { Search, Mail, Phone, Ban, CheckCircle, Trash2, User, RefreshCw } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
 import { 
@@ -17,7 +17,7 @@ export default function Customers() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // 🚀 ১. সরাসরি Supabase Cloud Database থেকে রিয়েল-টাইম কাস্টমার ও তাদের অর্ডার ডাটা ফেচিং (All-Device Sync)
+  // 🚀 ১. সরাসরি Supabase Cloud Database থেকে রিয়েল-টাইম কাস্টমার ও তাদের অর্ডার ডাটা ফেচিং (অক্ষত রাখা হয়েছে)
   const fetchCustomersAndOrders = async () => {
     setLoading(true);
 
@@ -80,7 +80,7 @@ export default function Customers() {
   useEffect(() => {
     fetchCustomersAndOrders();
 
-    // 🚀 ২. Supabase Realtime WebSocket Listener (সব ডিভাইসে ১ সেকেন্ডে লাইভ সিঙ্ক)
+    // 🚀 ২. Supabase Realtime WebSocket Listener (অল-ডিভাইস লাইভ সিঙ্ক)
     const channel = supabase
       .channel('public:customers:admin:live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, () => {
@@ -102,7 +102,7 @@ export default function Customers() {
     };
   }, []);
 
-  // 🚀 ৩. কাস্টমার ব্লক / আনব্লক করার লজিক (Supabase Cloud-এ পার্মানেন্ট সেভ)
+  // 🚀 ৩. কাস্টমার ব্লক / আনব্লক করার লজিক (Supabase Cloud-এ সেভ)
   const handleToggleStatus = async (customer: any) => {
     const targetId = String(customer.id || customer._id);
     const isCurrentlyActive = customer.status === 'Active';
@@ -186,7 +186,7 @@ export default function Customers() {
         </button>
       </div>
 
-      {/* 🔎 Search Bar with Glow */}
+      {/* 🔎 Search Bar */}
       <div className="bg-[#1A1A1A] p-4 rounded-xl border border-[#D4AF37]/20 mb-6 shadow-lg transition-all duration-300">
         <div className="relative w-full max-w-md">
           <input 
