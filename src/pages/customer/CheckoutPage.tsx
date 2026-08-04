@@ -190,7 +190,7 @@ export default function CheckoutPage() {
     setSelectedThana(thanas[0] || '');
   };
 
-  // 🚀 রিয়েল-টাইম সাবটোটাল ও প্রোডাক্ট আইটেম প্রস্তুতি (০% ডিফল্ট / কাস্টমারের নির্বাচিত সাইজ ও কালারসহ)
+  // 🚀 রিয়েল-টাইম সাবটোটাল ও প্রোডাক্ট আইটেম প্রস্তুতি (ছবি, নাম, সাইজ, কালার সহ)
   let subtotalAfterProductDiscount = 0;
   const formattedOrderItems = items.map((cartItem: any) => {
     const dbProduct = dbProducts.find(p => String(p.id || p._id) === String(cartItem.id));
@@ -218,8 +218,8 @@ export default function CheckoutPage() {
       originalPrice: Number(origPrice.toFixed(2)),
       discount: discountPercent,
       quantity: Number(cartItem.quantity) || 1,
-      size: cartItem.size || '',
-      color: cartItem.color || '',
+      size: String(cartItem.size || ''),
+      color: String(cartItem.color || ''),
       selectedVariants: cartItem.selectedVariants || [],
       image: productImage
     };
@@ -302,6 +302,7 @@ export default function CheckoutPage() {
     const customerName = `${formData.firstName.trim()} ${formData.lastName.trim()}`;
     const customerEmail = formData.email.trim() || `${formData.phone.trim()}@mofashion.com`;
     const fullLocationStr = `${selectedThana}, ${selectedDistrict}, ${selectedDivision}`;
+    const fullAddressStr = `${formData.address.trim()}, ${fullLocationStr}${formData.postalCode.trim() ? ' - ' + formData.postalCode.trim() : ''}, Bangladesh`;
 
     // 🚀 A to Z পূর্ণাঙ্গ অর্ডার পে-লোড (শিপিং চার্জ, কুপন ডিসকাউন্ট ও ফটো সহ)
     const orderPayload = {
@@ -321,14 +322,15 @@ export default function CheckoutPage() {
       },
       email: customerEmail,
       phone: formData.phone.trim(),
-      address: `${formData.address.trim()}, ${fullLocationStr}${formData.postalCode.trim() ? ' - ' + formData.postalCode.trim() : ''}, Bangladesh`,
+      address: fullAddressStr,
       date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
       createdAt: new Date().toISOString(),
-      subtotal: subtotalAfterProductDiscount,
-      shipping: shipping,
-      tax: taxAmount,
-      discount: finalCouponDiscountAmount,
-      total: totalAmount,
+      subtotal: Number(subtotalAfterProductDiscount.toFixed(2)),
+      shipping: Number(shipping.toFixed(2)),
+      tax: Number(taxAmount.toFixed(2)),
+      discount: Number(finalCouponDiscountAmount.toFixed(2)),
+      couponCode: appliedCoupon ? appliedCoupon.code : null,
+      total: Number(totalAmount.toFixed(2)),
       status: 'Pending',
       itemsCount: items.length,
       paymentMethod: paymentMethod,
@@ -336,12 +338,12 @@ export default function CheckoutPage() {
       orderItems: formattedOrderItems,
       items: formattedOrderItems,
       orderSummary: {
-        subtotal: subtotalAfterProductDiscount,
-        shipping: shipping,
-        tax: taxAmount,
-        total: totalAmount,
+        subtotal: Number(subtotalAfterProductDiscount.toFixed(2)),
+        shipping: Number(shipping.toFixed(2)),
+        tax: Number(taxAmount.toFixed(2)),
+        total: Number(totalAmount.toFixed(2)),
         couponCode: appliedCoupon ? appliedCoupon.code : null,
-        discount: finalCouponDiscountAmount
+        discount: Number(finalCouponDiscountAmount.toFixed(2))
       }
     };
 
