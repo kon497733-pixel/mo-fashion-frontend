@@ -190,7 +190,7 @@ export default function CheckoutPage() {
     setSelectedThana(thanas[0] || '');
   };
 
-  // 🚀 রিয়েল-টাইম সাবটোটাল ও প্রোডাক্ট আইটেম প্রস্তুতি (ছবি, নাম, সাইজ, কালার সহ)
+  // 🚀 রিয়েল-টাইম সাবটোটাল ও প্রোডাক্ট আইটেম প্রস্তুতি (০% ডিফল্ট / কাস্টমারের নির্বাচিত সাইজ ও কালারসহ)
   let subtotalAfterProductDiscount = 0;
   const formattedOrderItems = items.map((cartItem: any) => {
     const dbProduct = dbProducts.find(p => String(p.id || p._id) === String(cartItem.id));
@@ -218,8 +218,8 @@ export default function CheckoutPage() {
       originalPrice: Number(origPrice.toFixed(2)),
       discount: discountPercent,
       quantity: Number(cartItem.quantity) || 1,
-      size: String(cartItem.size || ''),
-      color: String(cartItem.color || ''),
+      size: cartItem.size || '',
+      color: cartItem.color || '',
       selectedVariants: cartItem.selectedVariants || [],
       image: productImage
     };

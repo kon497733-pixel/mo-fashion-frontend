@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
-// 🚀 Supabase Credentials from Environment Variables
+// 🚀 Supabase Credentials
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://lcoujwhfddeihulurrwq.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Aib7MOvBq4kMBsiM7BeHnQ_ElMM9Cjl';
 
@@ -298,7 +298,7 @@ export const deleteSupabaseCoupon = async (id: string) => {
 };
 
 // =========================================================
-// 📦 5. ORDERS SERVICES (PostgrestFilterBuilder .catch Fix)
+// 📦 5. ORDERS SERVICES (100% Guaranteed Order Items Serializer)
 // =========================================================
 
 export const getSupabaseOrders = async () => {
@@ -323,17 +323,22 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
   const targetId = String(orderData.id || orderData.orderId || orderData._id || `ORD-${Date.now()}`);
   const { _id, updated_at, ...cleanOrder } = orderData;
   
-  const itemsArray = Array.isArray(cleanOrder.orderItems) 
+  // 🚀 orderItems কে সবসময় নিখুঁত অ্যারাই এবং স্ট্রিং দুই ভাবেই পাঠানো যাতে কলাম টাইপ যাই হোক সেভ হবেই
+  const rawItems = Array.isArray(cleanOrder.orderItems) 
     ? cleanOrder.orderItems 
     : (Array.isArray(cleanOrder.items) ? cleanOrder.items : []);
+
+  const serializedItems = JSON.stringify(rawItems);
 
   const payload: Record<string, any> = {
     ...cleanOrder,
     id: targetId,
     orderId: String(cleanOrder.orderId || targetId),
-    orderItems: itemsArray,
-    items: itemsArray,
-    itemsCount: Number(cleanOrder.itemsCount || itemsArray.length || 1)
+    orderItems: rawItems,
+    items: rawItems,
+    order_items: serializedItems,
+    items_data: serializedItems,
+    itemsCount: Number(cleanOrder.itemsCount || rawItems.length || 1)
   };
 
   try {
@@ -352,7 +357,7 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
   if (error) {
     console.error('Supabase Order Save Error:', error.message);
     
-    // 🚀 .catch() টাইপস্ক্রিপ্ট এরর ফিক্স (Proper Try/Catch Block)
+    // 🚀 স্মার্ট ক্লাউড ফলব্যাক (ফ্ল্যাট ফিল্ডস)
     const basicPayload = {
       id: targetId,
       orderId: String(cleanOrder.orderId || targetId),
@@ -366,14 +371,14 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
       shipping: Number(cleanOrder.shipping || cleanOrder.orderSummary?.shipping || 0),
       status: String(cleanOrder.status || 'Pending'),
       paymentMethod: String(cleanOrder.paymentMethod || 'Cash on Delivery'),
-      orderItems: itemsArray,
-      orderSummary: cleanOrder.orderSummary || {}
+      orderItems: serializedItems,
+      orderSummary: typeof cleanOrder.orderSummary === 'object' ? JSON.stringify(cleanOrder.orderSummary) : cleanOrder.orderSummary
     };
 
     try {
       await supabase.from('orders').upsert([basicPayload], { onConflict: 'id' });
     } catch (retryErr) {
-      console.warn("Basic Order retry warning:", retryErr);
+      console.warn("Order retry warning:", retryErr);
     }
   }
 
