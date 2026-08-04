@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronLeft, CreditCard, Smartphone, Banknote, Tag, MapPin, Sparkles, ShieldCheck, Navigation } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -303,7 +303,7 @@ export default function CheckoutPage() {
     const customerEmail = formData.email.trim() || `${formData.phone.trim()}@mofashion.com`;
     const fullLocationStr = `${selectedThana}, ${selectedDistrict}, ${selectedDivision}`;
 
-    // 🚀 A to Z পূর্ণাঙ্গ অর্ডার পে-লোড (০% ডিফল্ট / শিপিং চার্জ, কুপন ডিসকাউন্ট ও ফটো সহ)
+    // 🚀 A to Z পূর্ণাঙ্গ অর্ডার পে-লোড (শিপিং চার্জ, কুপন ডিসকাউন্ট ও ফটো সহ)
     const orderPayload = {
       id: orderId,
       _id: orderId,
