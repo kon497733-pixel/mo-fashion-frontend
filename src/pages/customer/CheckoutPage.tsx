@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronLeft, CreditCard, Smartphone, Banknote, Tag, MapPin, Sparkles, ShieldCheck, Building, Navigation } from 'lucide-react';
+import { ChevronLeft, CreditCard, Smartphone, Banknote, Tag, MapPin, Sparkles, ShieldCheck, Navigation } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Helmet } from 'react-helmet-async';
 
@@ -201,7 +201,7 @@ export default function CheckoutPage() {
     subtotalAfterProductDiscount += sellingPrice * cartItem.quantity;
   });
 
-  // 🚀 চট্টগ্রাম এলাকা অথবা ঢাকা সিটি চেক করে শিপিং চার্জ
+  // 🚀 চট্টগ্রাম এলাকা বা ঢাকার ভেতরের শিপিং চার্জ
   const isInsideChattogram = selectedDistrict.toLowerCase().includes('chattogram') || selectedDistrict.toLowerCase().includes('chittagong') || selectedDivision.toLowerCase().includes('chattogram');
   const shippingInside = safeSettings.shippingInside !== undefined ? Number(safeSettings.shippingInside) : 60;
   const shippingOutside = safeSettings.shippingOutside !== undefined ? Number(safeSettings.shippingOutside) : 150;
@@ -242,7 +242,7 @@ export default function CheckoutPage() {
     return emailRegex.test(email.trim());
   };
 
-  // 🚀 প্লেস অর্ডার লজিক
+  // 🚀 প্লেস অর্ডার লজিক (Unstoppable Order & Customer Cloud Placement)
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault(); 
     
@@ -328,14 +328,14 @@ export default function CheckoutPage() {
       joinDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
     };
 
-    // 🚀 ১. অর্ডার সরাসরি Supabase Cloud Database-এ সেভ করা
+    // 🚀 ১. অর্ডার সেভ - ক্লাউড ডাটাবেস (Supabase Cloud Direct Write)
     try {
       await saveSupabaseOrder(orderPayload);
     } catch (orderErr) {
       console.warn("Cloud Order Save Warning:", orderErr);
     }
 
-    // 🚀 ২. কাস্টমার সরাসরি Supabase Cloud Database-এ সেভ করা
+    // 🚀 ২. কাস্টমার সেভ - ক্লাউড ডাটাবেস (Supabase Cloud Direct Write)
     try {
       await saveSupabaseCustomer(customerPayload);
     } catch (custErr) {
