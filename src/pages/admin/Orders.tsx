@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   Search, X, Package, Clock, CheckCircle, Truck, MapPin, 
   Trash2, Tag, RefreshCw, Sparkles, User, Image as ImageIcon,
-  CreditCard, Calendar, Phone, Mail, Navigation, DollarSign
+  CreditCard, Calendar, Phone, Mail, DollarSign
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
@@ -24,7 +24,85 @@ export default function Orders() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // 🚀 ১. সরাসরি Supabase Cloud Database থেকে ১০০% লাইভ অল-ডিভাইস অর্ডার ফেচিং (A to Z Details Sync)
+  // 🛡️ সেফ নম্বর পার্সার (৳NaN হওয়া চিরতরে বন্ধ)
+  const parseSafeNumber = (val: any): number => {
+    if (val === null || val === undefined) return 0;
+    if (typeof val === 'number') return isNaN(val) ? 0 : val;
+    const str = String(val).replace(/[^0-9.]/g, '');
+    const num = parseFloat(str);
+    return isNaN(num) ? 0 : num;
+  };
+
+  // 🛡️ সেফ কাস্টমার নাম পার্সার (কখনো খালি দেখাবে না)
+  const getCustomerFullName = (order: any): string => {
+    if (!order) return 'Valued Customer';
+    
+    // ১. ডাইরেক্ট কাস্টমার নাম
+    if (order.customer && String(order.customer).trim() !== '' && String(order.customer).trim() !== 'Customer') {
+      return String(order.customer).trim();
+    }
+
+    // ২. কাস্টমার ইনফো অবজেক্ট
+    let info = order.customerInfo;
+    if (typeof info === 'string') {
+      try { info = JSON.parse(info); } catch (e) {}
+    }
+
+    if (info && typeof info === 'object') {
+      const name = `${info.firstName || ''} ${info.lastName || ''}`.trim();
+      if (name) return name;
+    }
+
+    // ৩. ইমেইল বা ফোন
+    if (order.email && String(order.email).includes('@')) {
+      return String(order.email).split('@')[0];
+    }
+    if (order.phone) {
+      return `Customer (${order.phone})`;
+    }
+
+    return 'Valued Customer';
+  };
+
+  // 🛡️ সেফ এড্রেস পার্সার (,, Bangladesh ফিক্স)
+  const getFullAddress = (order: any): string => {
+    if (!order) return 'Bangladesh';
+    
+    let addr = order.address || '';
+    let info = order.customerInfo;
+    if (typeof info === 'string') {
+      try { info = JSON.parse(info); } catch(e){}
+    }
+
+    if (info && typeof info === 'object') {
+      if (info.address || info.city) {
+        addr = `${info.address || ''}, ${info.city || ''}`;
+      }
+    }
+
+    const clean = String(addr).replace(/(,\s*)+/g, ', ').replace(/^,\s*/, '').replace(/,\s*$/, '').trim();
+    return clean ? (clean.toLowerCase().includes('bangladesh') ? clean : `${clean}, Bangladesh`) : 'Bangladesh';
+  };
+
+  // 🛡️ সেফ প্রোডাক্ট আইটেম অ্যারাই পার্সার (ORDERED ITEMS খালি হওয়া ফিক্স)
+  const parseItemsArray = (order: any): any[] => {
+    if (!order) return [];
+    let raw = order.orderItems || order.items || order.cartItems;
+    
+    if (typeof raw === 'string') {
+      try {
+        raw = JSON.parse(raw);
+      } catch (e) {
+        raw = [];
+      }
+    }
+
+    if (Array.isArray(raw)) return raw;
+    if (raw && typeof raw === 'object') return [raw];
+    return [];
+  };
+
+  // 🚀 ১. সরাসরি Supabase Cloud Database থেকে রিয়েল-টাইম অল-ডিভাইস অর্ডার ফেচিং
   const fetchOrders = async (isSilent = false) => {
     if (!isSilent && orders.length === 0) setLoading(true);
 
@@ -55,9 +133,9 @@ export default function Orders() {
   useEffect(() => {
     fetchOrders();
 
-    // 🚀 ২. Supabase WebSocket Realtime Listener (কাস্টমার অন্য যেকোনো ডিভাইস থেকে অর্ডার করলে ১ সেকেন্ডে এডমিন প্যানেলে সিঙ্ক হবে)
+    // 🚀 ২. Supabase WebSocket Realtime Listener (সব ডিভাইসে ১ সেকেন্ডে সিঙ্ক হবে)
     const channel = supabase
-      .channel('public:orders:admin:fast:stream')
+      .channel('public:orders:admin:live:guaranteed:v3')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
@@ -93,7 +171,6 @@ export default function Orders() {
 
     const updatedOrderObj = { ...selectedOrder, status: newStatus };
 
-    // ১. লোকাল স্টোরেজ ইনস্ট্যান্ট আপডেট
     const updatedList = orders.map((o: any) => 
       String(o._id || o.id || o.orderId) === orderId ? updatedOrderObj : o
     );
@@ -101,7 +178,6 @@ export default function Orders() {
     localStorage.setItem('mo_fashion_orders', JSON.stringify(updatedList));
     setSelectedOrder(updatedOrderObj);
 
-    // ২. ক্লাউড ডাটাবেসে পার্মানেন্ট সেভ
     try {
       await saveSupabaseOrder(updatedOrderObj);
       toast.success(`Order status updated to "${newStatus}" LIVE! 🎉`);
@@ -133,9 +209,7 @@ export default function Orders() {
   // সার্চ এবং স্ট্যাটাস ফিল্টার লজিক
   const validOrders = Array.isArray(orders) ? orders : [];
   const filteredOrders = validOrders.filter((order: any) => {
-    const customerName = order.customerInfo 
-      ? `${order.customerInfo.firstName || ''} ${order.customerInfo.lastName || ''}`.trim() 
-      : (order.customer || 'Unknown Customer');
+    const customerName = getCustomerFullName(order);
     const orderIdStr = String(order.orderId || order.id || order._id || '');
     const phoneStr = String(order.phone || order.customerInfo?.phone || '');
 
@@ -232,9 +306,7 @@ export default function Orders() {
                 </tr>
               ) : (
                 filteredOrders.map((order: any) => {
-                  const customerName = order.customerInfo 
-                    ? `${order.customerInfo.firstName || ''} ${order.customerInfo.lastName || ''}`.trim() 
-                    : (order.customer || 'Unknown Customer');
+                  const customerName = getCustomerFullName(order);
                   const customerEmail = order.customerInfo ? order.customerInfo.email : (order.email || 'N/A');
                   const customerPhone = order.customerInfo ? order.customerInfo.phone : (order.phone || '');
                   
@@ -252,7 +324,7 @@ export default function Orders() {
                     orderDate = order.date;
                   }
 
-                  const orderTotal = order.orderSummary ? order.orderSummary.total : (order.total || 0);
+                  const orderTotalNum = parseSafeNumber(order.orderSummary ? order.orderSummary.total : order.total);
                   const displayOrderId = order.orderId || order.id || order._id || '';
 
                   return (
@@ -265,7 +337,7 @@ export default function Orders() {
                         <p className="text-xs text-gray-400">{customerPhone ? `Phone: ${customerPhone}` : customerEmail}</p>
                       </td>
                       <td className="px-6 py-4 text-gray-400 text-xs font-medium">{orderDate}</td>
-                      <td className="px-6 py-4 font-bold text-[#D4AF37]">৳{Number(orderTotal).toFixed(2)}</td>
+                      <td className="px-6 py-4 font-bold text-[#D4AF37]">৳{orderTotalNum.toFixed(2)}</td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center w-max border transition-all duration-300 ${
                           order.status === 'Delivered' ? 'text-green-400 bg-green-500/10 border-green-500/30 shadow-sm shadow-green-500/20' : 
@@ -360,9 +432,7 @@ export default function Orders() {
                   <div>
                     <p className="text-gray-500 text-xs font-semibold">Full Name</p>
                     <p className="text-white font-bold text-sm mt-0.5">
-                      {selectedOrder.customerInfo 
-                        ? `${selectedOrder.customerInfo.firstName || ''} ${selectedOrder.customerInfo.lastName || ''}`.trim() 
-                        : (selectedOrder.customer || 'N/A')}
+                      {getCustomerFullName(selectedOrder)}
                     </p>
                   </div>
 
@@ -395,9 +465,7 @@ export default function Orders() {
                     <div>
                       <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Full Delivery Address</p>
                       <p className="text-white font-medium text-sm mt-1 leading-relaxed">
-                        {selectedOrder.customerInfo 
-                          ? `${selectedOrder.customerInfo.address || ''}, ${selectedOrder.customerInfo.city || ''} ${selectedOrder.customerInfo.postalCode && selectedOrder.customerInfo.postalCode !== 'N/A' ? '- ' + selectedOrder.customerInfo.postalCode : ''}, ${selectedOrder.customerInfo.country || 'Bangladesh'}` 
-                          : (selectedOrder.address || 'N/A')}
+                        {getFullAddress(selectedOrder)}
                       </p>
                     </div>
                   </div>
@@ -407,78 +475,82 @@ export default function Orders() {
               {/* 2. Itemized Products List with Photos */}
               <div className="bg-[#111111] p-5 rounded-2xl border border-gray-800/80 shadow-md">
                 <h3 className="text-[#D4AF37] font-bold mb-4 uppercase tracking-wider text-xs border-b border-gray-800 pb-2 flex items-center">
-                  <Package size={16} className="mr-2 text-[#D4AF37]" /> Ordered Items ({selectedOrder.orderItems?.length || selectedOrder.items || 1})
+                  <Package size={16} className="mr-2 text-[#D4AF37]" /> Ordered Items ({parseItemsArray(selectedOrder).length})
                 </h3>
                 
                 <div className="space-y-3.5 mb-4 max-h-60 overflow-y-auto custom-scrollbar pr-1">
-                  {(selectedOrder.orderItems || selectedOrder.items || []).map((item: any, idx: number) => {
-                    const itemImage = item.image || item.imageUrl || (item.images && item.images[0]) || '';
-                    const itemQty = Number(item.quantity) || 1;
-                    const itemPrice = Number(item.price) || 0;
-                    const itemSubtotal = itemQty * itemPrice;
+                  {parseItemsArray(selectedOrder).length === 0 ? (
+                    <p className="text-gray-500 text-xs italic text-center py-4">No product item details recorded.</p>
+                  ) : (
+                    parseItemsArray(selectedOrder).map((item: any, idx: number) => {
+                      const itemImage = item.image || item.imageUrl || (item.images && item.images[0]) || '';
+                      const itemQty = Number(item.quantity) || 1;
+                      const itemPrice = parseSafeNumber(item.price);
+                      const itemSubtotal = itemQty * itemPrice;
 
-                    return (
-                      <div key={idx} className="flex items-center justify-between p-3 bg-[#1A1A1A] rounded-xl border border-gray-800 hover:border-gray-700 transition-colors">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-12 h-12 rounded-lg bg-[#111111] border border-gray-700 overflow-hidden shrink-0 flex items-center justify-center">
-                            {itemImage && !itemImage.includes('via.placeholder') ? (
-                              <img src={itemImage} alt={item.name} className="w-full h-full object-cover" />
-                            ) : (
-                              <ImageIcon size={18} className="text-gray-600" />
-                            )}
+                      return (
+                        <div key={idx} className="flex items-center justify-between p-3 bg-[#1A1A1A] rounded-xl border border-gray-800 hover:border-gray-700 transition-colors">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-12 h-12 rounded-lg bg-[#111111] border border-gray-700 overflow-hidden shrink-0 flex items-center justify-center">
+                              {itemImage && !itemImage.includes('via.placeholder') ? (
+                                <img src={itemImage} alt={item.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <ImageIcon size={18} className="text-gray-600" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-bold text-white text-sm line-clamp-1">{item.name || 'Fashion Product'}</p>
+                              <p className="text-xs text-gray-400 mt-0.5">
+                                Qty: <span className="text-[#D4AF37] font-bold">x{itemQty}</span> 
+                                {item.size ? ` | Size: ${item.size}` : ''}
+                                {item.color ? ` | Color: ${item.color}` : ''}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-bold text-white text-sm line-clamp-1">{item.name || 'Fashion Product'}</p>
-                            <p className="text-xs text-gray-400 mt-0.5">
-                              Qty: <span className="text-[#D4AF37] font-bold">x{itemQty}</span> 
-                              {item.size ? ` | Size: ${item.size}` : ''}
-                              {item.color ? ` | Color: ${item.color}` : ''}
-                            </p>
+
+                          <div className="text-right">
+                            <p className="font-bold text-[#D4AF37] text-sm">৳{itemSubtotal.toFixed(2)}</p>
+                            {itemQty > 1 && <p className="text-[10px] text-gray-500">৳{itemPrice.toFixed(2)} each</p>}
                           </div>
                         </div>
-
-                        <div className="text-right">
-                          <p className="font-bold text-[#D4AF37] text-sm">৳{itemSubtotal.toFixed(2)}</p>
-                          {itemQty > 1 && <p className="text-[10px] text-gray-500">৳{itemPrice.toFixed(2)} each</p>}
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </div>
 
                 {/* 3. Cost & Coupon Breakdown */}
                 <div className="pt-3 border-t border-gray-800/80 space-y-2 text-xs">
                   <div className="flex justify-between text-gray-400">
                     <span>Subtotal:</span>
-                    <span className="text-white font-medium">৳{Number(selectedOrder.orderSummary?.subtotal || selectedOrder.subtotal || (selectedOrder.total - (selectedOrder.orderSummary?.shipping || 0))).toFixed(2)}</span>
+                    <span className="text-white font-medium">৳{parseSafeNumber(selectedOrder.orderSummary?.subtotal || selectedOrder.subtotal || (parseSafeNumber(selectedOrder.total) - parseSafeNumber(selectedOrder.orderSummary?.shipping))).toFixed(2)}</span>
                   </div>
 
                   <div className="flex justify-between text-gray-400">
                     <span>Shipping Fee:</span>
-                    <span className="text-white font-medium">৳{Number(selectedOrder.orderSummary?.shipping || selectedOrder.shipping || 0).toFixed(2)}</span>
+                    <span className="text-white font-medium">৳{parseSafeNumber(selectedOrder.orderSummary?.shipping || selectedOrder.shipping).toFixed(2)}</span>
                   </div>
 
-                  {selectedOrder.orderSummary?.tax > 0 && (
+                  {parseSafeNumber(selectedOrder.orderSummary?.tax) > 0 && (
                     <div className="flex justify-between text-gray-400">
                       <span>Tax:</span>
-                      <span className="text-white font-medium">৳{Number(selectedOrder.orderSummary.tax).toFixed(2)}</span>
+                      <span className="text-white font-medium">৳{parseSafeNumber(selectedOrder.orderSummary?.tax).toFixed(2)}</span>
                     </div>
                   )}
 
                   {selectedOrder.orderSummary?.couponCode && (
-                    <div className="flex justify-between items-center text-green-400 bg-green-500/10 p-2 rounded-xl border border-green-500/20 font-bold">
+                    <div className="flex justify-between items-center text-green-400 bg-green-500/10 p-2.5 rounded-xl border border-green-500/20 font-bold">
                       <span className="flex items-center">
                         <Tag size={12} className="mr-1.5" />
-                        Coupon Discount ({selectedOrder.orderSummary.couponCode}):
+                        Coupon Applied ({selectedOrder.orderSummary.couponCode}):
                       </span>
-                      <span>-৳{Number(selectedOrder.orderSummary.discount || 0).toFixed(2)}</span>
+                      <span>-৳{parseSafeNumber(selectedOrder.orderSummary.discount).toFixed(2)}</span>
                     </div>
                   )}
 
                   <div className="flex justify-between items-center pt-2.5 border-t border-gray-800 text-sm">
                     <span className="text-white font-bold">Grand Total Amount:</span>
-                    <span className="text-[#D4AF37] font-bold text-xl">
-                      ৳{Number(selectedOrder.orderSummary?.total || selectedOrder.total || 0).toFixed(2)}
+                    <span className="text-[#D4AF37] font-bold text-2xl tracking-wide">
+                      ৳{parseSafeNumber(selectedOrder.orderSummary?.total || selectedOrder.total).toFixed(2)}
                     </span>
                   </div>
                 </div>
