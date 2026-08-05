@@ -176,6 +176,7 @@ export default function Settings() {
     try {
       await updateSettings(localSettings);
       window.dispatchEvent(new Event('settingsUpdated'));
+      window.dispatchEvent(new Event('storage'));
       toast.success('Settings saved LIVE in Cloud Database! 🎉', { id: toastId });
     } catch (err) {
       console.error("Cloud Sync Error:", err);
@@ -418,7 +419,7 @@ export default function Settings() {
                 </div>
               )}
 
-              {/* 🚀 NEW: Homepage & Special Offer 3D Banner Controls */}
+              {/* 🚀 Homepage & Special Offer 3D Banner Controls */}
               {activeTab === 'Homepage 3D' && (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
                   <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center">
