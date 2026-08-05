@@ -287,7 +287,7 @@ export const deleteSupabaseCoupon = async (id: string) => {
 };
 
 // =========================================================
-// 📦 5. ORDERS SERVICES (STRICT JSON STRINGIFY FIX)
+// 📦 5. ORDERS SERVICES (MULTI-DEVICE CLOUD FIX)
 // =========================================================
 
 export const getSupabaseOrders = async () => {
@@ -298,7 +298,6 @@ export const getSupabaseOrders = async () => {
       .order('created_at', { ascending: false });
 
     if (!error && Array.isArray(data)) {
-      // 🚀 Format JSON strings back into objects for UI
       const formatted = data.map((order: any) => {
         let itemsData = order.orderItems;
         if (typeof itemsData === 'string') {
@@ -332,20 +331,41 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
   const targetId = String(orderData.id || orderData.orderId || orderData._id || `ORD-${Date.now()}`);
   const { _id, updated_at, ...cleanOrder } = orderData;
   
-  const itemsArray = Array.isArray(cleanOrder.orderItems) 
-    ? cleanOrder.orderItems 
-    : (Array.isArray(cleanOrder.items) ? cleanOrder.items : []);
+  // 🚀 Fix: Extract items safely regardless of String or Array type
+  let orderItemsRaw = cleanOrder.orderItems || cleanOrder.items || [];
+  let itemsArray: any[] = [];
 
-  // 🚀 Safely stringify complex nested objects for TEXT column compatibility
+  if (typeof orderItemsRaw === 'string') {
+    try { itemsArray = JSON.parse(orderItemsRaw); } catch (e) { itemsArray = []; }
+  } else if (Array.isArray(orderItemsRaw)) {
+    itemsArray = orderItemsRaw;
+  }
+
+  const orderItemsString = typeof cleanOrder.orderItems === 'string' 
+    ? cleanOrder.orderItems 
+    : JSON.stringify(itemsArray);
+
+  const customerInfoString = typeof cleanOrder.customerInfo === 'string'
+    ? cleanOrder.customerInfo
+    : JSON.stringify(cleanOrder.customerInfo || {});
+
+  const paymentDetailsString = typeof cleanOrder.paymentDetails === 'string'
+    ? cleanOrder.paymentDetails
+    : JSON.stringify(cleanOrder.paymentDetails || {});
+
+  const orderSummaryString = typeof cleanOrder.orderSummary === 'string'
+    ? cleanOrder.orderSummary
+    : JSON.stringify(cleanOrder.orderSummary || {});
+
   const payload: Record<string, any> = {
     ...cleanOrder,
     id: targetId,
     orderId: String(cleanOrder.orderId || targetId),
-    customerInfo: typeof cleanOrder.customerInfo === 'object' ? JSON.stringify(cleanOrder.customerInfo) : String(cleanOrder.customerInfo || ''),
-    paymentDetails: typeof cleanOrder.paymentDetails === 'object' ? JSON.stringify(cleanOrder.paymentDetails) : String(cleanOrder.paymentDetails || ''),
-    orderItems: typeof itemsArray === 'object' ? JSON.stringify(itemsArray) : String(itemsArray || ''),
-    orderSummary: typeof cleanOrder.orderSummary === 'object' ? JSON.stringify(cleanOrder.orderSummary) : String(cleanOrder.orderSummary || ''),
-    items: Number(itemsArray.length || 1),
+    customerInfo: customerInfoString,
+    paymentDetails: paymentDetailsString,
+    orderItems: orderItemsString,
+    orderSummary: orderSummaryString,
+    items: Number(itemsArray.length || cleanOrder.items || 1),
     itemsCount: Number(cleanOrder.itemsCount || itemsArray.length || 1)
   };
 
@@ -365,6 +385,20 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
 
     if (error) {
       console.warn('Order Upsert Warning:', error.message);
+      const simplePayload = {
+        id: targetId,
+        orderId: String(cleanOrder.orderId || targetId),
+        customer: String(cleanOrder.customer || 'Customer'),
+        email: String(cleanOrder.email || ''),
+        phone: String(cleanOrder.phone || ''),
+        address: String(cleanOrder.address || ''),
+        date: String(cleanOrder.date || new Date().toLocaleDateString('en-GB')),
+        total: Number(cleanOrder.total || 0),
+        status: String(cleanOrder.status || 'Pending'),
+        paymentMethod: String(cleanOrder.paymentMethod || 'Cash on Delivery'),
+        orderItems: orderItemsString
+      };
+      await supabase.from('orders').upsert([simplePayload], { onConflict: 'id' });
     }
 
     if (data && data.length > 0) return data[0];

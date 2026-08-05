@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   Search, X, Package, Clock, CheckCircle, Truck, MapPin, 
   Trash2, Tag, RefreshCw, Sparkles, User, Image as ImageIcon,
-  CreditCard, Calendar, Phone, Mail, CheckSquare, Square, Layers
+  CreditCard, Calendar, Phone, Mail, CheckSquare
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
@@ -24,11 +24,8 @@ export default function Orders() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-
-  // 🚀 "Select All" এবং বাল্ক সিলেক্ট স্টেট
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  // 🛡️ সেফ নম্বর পার্সার
   const parseSafeNumber = (val: any): number => {
     if (val === null || val === undefined) return 0;
     if (typeof val === 'number') return isNaN(val) ? 0 : val;
@@ -37,71 +34,56 @@ export default function Orders() {
     return isNaN(num) ? 0 : num;
   };
 
-  // 🛡️ কাস্টমার নাম পার্সার
   const getCustomerFullName = (order: any): string => {
     if (!order) return 'Customer';
-    
     if (order.customer && String(order.customer).trim() !== '' && String(order.customer).trim() !== 'Customer') {
       return String(order.customer).trim();
     }
-
-    let info = order.customerInfo;
+    let info = order.customerInfo || order.customer_info;
     if (typeof info === 'string') {
       try { info = JSON.parse(info); } catch (e) {}
     }
-
     if (info && typeof info === 'object') {
-      const name = `${info.firstName || ''} ${info.lastName || ''}`.trim();
+      const name = `${info.firstName || info.first_name || ''} ${info.lastName || info.last_name || ''}`.trim();
       if (name) return name;
     }
-
     if (order.email && String(order.email).includes('@')) {
       return String(order.email).split('@')[0];
     }
     if (order.phone) {
       return `Customer (${order.phone})`;
     }
-
     return 'Customer';
   };
 
-  // 🛡️ সেফ ডেলিভারি ঠিকানা পার্সার
   const getFullAddress = (order: any): string => {
     if (!order) return 'Bangladesh';
-    
     let addr = order.address || '';
-    let info = order.customerInfo;
+    let info = order.customerInfo || order.customer_info;
     if (typeof info === 'string') {
       try { info = JSON.parse(info); } catch(e){}
     }
-
     if (info && typeof info === 'object') {
       if (info.address || info.city) {
         addr = `${info.address || ''}, ${info.city || ''}`;
       }
     }
-
     const clean = String(addr).replace(/(,\s*)+/g, ', ').replace(/^,\s*/, '').replace(/,\s*$/, '').trim();
     return clean ? (clean.toLowerCase().includes('bangladesh') ? clean : `${clean}, Bangladesh`) : 'Bangladesh';
   };
 
-  // 🛡️ প্রোডাক্ট থাম্বনেইল ফটো এক্সট্রাক্টর (Photo Loader)
   const getItemImage = (item: any): string => {
     if (!item) return '';
-    let img = item.image || item.imageUrl || item.productImage;
-    if (!img && Array.isArray(item.images) && item.images[0]) {
-      img = item.images[0];
-    }
+    let img = item.image || item.imageUrl || item.productImage || item.product_image;
+    if (!img && Array.isArray(item.images) && item.images[0]) img = item.images[0];
     if (typeof img === 'string' && img.trim() !== '' && img !== 'No Image' && !img.includes('via.placeholder')) {
       return img.trim();
     }
     return '';
   };
 
-  // 🚀 ১০০% রিয়েল প্রোডাক্ট আইটেম ডিকোডার (Photo, Name, Qty, Size, Color & Variants Display)
   const getOrderItemsList = (order: any): any[] => {
     if (!order) return [];
-
     const candidates = [
       order.orderItems, 
       order.order_items, 
@@ -109,16 +91,9 @@ export default function Orders() {
       order.items_data,
       order.items
     ];
-
     for (let raw of candidates) {
       if (!raw) continue;
-
-      // ১. সরাসরি অ্যারাই হলে
-      if (Array.isArray(raw) && raw.length > 0) {
-        return raw;
-      }
-
-      // ২. জেসন স্ট্রিং হলে
+      if (Array.isArray(raw) && raw.length > 0) return raw;
       if (typeof raw === 'string' && raw.trim() !== '' && raw !== '[object Object]') {
         try {
           const parsed = JSON.parse(raw);
@@ -126,25 +101,17 @@ export default function Orders() {
           if (parsed && typeof parsed === 'object') return [parsed];
         } catch (e) {}
       }
-
-      // ৩. অবজেক্ট হলে
-      if (typeof raw === 'object' && !Array.isArray(raw)) {
-        return [raw];
-      }
+      if (typeof raw === 'object' && !Array.isArray(raw)) return [raw];
     }
-
     return [];
   };
 
-  // 🛡️ সেফ অর্ডার সমরি পার্সার (Subtotal, Shipping Fee, Tax, Discount)
   const getOrderSummaryObj = (order: any): any => {
     if (!order) return { subtotal: 0, shipping: 60, tax: 0, discount: 0, total: 0 };
-    
     let summary = order.orderSummary || order.order_summary;
     if (typeof summary === 'string' && summary !== '[object Object]') {
       try { summary = JSON.parse(summary); } catch (e) {}
     }
-
     const totalNum = parseSafeNumber(order.total || summary?.total);
     const addrLower = getFullAddress(order).toLowerCase();
     const isInsideCTG = addrLower.includes('chattogram') || addrLower.includes('chittagong');
@@ -161,11 +128,10 @@ export default function Orders() {
       tax: taxNum,
       discount: discNum,
       total: totalNum,
-      couponCode: summary?.couponCode || order.couponCode
+      couponCode: summary?.couponCode || order.couponCode || order.coupon_code
     };
   };
 
-  // 🛡️ অর্ডারের নিখুঁত তারিখ ও সময় (Exact Date & Time)
   const getFormattedDateTime = (order: any): string => {
     if (!order) return 'Recent';
     const rawDate = order.createdAt || order.created_at || order.date;
@@ -173,42 +139,44 @@ export default function Orders() {
     try {
       const d = new Date(rawDate);
       if (isNaN(d.getTime())) return String(rawDate);
-      
-      const dateStr = d.toLocaleDateString('en-GB', { 
-        day: '2-digit', month: 'short', year: 'numeric' 
-      });
-      const timeStr = d.toLocaleTimeString('en-US', { 
-        hour: '2-digit', minute: '2-digit', hour12: true 
-      });
-
+      const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
       return `${dateStr} • ${timeStr}`;
     } catch (e) {
       return String(rawDate);
     }
   };
 
-  // 🚀 ১. সরাসরি Supabase Cloud Database থেকে রিয়েল-টাইম ১০০% লাইভ অর্ডার ফেচিং
+  // 🚀 Smart Sync Fetching
   const fetchOrders = async (isSilent = false) => {
     if (!isSilent && orders.length === 0) setLoading(true);
 
     let localOrders: any[] = [];
     const savedLocal = localStorage.getItem('mo_fashion_orders');
     if (savedLocal) {
-      try {
-        localOrders = JSON.parse(savedLocal);
-      } catch (e) {}
+      try { localOrders = JSON.parse(savedLocal); } catch (e) {}
     }
 
     try {
       const cloudData = await getSupabaseOrders();
-      if (Array.isArray(cloudData) && cloudData.length > 0) {
-        setOrders(cloudData);
-        localStorage.setItem('mo_fashion_orders', JSON.stringify(cloudData));
+      if (Array.isArray(cloudData)) {
+        const map = new Map();
+        [...localOrders, ...cloudData].forEach((item: any) => {
+          if (item) {
+            const key = String(item.id || item._id || item.orderId);
+            if (key && key !== 'undefined' && key !== 'null') {
+              map.set(key, { ...map.get(key), ...item });
+            }
+          }
+        });
+        const merged = Array.from(map.values());
+        setOrders(merged);
+        localStorage.setItem('mo_fashion_orders', JSON.stringify(merged));
       } else {
         setOrders(localOrders);
       }
-    } catch (error) {
-      console.warn("Supabase Cloud Orders fetch fallback, using local cache.");
+    } catch (error: any) {
+      console.warn("Supabase Fetch Error:", error);
       setOrders(localOrders);
     } finally {
       if (!isSilent) setLoading(false);
@@ -218,17 +186,14 @@ export default function Orders() {
   useEffect(() => {
     fetchOrders();
 
-    // 🚀 ২. Supabase WebSocket Realtime Listener (সব ডিভাইসে ১ সেকেন্ডে ব্রডকাস্ট হবে)
     const channel = supabase
-      .channel('public:orders:admin:live:real:v20')
+      .channel('public:orders:admin:live:v25')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
-        (payload) => {
+        () => {
           fetchOrders(true);
-          if (payload.eventType === 'INSERT') {
-            toast.success("New Order Received Live! 🛒", { duration: 4000 });
-          }
+          toast.success("Orders updated live! 🛒", { id: 'live-order-toast' });
         }
       )
       .subscribe();
@@ -249,7 +214,6 @@ export default function Orders() {
     setIsModalOpen(true);
   };
 
-  // 🚀 ৩. অর্ডারের স্ট্যাটাস ক্লাউড ডাটাবেসে রিয়েল-টাইম আপডেট করা
   const handleUpdateStatus = async (newStatus: string) => {
     if (!selectedOrder) return;
     const orderId = String(selectedOrder._id || selectedOrder.id || selectedOrder.orderId);
@@ -272,7 +236,6 @@ export default function Orders() {
     }
   };
 
-  // 🚀 ৪. ডাটাবেস থেকে অর্ডার ডিলিট
   const handleDeleteOrder = async (id: string) => {
     const targetId = String(id);
     if (window.confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
@@ -291,18 +254,17 @@ export default function Orders() {
     }
   };
 
-  // 🚀 "Select All" এবং সিঙ্গেল চেকবক্স সিলেক্ট লজিক
   const validOrders = Array.isArray(orders) ? orders : [];
   const filteredOrders = validOrders.filter((order: any) => {
     const customerName = getCustomerFullName(order);
     const orderIdStr = String(order.orderId || order.id || order._id || '');
-    const phoneStr = String(order.phone || order.customerInfo?.phone || '');
+    const phoneStr = String(order.phone || order.customerInfo?.phone || order.customer_info?.phone || '');
 
     const matchesSearch = orderIdStr.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           phoneStr.includes(searchQuery);
                           
-    const matchesStatus = filterStatus === 'All' || order.status === filterStatus;
+    const matchesStatus = filterStatus === 'All' || String(order.status).toLowerCase() === filterStatus.toLowerCase();
     
     return matchesSearch && matchesStatus;
   });
@@ -325,7 +287,6 @@ export default function Orders() {
     }
   };
 
-  // 🚀 বাল্ক ডিলিট (সব সিলেক্ট করা অর্ডার একসাথে ডিলিট)
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
 
@@ -346,7 +307,6 @@ export default function Orders() {
     }
   };
 
-  // 🚀 বাল্ক স্ট্যাটাস আপডেট (সব সিলেক্ট করা অর্ডারের স্ট্যাটাস একসাথে পরিবর্তন)
   const handleBulkUpdateStatus = async (newStatus: string) => {
     if (selectedIds.length === 0 || !newStatus) return;
 
@@ -378,7 +338,7 @@ export default function Orders() {
         <title>Admin - Orders Management | MO FASHION</title>
       </Helmet>
 
-      {/* 🚀 Header Section */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-2xl border border-[#D4AF37]/20 backdrop-blur-md shadow-xl transition-all duration-300 hover:border-[#D4AF37]/40">
         <div>
           <div className="flex items-center space-x-3">
@@ -402,7 +362,7 @@ export default function Orders() {
         </button>
       </div>
 
-      {/* ⚡ Bulk Action Bar (appears when 1 or more orders are selected) */}
+      {/* Bulk Action Bar */}
       {selectedIds.length > 0 && (
         <div className="bg-[#D4AF37]/10 border border-[#D4AF37]/40 p-4 rounded-2xl mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md">
           <div className="flex items-center space-x-2 text-[#D4AF37] font-bold text-sm">
@@ -437,7 +397,7 @@ export default function Orders() {
         </div>
       )}
 
-      {/* 🔎 Search and Filters Section */}
+      {/* Search and Filters Section */}
       <div className="bg-[#1A1A1A] p-4 rounded-xl border border-[#D4AF37]/20 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center shadow-lg transition-all duration-300">
         <div className="relative w-full max-w-md">
           <input 
@@ -465,7 +425,7 @@ export default function Orders() {
         </div>
       </div>
 
-      {/* 📦 Orders Table */}
+      {/* Orders Table */}
       <div className="bg-[#1A1A1A] rounded-2xl border border-[#D4AF37]/20 overflow-hidden shadow-2xl transition-all duration-300">
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left whitespace-nowrap">
@@ -501,8 +461,8 @@ export default function Orders() {
               ) : (
                 filteredOrders.map((order: any) => {
                   const customerName = getCustomerFullName(order);
-                  const customerEmail = order.customerInfo ? order.customerInfo.email : (order.email || 'N/A');
-                  const customerPhone = order.customerInfo ? order.customerInfo.phone : (order.phone || '');
+                  const customerEmail = order.customerInfo ? (order.customerInfo.email || order.email) : (order.email || 'N/A');
+                  const customerPhone = order.customerInfo ? (order.customerInfo.phone || order.phone) : (order.phone || '');
                   const formattedDateTime = getFormattedDateTime(order);
 
                   const summary = getOrderSummaryObj(order);
@@ -532,16 +492,16 @@ export default function Orders() {
                       <td className="px-6 py-4 font-bold text-[#D4AF37]">৳{orderTotalNum.toFixed(2)}</td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center w-max border transition-all duration-300 ${
-                          order.status === 'Delivered' ? 'text-green-400 bg-green-500/10 border-green-500/30 shadow-sm shadow-green-500/20' : 
-                          order.status === 'Shipped' ? 'text-blue-400 bg-blue-500/10 border-blue-500/30 shadow-sm shadow-blue-500/20' : 
-                          (order.status === 'Processing' || order.status === 'Pending') ? 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30 animate-pulse' :
-                          order.status === 'Cancelled' ? 'text-red-400 bg-red-500/10 border-red-500/30' :
+                          String(order.status).toLowerCase() === 'delivered' ? 'text-green-400 bg-green-500/10 border-green-500/30 shadow-sm shadow-green-500/20' : 
+                          String(order.status).toLowerCase() === 'shipped' ? 'text-blue-400 bg-blue-500/10 border-blue-500/30 shadow-sm shadow-blue-500/20' : 
+                          (String(order.status).toLowerCase() === 'processing' || String(order.status).toLowerCase() === 'pending') ? 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30 animate-pulse' :
+                          String(order.status).toLowerCase() === 'cancelled' ? 'text-red-400 bg-red-500/10 border-red-500/30' :
                           'text-orange-400 bg-orange-500/10 border-orange-500/30'
                         }`}>
-                          {order.status === 'Delivered' && <CheckCircle size={12} className="mr-1.5" />}
-                          {order.status === 'Shipped' && <Truck size={12} className="mr-1.5" />}
-                          {(order.status === 'Processing' || order.status === 'Pending') && <Clock size={12} className="mr-1.5" />}
-                          {order.status === 'Cancelled' && <X size={12} className="mr-1.5" />}
+                          {String(order.status).toLowerCase() === 'delivered' && <CheckCircle size={12} className="mr-1.5" />}
+                          {String(order.status).toLowerCase() === 'shipped' && <Truck size={12} className="mr-1.5" />}
+                          {(String(order.status).toLowerCase() === 'processing' || String(order.status).toLowerCase() === 'pending') && <Clock size={12} className="mr-1.5" />}
+                          {String(order.status).toLowerCase() === 'cancelled' && <X size={12} className="mr-1.5" />}
                           {order.status || 'Pending'}
                         </span>
                       </td>
@@ -583,12 +543,11 @@ export default function Orders() {
         </div>
       </div>
 
-      {/* 🪟 View Full Order Details Modal (A to Z Product Variants & Image Guarantee) */}
+      {/* Modal View */}
       {isModalOpen && selectedOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md transition-opacity duration-300">
           <div className="bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
             
-            {/* Modal Header */}
             <div className="flex justify-between items-center p-6 border-b border-[#D4AF37]/20 bg-[#111111]">
               <div className="flex items-center space-x-2">
                 <Sparkles className="text-[#D4AF37]" size={22} />
@@ -606,7 +565,6 @@ export default function Orders() {
             
             <div className="overflow-y-auto custom-scrollbar p-6 space-y-6">
               
-              {/* 1. Customer Bio & Shipping Info */}
               <div className="bg-[#111111] p-5 rounded-2xl border border-gray-800/80 shadow-md space-y-3">
                 <div className="flex justify-between items-center border-b border-gray-800 pb-2">
                   <h3 className="text-[#D4AF37] font-bold uppercase tracking-wider text-xs flex items-center">
@@ -662,7 +620,6 @@ export default function Orders() {
                 </div>
               </div>
 
-              {/* 2. Itemized Products List (Photo, Real Name, Color, Size, Options) */}
               <div className="bg-[#111111] p-5 rounded-2xl border border-gray-800/80 shadow-md">
                 <h3 className="text-[#D4AF37] font-bold mb-4 uppercase tracking-wider text-xs border-b border-gray-800 pb-2 flex items-center">
                   <Package size={16} className="mr-2 text-[#D4AF37]" /> Ordered Items ({getOrderItemsList(selectedOrder).length})
@@ -691,7 +648,6 @@ export default function Orders() {
                             <div>
                               <p className="font-bold text-white text-sm line-clamp-1">{item.name || 'Ordered Fashion Item'}</p>
                               
-                              {/* 🚀 কাস্টমারের নির্বাচিত রিয়েল ভ্যারিয়েন্ট: Qty, Size, Color, Custom Options */}
                               <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[11px] text-gray-400">
                                 <span className="text-[#D4AF37] font-bold bg-[#D4AF37]/10 px-2 py-0.5 rounded border border-[#D4AF37]/20 shadow-sm">
                                   Qty: x{itemQty}
@@ -712,7 +668,6 @@ export default function Orders() {
                                   </span>
                                 )}
                                 
-                                {/* 🚀 Any Other Dynamic Variant Options */}
                                 {Array.isArray(item.selectedVariants) ? (
                                   item.selectedVariants.map((v: any, vIdx: number) => (
                                     <span key={vIdx} className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-700 shadow-sm capitalize">
@@ -740,7 +695,6 @@ export default function Orders() {
                   )}
                 </div>
 
-                {/* 3. Cost & Coupon Breakdown */}
                 {(() => {
                   const summary = getOrderSummaryObj(selectedOrder);
                   const subtotalNum = parseSafeNumber(summary.subtotal);
@@ -789,7 +743,6 @@ export default function Orders() {
                 })()}
               </div>
 
-              {/* 4. Order Status Actions */}
               <div className="bg-[#111111] p-5 rounded-2xl border border-gray-800">
                 <label className="block text-gray-300 text-xs uppercase tracking-wider mb-3 font-bold">Update Order Status Live</label>
                 <div className="flex flex-wrap gap-2.5">
