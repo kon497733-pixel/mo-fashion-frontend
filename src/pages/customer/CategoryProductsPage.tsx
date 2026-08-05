@@ -171,7 +171,7 @@ export default function CategoryProductsPage() {
     toast.success(`${product.name} added to cart! 🛒`);
   };
 
-  // 🚀 REAL-TIME AVERAGE STAR RATING CALCULATOR (NO DEFAULT 5.0!)
+  // 🚀 REAL-TIME AVERAGE STAR RATING CALCULATOR
   const getProductRatingStats = (productId: string) => {
     const prodReviews = reviews.filter(r => String(r.productId || r.product_id) === String(productId));
     if (prodReviews.length === 0) return { rating: '0.0', count: 0 };
@@ -181,11 +181,22 @@ export default function CategoryProductsPage() {
     return { rating: avg, count: prodReviews.length };
   };
 
-  // 🚀 Filter products strictly by category AND search query
+  // 🚀 SMART FUZZY CATEGORY MATCHING (একবচন/বহুবচন বা ১ অক্ষরের ফারাক থাকলেও ১০০% ম্যাচ করবে)
+  const isCategoryMatch = (prodCategory: string, targetCatName: string) => {
+    if (!prodCategory || !targetCatName) return false;
+    
+    const pCat = String(prodCategory).trim().toLowerCase().replace(/s$/, ''); 
+    const tCat = String(targetCatName).trim().toLowerCase().replace(/s$/, '');
+
+    if (pCat === tCat) return true;
+    if (pCat.includes(tCat) || tCat.includes(pCat)) return true;
+    
+    return false;
+  };
+
+  // 🚀 Filter products by smart category matcher & in-page search
   let categoryProducts = products.filter(p => {
-    const prodCat = String(p.category || '').trim().toLowerCase();
-    const targetCat = decodedCategoryName.trim().toLowerCase();
-    const matchesCat = prodCat === targetCat;
+    const matchesCat = isCategoryMatch(p.category, decodedCategoryName);
 
     const q = searchQuery.trim().toLowerCase();
     const matchesSearch = !q || String(p.name || '').toLowerCase().includes(q);
