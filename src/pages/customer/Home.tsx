@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ShoppingBag, Eye, Star, ChevronRight, ChevronLeft, 
-  ShieldCheck, Truck, RotateCcw, Award, RefreshCw 
+  ShieldCheck, Truck, RotateCcw, Award, RefreshCw, Search, Filter 
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
@@ -15,6 +15,57 @@ import {
   getSupabaseReviews 
 } from '../../lib/supabase';
 
+// 🚀 প্রোডাক্ট কার্ডের ভেতরের অটোমেটিক ইমেজ স্লাইডার (Auto Product Image Slider)
+function ProductCardImageSlider({ images, name }: { images: string[]; name: string }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    if (!Array.isArray(images) || images.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % images.length);
+    }, 3200); // 3.2 Seconds Smooth Transition
+    return () => clearInterval(interval);
+  }, [images]);
+
+  const validImages = Array.isArray(images) ? images.filter(img => img && img.trim() !== '' && !img.includes('No+Image')) : [];
+
+  if (validImages.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-xs text-gray-600 uppercase font-bold bg-[#111111]">
+        No Image
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-full h-full overflow-hidden bg-[#111111]">
+      {validImages.map((img, idx) => (
+        <img
+          key={idx}
+          src={img}
+          alt={`${name} slide ${idx + 1}`}
+          className={`absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-all duration-1000 ease-out ${
+            idx === currentIndex ? 'opacity-100 scale-105' : 'opacity-0 scale-100 pointer-events-none'
+          }`}
+        />
+      ))}
+
+      {validImages.length > 1 && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex space-x-1 z-10 bg-black/60 px-2 py-0.5 rounded-full backdrop-blur-md border border-white/10">
+          {validImages.map((_, i) => (
+            <div
+              key={i}
+              className={`h-1 rounded-full transition-all duration-500 ${
+                i === currentIndex ? 'bg-[#D4AF37] w-3' : 'bg-white/40 w-1'
+              }`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Home() {
   const navigate = useNavigate();
   const cartStore = useCartStore();
@@ -23,6 +74,7 @@ export default function Home() {
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [sectionSearchQuery, setSectionSearchQuery] = useState('');
   const [settings, setSettings] = useState<any>({
     storeName: 'MO FASHION',
     tagline: 'LUXURY COLLECTION',
@@ -47,7 +99,6 @@ export default function Home() {
     const loadHomeData = async () => {
       setLoading(true);
 
-      // Cached load first for instant paint
       const cachedProducts = localStorage.getItem('mo_fashion_products');
       if (cachedProducts) { try { setProducts(JSON.parse(cachedProducts)); } catch (e) {} }
 
@@ -60,7 +111,6 @@ export default function Home() {
       const cachedReviews = localStorage.getItem('mo_fashion_reviews');
       if (cachedReviews) { try { setReviews(JSON.parse(cachedReviews)); } catch (e) {} }
 
-      // Live fetch
       try {
         const [cloudProds, cloudCats, cloudSet, cloudRevs] = await Promise.all([
           getSupabaseProducts().catch(() => []),
@@ -98,7 +148,6 @@ export default function Home() {
     };
   }, []);
 
-  // 🚀 Pure CSS 3D Hero Parallax Engine
   const handleHeroMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width - 0.5;
@@ -106,11 +155,8 @@ export default function Home() {
     setHeroTilt({ x: y * 15, y: -x * 15 });
   };
 
-  const handleHeroMouseLeave = () => {
-    setHeroTilt({ x: 0, y: 0 });
-  };
+  const handleHeroMouseLeave = () => setHeroTilt({ x: 0, y: 0 });
 
-  // 🚀 Slider Scroll Control (Left / Right)
   const scrollSlider = (direction: 'left' | 'right') => {
     if (productSliderRef.current) {
       const scrollAmount = direction === 'left' ? -320 : 320;
@@ -118,7 +164,6 @@ export default function Home() {
     }
   };
 
-  // 🚀 Quick Add to Cart Handler (Safe Universal Call)
   const handleQuickAddToCart = (e: React.MouseEvent, product: any) => {
     e.stopPropagation();
     
@@ -172,10 +217,16 @@ export default function Home() {
     return { rating: avg, count: prodReviews.length };
   };
 
-  // Filter 100% REAL Products by active category
+  // Filter 100% REAL Products by active category AND search query
   const filteredProducts = products.filter(p => {
-    if (activeCategory === 'All') return true;
-    return String(p.category || '').toLowerCase() === activeCategory.toLowerCase();
+    const matchesCat = activeCategory === 'All' || String(p.category || '').toLowerCase() === activeCategory.toLowerCase();
+    
+    const searchQ = sectionSearchQuery.trim().toLowerCase();
+    const matchesSearch = !searchQ || 
+      String(p.name || '').toLowerCase().includes(searchQ) || 
+      String(p.category || '').toLowerCase().includes(searchQ);
+
+    return matchesCat && matchesSearch;
   });
 
   const availableCategoryList = categories.length > 0 
@@ -210,7 +261,7 @@ export default function Home() {
         >
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             
-            {/* Left Column: 3D Typography (Admin Dynamic Texts) */}
+            {/* Left Column: 3D Typography */}
             <div className="space-y-6 text-center lg:text-left [transform:translateZ(30px)]">
               
               <div className="inline-flex items-center space-x-2 bg-[#1A1A1A]/90 border border-[#D4AF37]/40 px-4 py-2 rounded-full backdrop-blur-md shadow-[0_0_20px_rgba(212,175,55,0.25)]">
@@ -230,7 +281,6 @@ export default function Home() {
                 {settings?.heroDescription || 'Discover handcrafted luxury apparel and accessories designed to redefine modern elegance. Premium quality tailored for perfection.'}
               </p>
 
-              {/* 3D Action Buttons */}
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-4 [transform-style:preserve-3d]">
                 <button
                   onClick={() => navigate('/products')}
@@ -249,7 +299,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Right Column: Pure CSS 3D Floating Card (Admin Dynamic Texts) */}
+            {/* Right Column: Pure CSS 3D Floating Card */}
             <div className="relative flex justify-center items-center [transform-style:preserve-3d]">
               <div className="relative w-72 h-72 sm:w-96 sm:h-96 rounded-3xl bg-gradient-to-tr from-[#1A1A1A] via-[#111111] to-[#1A1A1A] border border-[#D4AF37]/40 shadow-[0_25px_60px_rgba(0,0,0,0.9),0_0_40px_rgba(212,175,55,0.2)] p-6 flex flex-col justify-between overflow-hidden group [transform:translateZ(40px)]">
                 
@@ -330,11 +380,30 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 🚀 3. NEW ARRIVALS & PRODUCTS 3D SLIDER (HORIZONTAL CAROUSEL SLIDER ENABLED) */}
+      {/* 🚀 3. NEW ARRIVALS & PRODUCTS SECTION WITH SEARCH BAR ABOVE */}
       <section className="py-16 px-4 bg-[#111111] relative">
-        <div className="container mx-auto max-w-7xl">
+        <div className="container mx-auto max-w-7xl space-y-8">
           
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 border-b border-[#D4AF37]/20 pb-4 gap-4">
+          {/* 🚀 NEW: PRODUCT & CATEGORY SEARCH BAR DIRECTLY ABOVE NEW ARRIVALS */}
+          <div className="bg-[#1A1A1A]/90 border border-[#D4AF37]/30 rounded-2xl p-4 shadow-xl backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="relative w-full sm:w-96">
+              <input
+                type="text"
+                placeholder="Search products or categories..."
+                value={sectionSearchQuery}
+                onChange={(e) => setSectionSearchQuery(e.target.value)}
+                className="w-full bg-[#111111] border border-gray-700 focus:border-[#D4AF37] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#D4AF37]/50 transition-all"
+              />
+              <Search className="absolute left-3.5 top-3 text-gray-400" size={16} />
+            </div>
+
+            <div className="flex items-center space-x-2 text-xs text-[#D4AF37] font-bold">
+              <Filter size={14} />
+              <span>Filtering {filteredProducts.length} Items</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-[#D4AF37]/20 pb-4 gap-4">
             <div>
               <h2 className="text-2xl sm:text-4xl font-serif font-bold text-[#D4AF37] uppercase tracking-wider flex items-center">
                 {storeLogoImage ? (
@@ -348,7 +417,7 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Category Filter Tabs & Slider Arrows */}
+            {/* Category Filter Tabs & Slider Controls */}
             <div className="flex items-center space-x-3 overflow-x-auto custom-scrollbar pb-2 md:pb-0">
               <div className="flex items-center space-x-2">
                 <button
@@ -380,7 +449,7 @@ export default function Home() {
                 })}
               </div>
 
-              {/* Slider Left/Right Control Buttons */}
+              {/* Slider Arrows */}
               <div className="hidden sm:flex items-center space-x-2 shrink-0 pl-4 border-l border-gray-800">
                 <button
                   onClick={() => scrollSlider('left')}
@@ -400,17 +469,17 @@ export default function Home() {
             </div>
           </div>
 
-          {/* 🚀 SMOOTH HORIZONTAL 3D PRODUCT SLIDER / CAROUSEL (MOBILE 2-COLUMNS FLEX) */}
+          {/* 🚀 SMOOTH HORIZONTAL 3D PRODUCT SLIDER / CAROUSEL WITH AUTO SLIDESHOW & EXACT STOCK COUNT */}
           {filteredProducts.length === 0 ? (
             <div className="text-center py-20 bg-[#1A1A1A]/60 rounded-3xl border border-gray-800 p-8 max-w-xl mx-auto">
               <ShoppingBag size={48} className="mx-auto text-gray-600 mb-4 opacity-50" />
-              <h3 className="text-lg font-serif font-bold text-white mb-2">No products added in this category yet!</h3>
-              <p className="text-xs text-gray-400 mb-6">Admin can add real products from the Admin Panel.</p>
+              <h3 className="text-lg font-serif font-bold text-white mb-2">No products matched your search or category!</h3>
+              <p className="text-xs text-gray-400 mb-6">Try searching for a different keyword or reset filters.</p>
               <button
-                onClick={() => setActiveCategory('All')}
+                onClick={() => { setActiveCategory('All'); setSectionSearchQuery(''); }}
                 className="px-6 py-2.5 bg-[#D4AF37] text-black font-bold text-xs uppercase rounded-xl hover:scale-105 transition-all"
               >
-                Show All Products
+                Reset Filters
               </button>
             </div>
           ) : (
@@ -425,14 +494,13 @@ export default function Home() {
                 const discountPercent = Number(product.discount) || 0;
                 const finalPrice = discountPercent > 0 ? origPrice - (origPrice * discountPercent) / 100 : origPrice;
 
-                let pImg = '';
-                if (product.images && product.images[0]) pImg = product.images[0];
-                else if (product.imageUrl) pImg = product.imageUrl;
-                else if (product.image) pImg = product.image;
-
                 const stockCount = Number(product.stock) || 0;
                 const isOutOfStock = stockCount <= 0 || product.status === 'Out of Stock';
                 const isLowStock = stockCount > 0 && stockCount <= 3;
+
+                const productImagesList = Array.isArray(product.images) && product.images.length > 0 
+                  ? product.images 
+                  : (product.imageUrl || product.image ? [product.imageUrl || product.image] : []);
 
                 // 🚀 REAL-TIME RATING CALCULATOR
                 const ratingStats = getProductRatingStats(pId);
@@ -443,19 +511,9 @@ export default function Home() {
                     onClick={() => navigate(`/product/${pId}`)}
                     className="w-[48%] sm:w-[48%] md:w-[30%] lg:w-[23%] shrink-0 snap-start group relative bg-[#1A1A1A] border border-gray-800 hover:border-[#D4AF37]/60 rounded-2xl overflow-hidden cursor-pointer shadow-xl transition-all duration-500 hover:-translate-y-2 [perspective:1000px] [transform-style:preserve-3d]"
                   >
-                    {/* 3D Image Container */}
+                    {/* 3D Image Box with Auto Image Slideshow */}
                     <div className="relative aspect-square w-full bg-[#111111] overflow-hidden">
-                      {pImg ? (
-                        <img 
-                          src={pImg} 
-                          alt={pName} 
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" 
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-xs text-gray-600 uppercase font-bold">
-                          No Image
-                        </div>
-                      )}
+                      <ProductCardImageSlider images={productImagesList} name={pName} />
 
                       {/* 3D Floating Badges */}
                       <div className="absolute top-2.5 left-2.5 right-2.5 flex justify-between items-start z-10">
@@ -465,7 +523,7 @@ export default function Home() {
                           </span>
                         ) : <span />}
 
-                        {/* 🚀 ULTRA-PROMINENT 3D STOCK BADGE */}
+                        {/* 🚀 ULTRA-PROMINENT 3D STOCK BADGE (WITH EXACT REMAINING STOCK COUNT) */}
                         <span className={`font-bold text-[9px] sm:text-[10px] px-2.5 py-1 rounded-full uppercase border backdrop-blur-md shadow-md ${
                           isOutOfStock 
                             ? 'bg-red-500/30 text-red-300 border-red-500 shadow-red-500/30' 
@@ -473,7 +531,7 @@ export default function Home() {
                             ? 'bg-amber-500/30 text-amber-200 border-amber-500 shadow-amber-500/30 animate-pulse'
                             : 'bg-emerald-500/30 text-emerald-200 border-emerald-500 shadow-emerald-500/30'
                         }`}>
-                          {isOutOfStock ? 'OUT OF STOCK' : isLowStock ? 'LOW STOCK' : 'IN STOCK'}
+                          {isOutOfStock ? 'OUT OF STOCK' : isLowStock ? `ONLY ${stockCount} LEFT!` : `${stockCount} IN STOCK`}
                         </span>
                       </div>
 

@@ -1,21 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   ShoppingBag, Search, Menu, X, Home, Grid, Info, User, 
-  ShieldCheck 
+  ShieldCheck, ChevronDown, Package, Folder, ArrowRight
 } from 'lucide-react';
 import { useCartStore } from '../../store/useCartStore';
-import { getSupabaseSettings } from '../../lib/supabase';
+import { 
+  supabase, 
+  getSupabaseSettings, 
+  getSupabaseCategories, 
+  getSupabaseProducts 
+} from '../../lib/supabase';
 
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { items } = useCartStore();
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchDropdownOpen, setSearchQueryOpen] = useState(false);
+  const [isCategoriesHovered, setIsCategoriesHovered] = useState(false);
   const [logoTilt, setLogoTilt] = useState({ x: 0, y: 0 });
+
+  const [categoriesList, setCategoriesList] = useState<any[]>([]);
+  const [productsList, setProductsList] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>({
     storeName: 'MO FASHION',
     tagline: 'LUXURY COLLECTION',
@@ -25,39 +36,116 @@ export default function Navbar() {
   // 🚀 মোট কার্ট আইটেম সংখ্যা হিসাব
   const totalCartCount = items.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0);
 
+  // 🚀 অল-ডিভাইস রিয়েল-টাইম সেটিংস সিঙ্ক (Supabase Realtime Channel)
   useEffect(() => {
-    const loadSettings = async () => {
-      const cached = localStorage.getItem('mo_fashion_settings');
-      if (cached) {
-        try { setSettings(JSON.parse(cached)); } catch (e) {}
-      }
+    const loadNavbarData = async () => {
+      const cachedSet = localStorage.getItem('mo_fashion_settings');
+      if (cachedSet) { try { setSettings(JSON.parse(cachedSet)); } catch (e) {} }
+
+      const cachedCats = localStorage.getItem('mo_fashion_categories');
+      if (cachedCats) { try { setCategoriesList(JSON.parse(cachedCats)); } catch (e) {} }
+
+      const cachedProds = localStorage.getItem('mo_fashion_products');
+      if (cachedProds) { try { setProductsList(JSON.parse(cachedProds)); } catch (e) {} }
 
       try {
-        const cloudSet = await getSupabaseSettings();
+        const [cloudSet, cloudCats, cloudProds] = await Promise.all([
+          getSupabaseSettings().catch(() => null),
+          getSupabaseCategories().catch(() => []),
+          getSupabaseProducts().catch(() => [])
+        ]);
+
         if (cloudSet) setSettings(cloudSet);
+        if (Array.isArray(cloudCats) && cloudCats.length > 0) setCategoriesList(cloudCats);
+        if (Array.isArray(cloudProds) && cloudProds.length > 0) setProductsList(cloudProds);
       } catch (e) {}
     };
 
-    loadSettings();
+    loadNavbarData();
 
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
+    // 🚀 ALL-DEVICE REALTIME LISTENERS (SETTINGS, CATEGORIES, PRODUCTS)
+    const channel = supabase
+      .channel('public:navbar:live:sync:v100')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'settings' },
+        (payload) => {
+          if (payload.new) {
+            setSettings((prev: any) => ({ ...prev, ...payload.new }));
+            localStorage.setItem('mo_fashion_settings', JSON.stringify(payload.new));
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'categories' },
+        () => loadNavbarData()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        () => loadNavbarData()
+      )
+      .subscribe();
+
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
+    const handleStorage = () => loadNavbarData();
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setSearchQueryOpen(false);
+      }
     };
 
-    const handleSettingsUpdate = () => loadSettings();
-
     window.addEventListener('scroll', handleScroll);
-    window.addEventListener('storage', handleSettingsUpdate);
-    window.addEventListener('settingsUpdated', handleSettingsUpdate);
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('settingsUpdated', handleStorage);
+    document.addEventListener('mousedown', handleClickOutside);
 
     return () => {
+      supabase.removeChannel(channel);
       window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('storage', handleSettingsUpdate);
-      window.removeEventListener('settingsUpdated', handleSettingsUpdate);
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('settingsUpdated', handleStorage);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
-  // 🚀 Pure CSS 3D Perspective Tilt Engine for Logo
+  // 🚀 ১টি অক্ষর (1st Letter) টাইপ করা মাত্রই [Product] ও [Category] সার্চ ফলাফল
+  const searchResults = (() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+
+    const matchedCats = categoriesList
+      .filter(c => String(c.name || '').toLowerCase().includes(q))
+      .map(c => ({
+        type: 'Category',
+        id: String(c.id || c._id),
+        name: c.name,
+        image: c.image || c.imageUrl || '',
+        url: `/products?category=${encodeURIComponent(c.name)}`
+      }));
+
+    const matchedProds = productsList
+      .filter(p => String(p.name || '').toLowerCase().includes(q) || String(p.category || '').toLowerCase().includes(q))
+      .map(p => {
+        const origPrice = Number(p.price) || 0;
+        const discountPercent = Number(p.discount) || 0;
+        const finalPrice = discountPercent > 0 ? origPrice - (origPrice * discountPercent) / 100 : origPrice;
+
+        return {
+          type: 'Product',
+          id: String(p.id || p._id),
+          name: p.name,
+          price: finalPrice,
+          category: p.category,
+          image: p.images?.[0] || p.imageUrl || p.image || '',
+          url: `/product/${p.id || p._id}`
+        };
+      });
+
+    return [...matchedCats, ...matchedProds].slice(0, 7);
+  })();
+
   const handleLogoMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width - 0.5;
@@ -65,24 +153,13 @@ export default function Navbar() {
     setLogoTilt({ x: y * 25, y: -x * 25 });
   };
 
-  const handleLogoMouseLeave = () => {
-    setLogoTilt({ x: 0, y: 0 });
-  };
+  const handleLogoMouseLeave = () => setLogoTilt({ x: 0, y: 0 });
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchQuery('');
-    }
+  const handleSelectSearchResult = (url: string) => {
+    navigate(url);
+    setSearchQuery('');
+    setSearchQueryOpen(false);
   };
-
-  const navLinks = [
-    { name: 'HOME', path: '/' },
-    { name: 'CATEGORIES', path: '/categories' },
-    { name: 'COLLECTION', path: '/products' },
-    { name: 'ABOUT', path: '/about' },
-  ];
 
   const bottomNavItems = [
     { name: 'Home', path: '/', icon: Home },
@@ -106,7 +183,7 @@ export default function Navbar() {
       }`}>
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl flex items-center justify-between">
           
-          {/* Mobile Menu Hamburger */}
+          {/* Mobile Menu Hamburger Toggle */}
           <button 
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="lg:hidden text-gray-300 hover:text-[#D4AF37] p-2 rounded-xl border border-gray-800 bg-[#1A1A1A]/90 backdrop-blur-md active:scale-95 transition-all shadow-md"
@@ -115,7 +192,7 @@ export default function Navbar() {
             {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
 
-          {/* 🚀 PURE CSS 3D PERSPECTIVE LOGO (AUTHENTIC LOGO IMAGE OR BRAND EMBLEM) */}
+          {/* 🚀 3D STORE LOGO & DYNAMIC BRAND TITLE */}
           <div 
             className="[perspective:1000px] cursor-pointer group py-1"
             onMouseMove={handleLogoMouseMove}
@@ -128,7 +205,6 @@ export default function Navbar() {
                 transform: `rotateX(${logoTilt.x}deg) rotateY(${logoTilt.y}deg) translateZ(12px)`
               }}
             >
-              {/* 3D Pure CSS Metallic Gold Logo Container */}
               <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-gradient-to-br from-[#D4AF37] via-[#fff5c0] to-[#aa8c2c] p-[1.5px] shadow-[0_10px_25px_rgba(212,175,55,0.35)] group-hover:shadow-[0_15px_35px_rgba(212,175,55,0.65)] transition-all duration-300 [transform-style:preserve-3d] shrink-0 overflow-hidden">
                 <div className="w-full h-full bg-[#111111] rounded-2xl flex items-center justify-center border border-[#D4AF37]/50 backdrop-blur-md overflow-hidden [transform:translateZ(10px)]">
                   {storeLogoImage ? (
@@ -141,7 +217,6 @@ export default function Navbar() {
                 </div>
               </div>
 
-              {/* 3D Brand Title & Dynamic Tagline from Admin Settings */}
               <div className="flex flex-col [transform:translateZ(15px)]">
                 <span className="font-serif text-xl sm:text-2xl md:text-3xl font-bold tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] via-[#ffffff] to-[#aa8c2c] drop-shadow-[0_4px_12px_rgba(212,175,55,0.4)] uppercase">
                   {storeBrandTitle}
@@ -153,44 +228,145 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* Desktop Navigation Links with Pure CSS 3D Depth */}
+          {/* 🚀 DESKTOP NAV LINKS (WITH CATEGORIES HOVER DROPDOWN BOX) */}
           <nav className="hidden lg:flex items-center space-x-8">
-            {navLinks.map((link) => {
-              const isActive = location.pathname === link.path;
-              return (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  className={`relative text-xs font-bold tracking-[0.2em] transition-all duration-300 py-2 group [transform-style:preserve-3d] ${
-                    isActive ? 'text-[#D4AF37]' : 'text-gray-300 hover:text-[#D4AF37]'
-                  }`}
-                >
-                  <span className="relative z-10 group-hover:[transform:translateZ(8px)] transition-transform inline-block">
-                    {link.name}
-                  </span>
-                  {/* 3D Glowing Underline Bar */}
-                  <span className={`absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent transform transition-transform duration-300 ${
-                    isActive ? 'scale-x-100 shadow-[0_0_15px_#D4AF37]' : 'scale-x-0 group-hover:scale-x-100'
-                  }`} />
-                </Link>
-              );
-            })}
+            <Link
+              to="/"
+              className={`relative text-xs font-bold tracking-[0.2em] transition-all duration-300 py-2 group ${
+                location.pathname === '/' ? 'text-[#D4AF37]' : 'text-gray-300 hover:text-[#D4AF37]'
+              }`}
+            >
+              <span>HOME</span>
+              <span className={`absolute bottom-0 left-0 w-full h-[2px] bg-[#D4AF37] transition-transform ${
+                location.pathname === '/' ? 'scale-x-100 shadow-[0_0_12px_#D4AF37]' : 'scale-x-0 group-hover:scale-x-100'
+              }`} />
+            </Link>
+
+            {/* 🚀 CATEGORIES WITH MOUSE HOVER DROPDOWN BOX */}
+            <div 
+              className="relative py-2"
+              onMouseEnter={() => setIsCategoriesHovered(true)}
+              onMouseLeave={() => setIsCategoriesHovered(false)}
+            >
+              <Link
+                to="/categories"
+                className={`flex items-center space-x-1 text-xs font-bold tracking-[0.2em] transition-all duration-300 group ${
+                  location.pathname === '/categories' ? 'text-[#D4AF37]' : 'text-gray-300 hover:text-[#D4AF37]'
+                }`}
+              >
+                <span>CATEGORIES</span>
+                <ChevronDown size={14} className={`transition-transform duration-300 ${isCategoriesHovered ? 'rotate-180 text-[#D4AF37]' : ''}`} />
+              </Link>
+
+              {/* HOVER DROPDOWN BOX */}
+              {isCategoriesHovered && categoriesList.length > 0 && (
+                <div className="absolute top-full left-0 w-64 bg-[#1A1A1A]/95 border border-[#D4AF37]/40 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.9),0_0_20px_rgba(212,175,55,0.2)] p-3 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-200 z-50">
+                  <div className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest px-3 py-1.5 border-b border-gray-800 mb-1 flex justify-between items-center">
+                    <span>EXPLORE CATEGORIES</span>
+                    <Folder size={12} />
+                  </div>
+                  <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-1">
+                    {categoriesList.map((cat: any, idx: number) => (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          navigate(`/products?category=${encodeURIComponent(cat.name)}`);
+                          setIsCategoriesHovered(false);
+                        }}
+                        className="flex items-center justify-between p-2.5 rounded-xl hover:bg-[#111111] hover:text-[#D4AF37] text-gray-300 text-xs font-bold transition-all cursor-pointer group"
+                      >
+                        <span className="line-clamp-1">{cat.name}</span>
+                        <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all text-[#D4AF37]" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <Link
+              to="/about"
+              className={`relative text-xs font-bold tracking-[0.2em] transition-all duration-300 py-2 group ${
+                location.pathname === '/about' ? 'text-[#D4AF37]' : 'text-gray-300 hover:text-[#D4AF37]'
+              }`}
+            >
+              <span>ABOUT</span>
+              <span className={`absolute bottom-0 left-0 w-full h-[2px] bg-[#D4AF37] transition-transform ${
+                location.pathname === '/about' ? 'scale-x-100 shadow-[0_0_12px_#D4AF37]' : 'scale-x-0 group-hover:scale-x-100'
+              }`} />
+            </Link>
           </nav>
 
-          {/* Search & Actions */}
+          {/* 🚀 SEARCH & ACTIONS (WITH 1st LETTER AUTOCOMPLETE DROPDOWN) */}
           <div className="flex items-center space-x-3 sm:space-x-4">
             
-            {/* Search Input Bar */}
-            <form onSubmit={handleSearchSubmit} className="relative hidden sm:block w-40 md:w-56">
-              <input
-                type="text"
-                placeholder="Search luxury items..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[#1A1A1A]/80 border border-gray-800 rounded-xl px-9 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]/50 transition-all backdrop-blur-md shadow-inner"
-              />
-              <Search className="absolute left-3 top-2.5 text-gray-400" size={14} />
-            </form>
+            {/* SEARCH INPUT BAR WITH LIVE AUTOCOMPLETE DROPDOWN */}
+            <div ref={searchContainerRef} className="relative hidden sm:block w-44 md:w-64">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search products & categories..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setSearchQueryOpen(e.target.value.trim().length > 0);
+                  }}
+                  onFocus={() => {
+                    if (searchQuery.trim().length > 0) setSearchQueryOpen(true);
+                  }}
+                  className="w-full bg-[#1A1A1A]/90 border border-gray-800 focus:border-[#D4AF37] rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#D4AF37]/50 transition-all backdrop-blur-md shadow-inner"
+                />
+                <Search className="absolute left-3 top-2.5 text-gray-400" size={14} />
+              </div>
+
+              {/* 🚀 LIVE INSTANT SEARCH AUTOCOMPLETE DROPDOWN BOX ([Product] & [Category] TAGS) */}
+              {searchDropdownOpen && searchResults.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-[#1A1A1A]/95 border border-[#D4AF37]/40 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.95)] p-2 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-200 z-[100] max-h-80 overflow-y-auto custom-scrollbar">
+                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 py-1 border-b border-gray-800 mb-1 flex justify-between items-center">
+                    <span>SUGGESTED RESULTS</span>
+                    <span className="text-[#D4AF37]">{searchResults.length} Matches</span>
+                  </div>
+
+                  <div className="space-y-1">
+                    {searchResults.map((result: any, idx: number) => (
+                      <div
+                        key={idx}
+                        onClick={() => handleSelectSearchResult(result.url)}
+                        className="flex items-center justify-between p-2 rounded-xl hover:bg-[#111111] transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center space-x-2.5 overflow-hidden">
+                          <div className="w-8 h-8 rounded-lg bg-[#111111] border border-gray-800 overflow-hidden shrink-0 flex items-center justify-center">
+                            {result.image ? (
+                              <img src={result.image} alt="" className="w-full h-full object-cover" />
+                            ) : result.type === 'Category' ? (
+                              <Folder size={14} className="text-[#D4AF37]" />
+                            ) : (
+                              <Package size={14} className="text-gray-500" />
+                            )}
+                          </div>
+                          <span className="text-xs font-bold text-gray-200 group-hover:text-[#D4AF37] transition-colors line-clamp-1">
+                            {result.name}
+                          </span>
+                        </div>
+
+                        {/* 🚀 CLEAR [Product] OR [Category] BADGE */}
+                        <div className="shrink-0 pl-2">
+                          {result.type === 'Product' ? (
+                            <span className="bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 text-[9px] font-extrabold px-2 py-0.5 rounded-full">
+                              [Product] ৳{Number(result.price || 0).toFixed(0)}
+                            </span>
+                          ) : (
+                            <span className="bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[9px] font-extrabold px-2 py-0.5 rounded-full">
+                              [Category]
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* 3D Cart Icon Button */}
             <Link
@@ -217,43 +393,62 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile Dropdown Menu Drawer */}
+        {/* Mobile Dropdown Drawer */}
         {mobileMenuOpen && (
           <div className="lg:hidden bg-[#111111]/95 border-b border-[#D4AF37]/30 backdrop-blur-2xl animate-in slide-in-from-top-5 duration-300">
             <div className="px-6 py-6 space-y-4">
-              <form onSubmit={handleSearchSubmit} className="relative">
+              <div className="relative">
                 <input
                   type="text"
-                  placeholder="Search products..."
+                  placeholder="Search products & categories..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setSearchQueryOpen(e.target.value.trim().length > 0);
+                  }}
                   className="w-full bg-[#1A1A1A] border border-gray-700 rounded-xl px-10 py-3 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
                 />
                 <Search className="absolute left-3.5 top-3.5 text-gray-400" size={18} />
-              </form>
+
+                {/* Mobile Search Results */}
+                {searchQuery.trim() && searchResults.length > 0 && (
+                  <div className="mt-2 bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-xl p-2 space-y-1">
+                    {searchResults.map((res: any, i: number) => (
+                      <div
+                        key={i}
+                        onClick={() => {
+                          handleSelectSearchResult(res.url);
+                          setMobileMenuOpen(false);
+                        }}
+                        className="p-2 bg-[#111111] rounded-lg flex justify-between items-center text-xs font-bold text-white"
+                      >
+                        <span className="line-clamp-1">{res.name}</span>
+                        <span className={res.type === 'Product' ? 'text-[#D4AF37]' : 'text-purple-400'}>
+                          [{res.type}]
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <div className="flex flex-col space-y-3 pt-2">
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.path}
-                    to={link.path}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`text-sm font-bold tracking-wider py-2.5 px-4 rounded-xl transition-all ${
-                      location.pathname === link.path 
-                        ? 'bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/30' 
-                        : 'text-gray-300 hover:bg-gray-800/50'
-                    }`}
-                  >
-                    {link.name}
-                  </Link>
-                ))}
+                <Link to="/" onClick={() => setMobileMenuOpen(false)} className="text-sm font-bold tracking-wider py-2.5 px-4 rounded-xl text-gray-300 hover:bg-gray-800">
+                  HOME
+                </Link>
+                <Link to="/categories" onClick={() => setMobileMenuOpen(false)} className="text-sm font-bold tracking-wider py-2.5 px-4 rounded-xl text-gray-300 hover:bg-gray-800">
+                  CATEGORIES
+                </Link>
+                <Link to="/about" onClick={() => setMobileMenuOpen(false)} className="text-sm font-bold tracking-wider py-2.5 px-4 rounded-xl text-gray-300 hover:bg-gray-800">
+                  ABOUT
+                </Link>
               </div>
             </div>
           </div>
         )}
       </header>
 
-      {/* 🚀 PURE CSS 3D FLOATING LUXURY MOBILE BOTTOM NAVIGATION BAR */}
+      {/* 🚀 3D FLOATING LUXURY MOBILE BOTTOM NAVIGATION BAR */}
       <div className="lg:hidden fixed bottom-4 left-4 right-4 z-50 [perspective:1000px]">
         <nav className="bg-[#1A1A1A]/85 backdrop-blur-2xl border border-[#D4AF37]/40 rounded-2xl p-2 shadow-[0_15px_35px_rgba(0,0,0,0.95),0_0_25px_rgba(212,175,55,0.25)] flex items-center justify-around [transform-style:preserve-3d] transition-all duration-300 [transform:translateZ(15px)]">
           {bottomNavItems.map((item) => {
@@ -270,7 +465,6 @@ export default function Navbar() {
                     : 'text-gray-400 hover:text-gray-200'
                 }`}
               >
-                {/* Pure CSS 3D Active Glowing Pill */}
                 {isActive && (
                   <span className="absolute inset-0 bg-gradient-to-b from-[#D4AF37]/25 to-transparent rounded-xl border border-[#D4AF37]/50 shadow-[0_0_18px_rgba(212,175,55,0.45)] animate-pulse" />
                 )}

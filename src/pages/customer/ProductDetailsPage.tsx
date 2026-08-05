@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
-  ShoppingBag, Star, ArrowLeft, ShieldCheck, Truck, 
-  RotateCcw, Award, Plus, Minus, ThumbsUp, Trash2, Camera, X, Check,
+  ShoppingBag, Star, ArrowLeft, ShieldCheck,
+  Plus, Minus, ThumbsUp, Trash2, Camera, X, Check,
   CreditCard 
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
@@ -353,7 +353,7 @@ export default function ProductDetailsPage() {
                     ? 'bg-amber-500/30 text-amber-200 border-amber-500 shadow-amber-500/30 animate-pulse'
                     : 'bg-emerald-500/30 text-emerald-200 border-emerald-500 shadow-emerald-500/30'
                 }`}>
-                  {isOutOfStock ? 'OUT OF STOCK' : isLowStock ? 'LOW STOCK' : 'IN STOCK'}
+                  {isOutOfStock ? 'OUT OF STOCK' : isLowStock ? `ONLY ${stockCount} LEFT!` : `${stockCount} IN STOCK`}
                 </span>
               </div>
             </div>

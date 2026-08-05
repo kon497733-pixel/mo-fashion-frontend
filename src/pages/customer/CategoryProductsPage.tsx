@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   ShoppingBag, Eye, Star, ArrowLeft,
-  Filter, RefreshCw 
+  Filter, RefreshCw, Search 
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
@@ -14,6 +14,57 @@ import {
   getSupabaseReviews 
 } from '../../lib/supabase';
 
+// 🚀 প্রোডাক্ট কার্ডের ভেতরের অটোমেটিক ইমেজ স্লাইডার
+function ProductCardImageSlider({ images, name }: { images: string[]; name: string }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    if (!Array.isArray(images) || images.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % images.length);
+    }, 3200);
+    return () => clearInterval(interval);
+  }, [images]);
+
+  const validImages = Array.isArray(images) ? images.filter(img => img && img.trim() !== '' && !img.includes('No+Image')) : [];
+
+  if (validImages.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-xs text-gray-600 uppercase font-bold bg-[#111111]">
+        No Image
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-full h-full overflow-hidden bg-[#111111]">
+      {validImages.map((img, idx) => (
+        <img
+          key={idx}
+          src={img}
+          alt={`${name} slide ${idx + 1}`}
+          className={`absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-all duration-1000 ease-out ${
+            idx === currentIndex ? 'opacity-100 scale-105' : 'opacity-0 scale-100 pointer-events-none'
+          }`}
+        />
+      ))}
+
+      {validImages.length > 1 && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex space-x-1 z-10 bg-black/60 px-2 py-0.5 rounded-full backdrop-blur-md border border-white/10">
+          {validImages.map((_, i) => (
+            <div
+              key={i}
+              className={`h-1 rounded-full transition-all duration-500 ${
+                i === currentIndex ? 'bg-[#D4AF37] w-3' : 'bg-white/40 w-1'
+              }`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CategoryProductsPage() {
   const { categoryName } = useParams<{ categoryName: string }>();
   const navigate = useNavigate();
@@ -21,6 +72,7 @@ export default function CategoryProductsPage() {
 
   const [products, setProducts] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [settings, setSettings] = useState<any>({
     storeName: 'MO FASHION',
     currency: '৳',
@@ -35,7 +87,6 @@ export default function CategoryProductsPage() {
     const loadCategoryProducts = async () => {
       setLoading(true);
 
-      // Instant sync load from local storage
       const cachedProducts = localStorage.getItem('mo_fashion_products');
       if (cachedProducts) { try { setProducts(JSON.parse(cachedProducts)); } catch (e) {} }
 
@@ -130,11 +181,16 @@ export default function CategoryProductsPage() {
     return { rating: avg, count: prodReviews.length };
   };
 
-  // 🚀 Filter products strictly by category
+  // 🚀 Filter products strictly by category AND search query
   let categoryProducts = products.filter(p => {
     const prodCat = String(p.category || '').trim().toLowerCase();
     const targetCat = decodedCategoryName.trim().toLowerCase();
-    return prodCat === targetCat;
+    const matchesCat = prodCat === targetCat;
+
+    const q = searchQuery.trim().toLowerCase();
+    const matchesSearch = !q || String(p.name || '').toLowerCase().includes(q);
+
+    return matchesCat && matchesSearch;
   });
 
   // Sort logic
@@ -167,7 +223,7 @@ export default function CategoryProductsPage() {
         </Link>
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 pb-6 border-b border-[#D4AF37]/20 gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 pb-6 border-b border-[#D4AF37]/20 gap-4">
           <div>
             <div className="inline-flex items-center space-x-2 bg-[#1A1A1A] border border-[#D4AF37]/30 px-3.5 py-1.5 rounded-full text-xs font-bold text-[#D4AF37] uppercase mb-3">
               {storeLogoImage ? (
@@ -184,19 +240,36 @@ export default function CategoryProductsPage() {
             </p>
           </div>
 
-          {/* Sort Filter Dropdown */}
-          <div className="flex items-center space-x-2 bg-[#1A1A1A] border border-gray-800 rounded-xl px-3 py-2">
-            <Filter size={14} className="text-[#D4AF37]" />
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="bg-transparent text-xs text-white font-bold focus:outline-none cursor-pointer"
-            >
-              <option value="newest" className="bg-[#111111]">Sort by: Newest</option>
-              <option value="price-low" className="bg-[#111111]">Price: Low to High</option>
-              <option value="price-high" className="bg-[#111111]">Price: High to Low</option>
-              <option value="discount" className="bg-[#111111]">Biggest Discount</option>
-            </select>
+          {/* Controls: Search Bar & Sort Dropdown */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+            
+            {/* 🚀 IN-CATEGORY SEARCH INPUT */}
+            <div className="relative w-full sm:w-64">
+              <input
+                type="text"
+                placeholder={`Search in ${decodedCategoryName}...`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-[#1A1A1A] border border-gray-800 focus:border-[#D4AF37] rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none transition-all"
+              />
+              <Search className="absolute left-3 top-3 text-gray-400" size={14} />
+            </div>
+
+            {/* Sort Dropdown */}
+            <div className="flex items-center space-x-2 bg-[#1A1A1A] border border-gray-800 rounded-xl px-3 py-2">
+              <Filter size={14} className="text-[#D4AF37]" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="bg-transparent text-xs text-white font-bold focus:outline-none cursor-pointer"
+              >
+                <option value="newest" className="bg-[#111111]">Sort by: Newest</option>
+                <option value="price-low" className="bg-[#111111]">Price: Low to High</option>
+                <option value="price-high" className="bg-[#111111]">Price: High to Low</option>
+                <option value="discount" className="bg-[#111111]">Biggest Discount</option>
+              </select>
+            </div>
+
           </div>
         </div>
 
@@ -204,10 +277,10 @@ export default function CategoryProductsPage() {
         {categoryProducts.length === 0 && !loading ? (
           <div className="text-center py-20 bg-[#1A1A1A]/60 rounded-3xl border border-gray-800 p-8 max-w-xl mx-auto">
             <ShoppingBag size={48} className="mx-auto text-gray-600 mb-4 opacity-50" />
-            <h3 className="text-lg font-serif font-bold text-white mb-2">No products in "{decodedCategoryName}" category yet!</h3>
-            <p className="text-xs text-gray-400 mb-6">Admin can add products to this category from the Admin Panel.</p>
+            <h3 className="text-lg font-serif font-bold text-white mb-2">No products found in "{decodedCategoryName}"!</h3>
+            <p className="text-xs text-gray-400 mb-6">Try searching for a different keyword or reset filters.</p>
             <button
-              onClick={() => navigate('/products')}
+              onClick={() => { setSearchQuery(''); navigate('/products'); }}
               className="px-6 py-2.5 bg-[#D4AF37] text-black font-bold text-xs uppercase rounded-xl hover:scale-105 transition-all"
             >
               Browse All Products
@@ -222,14 +295,13 @@ export default function CategoryProductsPage() {
               const discountPercent = Number(product.discount) || 0;
               const finalPrice = discountPercent > 0 ? origPrice - (origPrice * discountPercent) / 100 : origPrice;
 
-              let pImg = '';
-              if (product.images && product.images[0]) pImg = product.images[0];
-              else if (product.imageUrl) pImg = product.imageUrl;
-              else if (product.image) pImg = product.image;
-
               const stockCount = Number(product.stock) || 0;
               const isOutOfStock = stockCount <= 0 || product.status === 'Out of Stock';
               const isLowStock = stockCount > 0 && stockCount <= 3;
+
+              const productImagesList = Array.isArray(product.images) && product.images.length > 0 
+                ? product.images 
+                : (product.imageUrl || product.image ? [product.imageUrl || product.image] : []);
 
               // 🚀 REAL-TIME RATING CALCULATOR
               const ratingStats = getProductRatingStats(pId);
@@ -240,19 +312,9 @@ export default function CategoryProductsPage() {
                   onClick={() => navigate(`/product/${pId}`)}
                   className="group relative bg-[#1A1A1A] border border-gray-800 hover:border-[#D4AF37]/60 rounded-2xl overflow-hidden cursor-pointer shadow-xl transition-all duration-500 hover:-translate-y-2 [perspective:1000px] [transform-style:preserve-3d]"
                 >
-                  {/* 3D Image Container */}
+                  {/* 3D Image Box with Auto Image Slideshow */}
                   <div className="relative aspect-square w-full bg-[#111111] overflow-hidden">
-                    {pImg ? (
-                      <img 
-                        src={pImg} 
-                        alt={pName} 
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" 
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-xs text-gray-600 uppercase font-bold">
-                        No Image
-                      </div>
-                    )}
+                    <ProductCardImageSlider images={productImagesList} name={pName} />
 
                     {/* 3D Floating Badges */}
                     <div className="absolute top-2.5 left-2.5 right-2.5 flex justify-between items-start z-10">
@@ -262,7 +324,7 @@ export default function CategoryProductsPage() {
                         </span>
                       ) : <span />}
 
-                      {/* 🚀 ULTRA-PROMINENT 3D STOCK BADGE */}
+                      {/* 🚀 ULTRA-PROMINENT 3D STOCK BADGE (WITH EXACT REMAINING STOCK COUNT) */}
                       <span className={`font-bold text-[9px] sm:text-[10px] px-2.5 py-1 rounded-full uppercase border backdrop-blur-md shadow-md ${
                         isOutOfStock 
                           ? 'bg-red-500/30 text-red-300 border-red-500 shadow-red-500/30' 
@@ -270,7 +332,7 @@ export default function CategoryProductsPage() {
                           ? 'bg-amber-500/30 text-amber-200 border-amber-500 shadow-amber-500/30 animate-pulse'
                           : 'bg-emerald-500/30 text-emerald-200 border-emerald-500 shadow-emerald-500/30'
                       }`}>
-                        {isOutOfStock ? 'OUT OF STOCK' : isLowStock ? 'LOW STOCK' : 'IN STOCK'}
+                        {isOutOfStock ? 'OUT OF STOCK' : isLowStock ? `ONLY ${stockCount} LEFT!` : `${stockCount} IN STOCK`}
                       </span>
                     </div>
 

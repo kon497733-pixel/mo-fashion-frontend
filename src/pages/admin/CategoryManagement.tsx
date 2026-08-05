@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   Plus, Edit, Trash2, X, Image as ImageIcon, Folder, Upload, Eye, 
-  Package, CheckCircle, XCircle, Tag, RefreshCw, Sparkles 
+  Package, CheckCircle, XCircle, Tag, RefreshCw 
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
@@ -11,7 +11,8 @@ import {
   saveSupabaseCategory, 
   deleteSupabaseCategory, 
   moveToRecycleBin,
-  getSupabaseProducts 
+  getSupabaseProducts,
+  getSupabaseSettings 
 } from '../../lib/supabase';
 
 // 🚀 ৩ সেকেন্ড পর পর স্বয়ংক্রিয় ছবি স্লাইড হওয়ার স্মুথ কম্পোনেন্ট (Automatic Slideshow Component)
@@ -66,7 +67,7 @@ function CategoryImageSlider({ images, name }: { images: string[]; name: string 
   );
 }
 
-export default function CategoryManagement() {
+export default function Categories() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadIndex, setUploadIndex] = useState<number | null>(null);
 
@@ -99,6 +100,10 @@ export default function CategoryManagement() {
   });
 
   const [products, setProducts] = useState<any[]>([]);
+  const [settings, setSettings] = useState<any>({
+    storeName: 'MO FASHION',
+    logoUrl: ''
+  });
   const [loading, setLoading] = useState(true);
 
   // মোডাল স্টেটস
@@ -130,15 +135,17 @@ export default function CategoryManagement() {
     }
 
     try {
-      const [cloudCat, cloudProds] = await Promise.all([
+      const [cloudCat, cloudProds, cloudSet] = await Promise.all([
         getSupabaseCategories(),
-        getSupabaseProducts()
+        getSupabaseProducts(),
+        getSupabaseSettings().catch(() => null)
       ]);
+
+      if (cloudSet) setSettings(cloudSet);
 
       if (Array.isArray(cloudCat)) {
         const cleanCloudCat = sanitizeCategories(cloudCat);
 
-        // 🚀 লোকাল ও ক্লাউড সিঙ্ক মার্জ (যাতে নেটের স্পিড কম থাকলেও কোনো ক্যাটাগরি গায়েব না হয়)
         const mergedMap = new Map();
         [...localCategories, ...cleanCloudCat].forEach((item: any) => {
           const key = String(item.id || item._id);
@@ -169,9 +176,8 @@ export default function CategoryManagement() {
   useEffect(() => {
     fetchCategoriesAndProducts();
 
-    // 🚀 ৩. Supabase Realtime WebSocket Listener (সব ডিভাইসে স্বয়ংক্রিয় সিঙ্ক)
     const channel = supabase
-      .channel('public:categories:management:live:v50')
+      .channel('public:categories:management:live:v60')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'categories' },
@@ -213,7 +219,7 @@ export default function CategoryManagement() {
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           }
           
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); 
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.65); 
           const updatedImages = [...formData.images];
           updatedImages[uploadIndex] = compressedBase64;
           setFormData({ ...formData, images: updatedImages });
@@ -330,16 +336,23 @@ export default function CategoryManagement() {
     }
   };
 
+  const storeLogoImage = settings?.logoUrl || settings?.logo || settings?.storeLogo || '';
+
   return (
     <div className="text-white pb-10 transition-all duration-300">
-      <Helmet><title>Admin - Categories | MO FASHION</title></Helmet>
+      <Helmet><title>Admin - Categories | {settings?.storeName || 'MO FASHION'}</title></Helmet>
       
       {/* 🚀 Header Section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-2xl border border-[#D4AF37]/20 backdrop-blur-md shadow-xl transition-all duration-300 hover:border-[#D4AF37]/40">
         <div>
           <div className="flex items-center space-x-3">
+            {storeLogoImage ? (
+              <img src={storeLogoImage} alt="" className="w-8 h-8 object-cover rounded-full border border-[#D4AF37]/40" />
+            ) : (
+              <Folder className="mr-1 text-[#D4AF37]" size={28} />
+            )}
             <h1 className="text-2xl font-serif font-bold text-[#D4AF37] uppercase flex items-center tracking-wide">
-              <Folder className="mr-3 text-[#D4AF37] animate-pulse" size={28} /> Category Management
+              Category Management
             </h1>
             <span className="bg-[#D4AF37]/10 text-[#D4AF37] text-xs font-bold px-3 py-1 rounded-full border border-[#D4AF37]/30 flex items-center">
               Total: {categories.length} Categories
@@ -397,7 +410,7 @@ export default function CategoryManagement() {
                 >
                   <div className="space-y-3">
                     
-                    {/* 🚀 AUTOMATIC SLIDESHOW CONTAINER (৩ সেকেন্ড পর পর ছবি স্লাইড হবে) */}
+                    {/* 🚀 AUTOMATIC SLIDESHOW CONTAINER */}
                     <div className="h-44 bg-[#1A1A1A] rounded-xl overflow-hidden relative border border-gray-800/80">
                       <CategoryImageSlider images={catImagesList} name={cat.name} />
                       
@@ -562,7 +575,6 @@ export default function CategoryManagement() {
           <div className="bg-[#1A1A1A] border border-[#D4AF37]/30 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center border-b border-gray-800 pb-3">
               <h2 className="text-xl font-bold text-[#D4AF37] uppercase flex items-center">
-                <Sparkles size={20} className="mr-2 text-[#D4AF37]" />
                 {modalMode === 'add' ? 'ADD CATEGORY' : 'EDIT CATEGORY'}
               </h2>
               <button 
