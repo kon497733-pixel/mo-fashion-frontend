@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/useAuthStore'; 
 import { getSupabaseSettings, saveSupabaseCustomer } from '../../lib/supabase';
 
-// 🚀 আপনার জেনারেট করা আসল গুগল ক্লায়েন্ট আইডি
+// 🚀 নিবন্ধিত আসল গুগল ক্লায়েন্ট আইডি
 const REAL_GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '277902353308-thjup151jhqo126u5an7orc2lg4o9b1i.apps.googleusercontent.com';
 
 // 🚀 গুগল JWT টোকেন ডিকোড করার হেল্পার
@@ -43,7 +43,7 @@ export default function LoginPage() {
     rememberMe: true
   });
 
-  // 🚀 স্টোর সেটিংস স্টেট (আসল লোগো আনার জন্য)
+  // স্টোর সেটিংস স্টেট
   const [settings, setSettings] = useState<any>({
     storeName: 'MO FASHION',
     logoUrl: ''
@@ -94,37 +94,54 @@ export default function LoginPage() {
     loadSettings();
   }, []);
 
-  // 🚀 গুগলের অরিজিনাল Identity Services SDK রিয়েল-টাইম ইনিশিয়ালাইজেশন
+  // 🚀 গুগলের অফিশিয়াল SDK এবং রেন্ডার বাটন ইনিশিয়ালাইজেশন
   useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
-      try {
-        (window as any).google.accounts.id.initialize({
-          client_id: REAL_GOOGLE_CLIENT_ID,
-          callback: (response: any) => {
-            if (response?.credential) {
-              const decoded = parseGoogleJwt(response.credential);
-              if (decoded && decoded.email) {
-                const realName = decoded.name || `${decoded.given_name || ''} ${decoded.family_name || ''}`.trim() || decoded.email.split('@')[0];
-                const realEmail = decoded.email;
-                const realPicture = decoded.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(realName)}&background=5c3e34&color=fff&size=128&bold=true`;
+    const initGoogleAuth = () => {
+      if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
+        try {
+          (window as any).google.accounts.id.initialize({
+            client_id: REAL_GOOGLE_CLIENT_ID,
+            callback: (response: any) => {
+              if (response?.credential) {
+                const decoded = parseGoogleJwt(response.credential);
+                if (decoded && decoded.email) {
+                  const realName = decoded.name || `${decoded.given_name || ''} ${decoded.family_name || ''}`.trim() || decoded.email.split('@')[0];
+                  const realEmail = decoded.email;
+                  const realPicture = decoded.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(realName)}&background=5c3e34&color=fff&size=128&bold=true`;
 
-                setGoogleUser({
-                  name: realName,
-                  email: realEmail,
-                  photoURL: realPicture
-                });
-                setGoogleStep(1);
-                setIsGooglePopupOpen(true);
+                  setGoogleUser({
+                    name: realName,
+                    email: realEmail,
+                    photoURL: realPicture
+                  });
+                  setGoogleStep(1);
+                  setIsGooglePopupOpen(true);
+                }
               }
             }
-          }
-        });
+          });
 
-        (window as any).google.accounts.id.prompt();
-      } catch (e) {
-        console.warn("Google Identity Services initializing...");
+          // 🚀 Render Official Google Sign-In Button
+          const googleBtnContainer = document.getElementById('google-native-signin-btn');
+          if (googleBtnContainer) {
+            googleBtnContainer.innerHTML = '';
+            (window as any).google.accounts.id.renderButton(
+              googleBtnContainer,
+              { theme: 'outline', size: 'large', width: '100%', text: 'signin_with', shape: 'pill' }
+            );
+          }
+
+          // Google One Tap Prompt
+          (window as any).google.accounts.id.prompt();
+        } catch (e) {
+          console.warn("Google Sign-In render warning:", e);
+        }
       }
-    }
+    };
+
+    initGoogleAuth();
+    const timer = setTimeout(initGoogleAuth, 1000);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -190,7 +207,6 @@ export default function LoginPage() {
       }
 
     } catch (error) {
-      // Local storage fallback
       const savedUsers = JSON.parse(localStorage.getItem('mo_fashion_users') || '[]');
       
       if (loginEmail === 'admin@mofashion.com' && formData.password === 'admin123') {
@@ -269,7 +285,7 @@ export default function LoginPage() {
 
   // 🚀 গুগল পপ-আপ থেকে সাইন-ইন সম্পূর্ণ করা
   const handleCompleteGoogleLogin = () => {
-    const finalEmail = googleUser.email || 'customer@gmail.com';
+    const finalEmail = googleUser.email || formData.email || 'customer@gmail.com';
     const finalName = googleUser.name || finalEmail.split('@')[0];
     const finalPhoto = googleUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(finalName)}&background=5c3e34&color=fff&size=128&bold=true`;
 
@@ -584,8 +600,13 @@ export default function LoginPage() {
           <div className="h-px bg-gray-800 flex-1"></div>
         </div>
 
-        {/* গুগল, ফেসবুক ও অ্যাপল বাটনসমূহ */}
+        {/* 🚀 OFFICIAL GOOGLE NATIVE BUTTON CONTAINER & SOCIAL BUTTONS */}
         <div className="space-y-3 mb-6">
+          
+          {/* Official Google Sign-In Native Button */}
+          <div id="google-native-signin-btn" className="w-full flex justify-center overflow-hidden rounded-full" />
+
+          {/* Fallback Custom Google Button */}
           <button
             type="button"
             onClick={handleOpenGoogleAuth}
@@ -632,7 +653,7 @@ export default function LoginPage() {
         </p>
       </div>
 
-      {/* 🎬 🚀 ৪টি ছবির অরিজিনাল গুগল সাইন-ইন পপ-আপ মোডাল (WITH FULL DISCLAIMERS & AUTO-REDIRECT) */}
+      {/* 🎬 🚀 গুগল সাইন-ইন পপ-আপ মোডাল */}
       {isGooglePopupOpen && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-white text-[#1f1f1f] rounded-3xl w-full max-w-md p-6 sm:p-8 shadow-2xl relative text-left font-sans animate-in zoom-in-95 duration-200 border border-gray-200">
@@ -655,7 +676,6 @@ export default function LoginPage() {
               )}
             </div>
 
-            {/* Step 1: Account Selection */}
             {googleStep === 1 && (
               <div className="space-y-6">
                 <div 
@@ -676,7 +696,6 @@ export default function LoginPage() {
                   <ChevronRight size={18} className="text-gray-600" />
                 </div>
 
-                {/* 🚀 GOOGLE CONTINUATION ACTION BUTTON */}
                 <button
                   type="button"
                   onClick={() => setGoogleStep(2)}
@@ -685,7 +704,6 @@ export default function LoginPage() {
                   <span>Continue as {googleUser.name.split(' ')[0] || 'Customer'}</span>
                 </button>
 
-                {/* Disclaimer in Red Box area */}
                 <div className="text-[11px] text-gray-500 text-center leading-relaxed pt-1">
                   To continue, google.com will share your name, email address and profile picture with this site.
                 </div>
@@ -714,7 +732,6 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Step 2: Data Sharing Consent */}
             {googleStep === 2 && (
               <div className="space-y-6">
                 <div className="flex items-center space-x-3.5 p-2 border-b border-gray-100 pb-4">
@@ -767,7 +784,6 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Step 3: Full Terms & Privacy Disclaimers */}
             {googleStep === 3 && (
               <div className="space-y-5 text-left max-h-[75vh] overflow-y-auto pr-1">
                 <div>
