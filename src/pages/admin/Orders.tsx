@@ -24,6 +24,7 @@ export default function Orders() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  // 🛡️ সেফ নম্বর পার্সার
   const parseSafeNumber = (val: any): number => {
     if (val === null || val === undefined) return 0;
     if (typeof val === 'number') return isNaN(val) ? 0 : val;
@@ -32,58 +33,105 @@ export default function Orders() {
     return isNaN(num) ? 0 : num;
   };
 
+  // 🛡️ সেফ কাস্টমার নাম পার্সার
   const getCustomerFullName = (order: any): string => {
-    if (!order) return 'Customer';
+    if (!order) return 'Valued Customer';
+    
     if (order.customer && String(order.customer).trim() !== '' && String(order.customer).trim() !== 'Customer') {
       return String(order.customer).trim();
     }
+
     let info = order.customerInfo;
-    if (typeof info === 'string') { try { info = JSON.parse(info); } catch (e) {} }
+    if (typeof info === 'string') {
+      try { info = JSON.parse(info); } catch (e) {}
+    }
+
     if (info && typeof info === 'object') {
       const name = `${info.firstName || ''} ${info.lastName || ''}`.trim();
       if (name) return name;
     }
-    if (order.email && String(order.email).includes('@')) return String(order.email).split('@')[0];
-    if (order.phone) return `Customer (${order.phone})`;
-    return 'Customer';
+
+    if (order.email && String(order.email).includes('@')) {
+      return String(order.email).split('@')[0];
+    }
+    if (order.phone) {
+      return `Customer (${order.phone})`;
+    }
+
+    return 'Valued Customer';
   };
 
+  // 🛡️ সেফ ডেলিভারি ঠিকানা পার্সার
   const getFullAddress = (order: any): string => {
     if (!order) return 'Bangladesh';
+    
     let addr = order.address || '';
     let info = order.customerInfo;
-    if (typeof info === 'string') { try { info = JSON.parse(info); } catch(e){} }
-    if (info && typeof info === 'object') {
-      if (info.address || info.city) addr = `${info.address || ''}, ${info.city || ''}`;
+    if (typeof info === 'string') {
+      try { info = JSON.parse(info); } catch(e){}
     }
+
+    if (info && typeof info === 'object') {
+      if (info.address || info.city) {
+        addr = `${info.address || ''}, ${info.city || ''}`;
+      }
+    }
+
     const clean = String(addr).replace(/(,\s*)+/g, ', ').replace(/^,\s*/, '').replace(/,\s*$/, '').trim();
     return clean ? (clean.toLowerCase().includes('bangladesh') ? clean : `${clean}, Bangladesh`) : 'Bangladesh';
   };
 
+  // 🛡️ প্রোডাক্ট থাম্বনেইল ফটো এক্সট্রাক্টর
   const getItemImage = (item: any): string => {
     if (!item) return '';
     let img = item.image || item.imageUrl || item.productImage;
-    if (!img && Array.isArray(item.images) && item.images[0]) img = item.images[0];
-    if (typeof img === 'string' && img.trim() !== '' && img !== 'No Image' && !img.includes('via.placeholder')) return img.trim();
+    if (!img && Array.isArray(item.images) && item.images[0]) {
+      img = item.images[0];
+    }
+    if (typeof img === 'string' && img.trim() !== '' && img !== 'No Image' && !img.includes('via.placeholder')) {
+      return img.trim();
+    }
     return '';
   };
 
-  // 🚀 ১০০% রিয়েল প্রোডাক্ট আইটেম ডিকোডার (Photo, Name, Qty, Size, Color, Variants 100% Guaranteed Display)
+  // 🚀 ১০০% রিয়েল প্রোডাক্ট আইটেম ডিকোডার (Photo, Name, Qty, Size, Color & Other Custom Dropdown Options)
   const getOrderItemsList = (order: any): any[] => {
     if (!order) return [];
 
     let raw = order.orderItems || order.order_items || order.cartItems || order.items_data;
-    
+    if (!raw && Array.isArray(order.items)) raw = order.items;
+
+    // ডাবল জেসন পার্সিং সেফটি (যদি ডাটাবেসে মাল্টিপল লেভেলে স্ট্রিং হয়ে থাকে)
     if (typeof raw === 'string') {
-      try { raw = JSON.parse(raw); } catch (e) { raw = []; }
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
     }
 
     if (Array.isArray(raw) && raw.length > 0) return raw;
     if (raw && typeof raw === 'object' && !Array.isArray(raw)) return [raw];
 
+    // 🚀 স্মার্ট আনস্টপাবল ফলব্যাক
+    const totalAmt = parseSafeNumber(order.total || order.orderSummary?.total);
+    const subAmt = parseSafeNumber(order.subtotal || order.orderSummary?.subtotal) || totalAmt;
+
+    if (totalAmt > 0 || subAmt > 0) {
+      return [{
+        name: order.productName || order.item_name || order.customerInfo?.productName || 'Ordered Fashion Item',
+        price: subAmt > 0 ? subAmt : totalAmt,
+        quantity: parseSafeNumber(order.itemsCount || order.items) || 1,
+        size: order.selectedSize || order.size || '',
+        color: order.selectedColor || order.color || '',
+        selectedVariants: order.selectedVariants || [],
+        image: order.productImage || order.image || order.imageUrl || ''
+      }];
+    }
+
     return [];
   };
 
+  // 🛡️ সেফ অর্ডার সমরি পার্সার
   const getOrderSummaryObj = (order: any): any => {
     if (!order) return { subtotal: 0, shipping: 60, tax: 0, discount: 0, total: 0 };
     
@@ -112,6 +160,7 @@ export default function Orders() {
     };
   };
 
+  // 🛡️ অর্ডারের নিখুঁত তারিখ ও সময়
   const getFormattedDateTime = (order: any): string => {
     if (!order) return 'Recent';
     const rawDate = order.createdAt || order.created_at || order.date;
@@ -119,21 +168,30 @@ export default function Orders() {
     try {
       const d = new Date(rawDate);
       if (isNaN(d.getTime())) return String(rawDate);
-      const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-      const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      
+      const dateStr = d.toLocaleDateString('en-GB', { 
+        day: '2-digit', month: 'short', year: 'numeric' 
+      });
+      const timeStr = d.toLocaleTimeString('en-US', { 
+        hour: '2-digit', minute: '2-digit', hour12: true 
+      });
+
       return `${dateStr} • ${timeStr}`;
     } catch (e) {
       return String(rawDate);
     }
   };
 
+  // 🚀 ১. সরাসরি Supabase Cloud Database থেকে রিয়েল-টাইম অর্ডার ফেচিং
   const fetchOrders = async (isSilent = false) => {
     if (!isSilent && orders.length === 0) setLoading(true);
 
     let localOrders: any[] = [];
     const savedLocal = localStorage.getItem('mo_fashion_orders');
     if (savedLocal) {
-      try { localOrders = JSON.parse(savedLocal); } catch (e) {}
+      try {
+        localOrders = JSON.parse(savedLocal);
+      } catch (e) {}
     }
 
     try {
@@ -145,6 +203,7 @@ export default function Orders() {
         setOrders(localOrders);
       }
     } catch (error) {
+      console.warn("Supabase Cloud Orders fetch fallback, using local cache.");
       setOrders(localOrders);
     } finally {
       if (!isSilent) setLoading(false);
@@ -154,12 +213,20 @@ export default function Orders() {
   useEffect(() => {
     fetchOrders();
 
+    // 🚀 ২. Supabase WebSocket Realtime Listener (সব ডিভাইসে ১ সেকেন্ডে ব্রডকাস্ট)
     const channel = supabase
-      .channel('public:orders:admin:live:real:final')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+      .channel('public:orders:admin:live:instant:v18')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload) => {
           fetchOrders(true);
-          if (payload.eventType === 'INSERT') toast.success("New Order Received Live! 🛒", { duration: 4000 });
-      }).subscribe();
+          if (payload.eventType === 'INSERT') {
+            toast.success("New Order Received Live! 🛒", { duration: 4000 });
+          }
+        }
+      )
+      .subscribe();
 
     const handleStorageChange = () => fetchOrders(true);
     window.addEventListener('storage', handleStorageChange);
@@ -177,13 +244,16 @@ export default function Orders() {
     setIsModalOpen(true);
   };
 
+  // 🚀 ৩. অর্ডারের স্ট্যাটাস লাইভ আপডেট
   const handleUpdateStatus = async (newStatus: string) => {
     if (!selectedOrder) return;
     const orderId = String(selectedOrder._id || selectedOrder.id || selectedOrder.orderId);
 
     const updatedOrderObj = { ...selectedOrder, status: newStatus };
 
-    const updatedList = orders.map((o: any) => String(o._id || o.id || o.orderId) === orderId ? updatedOrderObj : o);
+    const updatedList = orders.map((o: any) => 
+      String(o._id || o.id || o.orderId) === orderId ? updatedOrderObj : o
+    );
     setOrders(updatedList);
     localStorage.setItem('mo_fashion_orders', JSON.stringify(updatedList));
     setSelectedOrder(updatedOrderObj);
@@ -197,6 +267,7 @@ export default function Orders() {
     }
   };
 
+  // 🚀 ৪. ডাটাবেস থেকে অর্ডার ডিলিট
   const handleDeleteOrder = async (id: string) => {
     const targetId = String(id);
     if (window.confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
@@ -226,14 +297,17 @@ export default function Orders() {
                           phoneStr.includes(searchQuery);
                           
     const matchesStatus = filterStatus === 'All' || order.status === filterStatus;
+    
     return matchesSearch && matchesStatus;
   });
 
   return (
     <div className="text-white pb-10 transition-all duration-300">
-      <Helmet><title>Admin - Orders Management | MO FASHION</title></Helmet>
+      <Helmet>
+        <title>Admin - Orders Management | MO FASHION</title>
+      </Helmet>
 
-      {/* Header */}
+      {/* 🚀 Header Section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-2xl border border-[#D4AF37]/20 backdrop-blur-md shadow-xl transition-all duration-300 hover:border-[#D4AF37]/40">
         <div>
           <div className="flex items-center space-x-3">
@@ -256,7 +330,7 @@ export default function Orders() {
         </button>
       </div>
 
-      {/* Search */}
+      {/* 🔎 Search and Filters Section */}
       <div className="bg-[#1A1A1A] p-4 rounded-xl border border-[#D4AF37]/20 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center shadow-lg transition-all duration-300">
         <div className="relative w-full max-w-md">
           <input 
@@ -284,7 +358,7 @@ export default function Orders() {
         </div>
       </div>
 
-      {/* Orders Table */}
+      {/* 📦 Orders Table */}
       <div className="bg-[#1A1A1A] rounded-2xl border border-[#D4AF37]/20 overflow-hidden shadow-2xl transition-all duration-300">
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left whitespace-nowrap">
@@ -383,7 +457,7 @@ export default function Orders() {
         </div>
       </div>
 
-      {/* 🪟 View Full Order Details Modal (A to Z Product Variants & Image Guarantee) */}
+      {/* 🪟 View Full Order Details Modal (A to Z Details with Image, Custom Dropdowns & Variations) */}
       {isModalOpen && selectedOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md transition-opacity duration-300">
           <div className="bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
@@ -511,11 +585,21 @@ export default function Orders() {
                                     Material: <strong className="text-white">{item.material}</strong>
                                   </span>
                                 )}
-                                {Array.isArray(item.selectedVariants) && item.selectedVariants.map((v: any, vidx: number) => (
-                                  <span key={vidx} className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-700 shadow-sm capitalize">
-                                    {v.name}: <strong className="text-white">{Array.isArray(v.options) ? v.options.join(', ') : v.options}</strong>
-                                  </span>
-                                ))}
+                                
+                                {/* 🚀 Any Other Dynamic Variant Options selected from Dropdown */}
+                                {Array.isArray(item.selectedVariants) ? (
+                                  item.selectedVariants.map((v: any, vIdx: number) => (
+                                    <span key={vIdx} className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-700 shadow-sm capitalize">
+                                      {v.name || v.label || 'Option'}: <strong className="text-white">{v.value || v.option || v.options || ''}</strong>
+                                    </span>
+                                  ))
+                                ) : typeof item.selectedVariants === 'object' && item.selectedVariants !== null ? (
+                                  Object.entries(item.selectedVariants).map(([key, val], vIdx) => (
+                                    <span key={vIdx} className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-700 shadow-sm capitalize">
+                                      {key}: <strong className="text-white">{String(val)}</strong>
+                                    </span>
+                                  ))
+                                ) : null}
                               </div>
                             </div>
                           </div>
