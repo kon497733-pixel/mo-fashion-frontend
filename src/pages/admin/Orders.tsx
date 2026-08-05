@@ -1,41 +1,26 @@
-import { useState, useEffect } from "react";
-import {
-  Search,
-  X,
-  Package,
-  Clock,
-  CheckCircle,
-  Truck,
-  MapPin,
-  Trash2,
-  Tag,
-  RefreshCw,
-  Sparkles,
-  User,
-  Image as ImageIcon,
-  CreditCard,
-  Calendar,
-  Phone,
-  Mail,
-  CheckSquare,
-} from "lucide-react";
-import { Helmet } from "react-helmet-async";
-import toast from "react-hot-toast";
-import {
-  supabase,
-  getSupabaseOrders,
-  saveSupabaseOrder,
-  deleteSupabaseOrder,
-} from "../../lib/supabase";
+import { useState, useEffect } from 'react';
+import { 
+  Search, X, Package, Clock, CheckCircle, Truck, MapPin, 
+  Trash2, Tag, RefreshCw, Sparkles, User, Image as ImageIcon,
+  CreditCard, Calendar, Phone, Mail, CheckSquare
+} from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
+import toast from 'react-hot-toast';
+import { 
+  supabase, 
+  getSupabaseOrders, 
+  saveSupabaseOrder, 
+  deleteSupabaseOrder 
+} from '../../lib/supabase';
 
 export default function Orders() {
   const [orders, setOrders] = useState<any[]>(() => {
-    const saved = localStorage.getItem("mo_fashion_orders");
+    const saved = localStorage.getItem('mo_fashion_orders');
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState("All");
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -44,25 +29,23 @@ export default function Orders() {
   // 🛡️ সেফ নম্বর পার্সার
   const parseSafeNumber = (val: any): number => {
     if (val === null || val === undefined) return 0;
-    if (typeof val === "number") return isNaN(val) ? 0 : val;
-    const str = String(val).replace(/[^0-9.]/g, "");
+    if (typeof val === 'number') return isNaN(val) ? 0 : val;
+    const str = String(val).replace(/[^0-9.]/g, '');
     const num = parseFloat(str);
     return isNaN(num) ? 0 : num;
   };
 
-  // 🛡️ সেফ জেসন পার্সার
+  // 🛡️ সেফ জেসন পার্সার (ডাবল স্ট্রিং বা করাপ্ট ডাটা ব্লক করার জন্য)
   const safeJsonParse = (input: any): any => {
     if (!input) return null;
-    if (typeof input === "object") return input;
-    if (typeof input === "string") {
+    if (typeof input === 'object') return input;
+    if (typeof input === 'string') {
       const trimmed = input.trim();
-      if (!trimmed || trimmed === "[object Object]") return null;
+      if (!trimmed || trimmed === '[object Object]') return null;
       try {
         let parsed = JSON.parse(trimmed);
-        if (typeof parsed === "string") {
-          try {
-            parsed = JSON.parse(parsed);
-          } catch (e) {}
+        if (typeof parsed === 'string') {
+          try { parsed = JSON.parse(parsed); } catch (e) {}
         }
         return parsed;
       } catch (e) {
@@ -74,84 +57,58 @@ export default function Orders() {
 
   // 🛡️ কাস্টমার নাম পার্সার
   const getCustomerFullName = (order: any): string => {
-    if (!order) return "Customer";
-    if (
-      order.customer &&
-      String(order.customer).trim() !== "" &&
-      String(order.customer).trim() !== "Customer"
-    ) {
+    if (!order) return 'Customer';
+    if (order.customer && String(order.customer).trim() !== '' && String(order.customer).trim() !== 'Customer') {
       return String(order.customer).trim();
     }
-    let info = order.customerInfo || order.customer_info;
-    if (typeof info === "string") {
-      info = safeJsonParse(info);
-    }
-    if (info && typeof info === "object") {
-      const name =
-        `${info.firstName || info.first_name || ""} ${info.lastName || info.last_name || ""}`.trim();
+    let info = safeJsonParse(order.customerInfo || order.customer_info);
+    if (info && typeof info === 'object') {
+      const name = `${info.firstName || info.first_name || ''} ${info.lastName || info.last_name || ''}`.trim();
       if (name) return name;
     }
-    if (order.email && String(order.email).includes("@")) {
-      return String(order.email).split("@")[0];
+    if (order.email && String(order.email).includes('@')) {
+      return String(order.email).split('@')[0];
     }
     if (order.phone) {
       return `Customer (${order.phone})`;
     }
-    return "Customer";
+    return 'Customer';
   };
 
   // 🛡️ সেফ ডেলিভারি ঠিকানা পার্সার
   const getFullAddress = (order: any): string => {
-    if (!order) return "Bangladesh";
-    let addr = order.address || "";
-    let info = order.customerInfo || order.customer_info;
-    if (typeof info === "string") {
-      info = safeJsonParse(info);
-    }
-    if (info && typeof info === "object") {
+    if (!order) return 'Bangladesh';
+    let addr = order.address || '';
+    let info = safeJsonParse(order.customerInfo || order.customer_info);
+    if (info && typeof info === 'object') {
       if (info.address || info.city) {
-        addr = `${info.address || ""}, ${info.city || ""}`;
+        addr = `${info.address || ''}, ${info.city || ''}`;
       }
     }
-    const clean = String(addr)
-      .replace(/(,\s*)+/g, ", ")
-      .replace(/^,\s*/, "")
-      .replace(/,\s*$/, "")
-      .trim();
-    return clean
-      ? clean.toLowerCase().includes("bangladesh")
-        ? clean
-        : `${clean}, Bangladesh`
-      : "Bangladesh";
+    const clean = String(addr).replace(/(,\s*)+/g, ', ').replace(/^,\s*/, '').replace(/,\s*$/, '').trim();
+    return clean ? (clean.toLowerCase().includes('bangladesh') ? clean : `${clean}, Bangladesh`) : 'Bangladesh';
   };
 
   // 🛡️ প্রোডাক্ট থাম্বনেইল ফটো এক্সট্রাক্টর
   const getItemImage = (item: any): string => {
-    if (!item) return "";
-    let img =
-      item.image || item.imageUrl || item.productImage || item.product_image;
-    if (!img && Array.isArray(item.images) && item.images[0])
-      img = item.images[0];
-    if (
-      typeof img === "string" &&
-      img.trim() !== "" &&
-      img !== "No Image" &&
-      !img.includes("via.placeholder")
-    ) {
+    if (!item) return '';
+    let img = item.image || item.imageUrl || item.productImage || item.product_image;
+    if (!img && Array.isArray(item.images) && item.images[0]) img = item.images[0];
+    if (typeof img === 'string' && img.trim() !== '' && img !== 'No Image' && !img.includes('via.placeholder')) {
       return img.trim();
     }
-    return "";
+    return '';
   };
 
-  // 🚀 ১০০% সেফ প্রোডাক্ট আইটেম ডিকোডার (ডাবল বা সিঙ্গেল জেসন হ্যান্ডলিং সহ)
+  // 🚀 ১০০% সেফ প্রোডাক্ট আইটেম ডিকোডার
   const getOrderItemsList = (order: any): any[] => {
     if (!order) return [];
     const candidates = [
-      order.orderItems,
-      order.order_items,
-      order.cartItems,
+      order.orderItems, 
+      order.order_items, 
+      order.cartItems, 
       order.items_data,
-      order.items,
+      order.items
     ];
 
     for (let raw of candidates) {
@@ -161,7 +118,22 @@ export default function Orders() {
 
       const parsed = safeJsonParse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      if (parsed && typeof parsed === "object") return [parsed];
+      if (parsed && typeof parsed === 'object') return [parsed];
+    }
+
+    // 🚀 স্মার্ট ফলব্যাক (যদি কোনো কারণে ডাটা মিসিং থাকে)
+    const totalAmt = parseSafeNumber(order.total || order.orderSummary?.total);
+    const subAmt = parseSafeNumber(order.subtotal || order.orderSummary?.subtotal) || totalAmt;
+
+    if (totalAmt > 0 || subAmt > 0) {
+      return [{
+        name: order.productName || order.item_name || 'Ordered Fashion Item',
+        price: subAmt > 0 ? subAmt : totalAmt,
+        quantity: parseSafeNumber(order.itemsCount || order.items) || 1,
+        size: order.selectedSize || order.size || '',
+        color: order.selectedColor || order.color || '',
+        image: order.productImage || order.image || order.imageUrl || ''
+      }];
     }
 
     return [];
@@ -169,32 +141,18 @@ export default function Orders() {
 
   // 🛡️ সেফ অর্ডার সমরি পার্সার
   const getOrderSummaryObj = (order: any): any => {
-    if (!order)
-      return { subtotal: 0, shipping: 60, tax: 0, discount: 0, total: 0 };
-    let summary = order.orderSummary || order.order_summary;
-    if (typeof summary === "string" && summary !== "[object Object]") {
-      summary = safeJsonParse(summary);
-    }
-    const totalNum = parseSafeNumber(order.total || summary?.total);
+    if (!order) return { subtotal: 0, shipping: 60, tax: 0, discount: 0, total: 0 };
+    let summary = safeJsonParse(order.orderSummary || order.order_summary) || {};
+    
+    const totalNum = parseSafeNumber(order.total || summary.total);
     const addrLower = getFullAddress(order).toLowerCase();
-    const isInsideCTG =
-      addrLower.includes("chattogram") || addrLower.includes("chittagong");
+    const isInsideCTG = addrLower.includes('chattogram') || addrLower.includes('chittagong');
     const defaultShipping = isInsideCTG ? 60 : 150;
 
-    const shipNum =
-      parseSafeNumber(
-        summary?.shipping !== undefined ? summary.shipping : order.shipping,
-      ) || (totalNum > 0 ? defaultShipping : 0);
-    const subNum =
-      parseSafeNumber(
-        summary?.subtotal !== undefined ? summary.subtotal : order.subtotal,
-      ) || (totalNum > shipNum ? totalNum - shipNum : totalNum);
-    const taxNum = parseSafeNumber(
-      summary?.tax !== undefined ? summary.tax : order.tax,
-    );
-    const discNum = parseSafeNumber(
-      summary?.discount !== undefined ? summary.discount : order.discount,
-    );
+    const shipNum = parseSafeNumber(summary.shipping !== undefined ? summary.shipping : order.shipping) || (totalNum > 0 ? defaultShipping : 0);
+    const subNum = parseSafeNumber(summary.subtotal !== undefined ? summary.subtotal : order.subtotal) || (totalNum > shipNum ? totalNum - shipNum : totalNum);
+    const taxNum = parseSafeNumber(summary.tax !== undefined ? summary.tax : order.tax);
+    const discNum = parseSafeNumber(summary.discount !== undefined ? summary.discount : order.discount);
 
     return {
       subtotal: subNum,
@@ -202,28 +160,20 @@ export default function Orders() {
       tax: taxNum,
       discount: discNum,
       total: totalNum,
-      couponCode: summary?.couponCode || order.couponCode || order.coupon_code,
+      couponCode: summary.couponCode || order.couponCode || order.coupon_code
     };
   };
 
   // 🛡️ তারিখ ও সময়
   const getFormattedDateTime = (order: any): string => {
-    if (!order) return "Recent";
+    if (!order) return 'Recent';
     const rawDate = order.createdAt || order.created_at || order.date;
-    if (!rawDate) return "Recent";
+    if (!rawDate) return 'Recent';
     try {
       const d = new Date(rawDate);
       if (isNaN(d.getTime())) return String(rawDate);
-      const dateStr = d.toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      });
-      const timeStr = d.toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      });
+      const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
       return `${dateStr} • ${timeStr}`;
     } catch (e) {
       return String(rawDate);
@@ -235,11 +185,9 @@ export default function Orders() {
     if (!isSilent && orders.length === 0) setLoading(true);
 
     let localOrders: any[] = [];
-    const savedLocal = localStorage.getItem("mo_fashion_orders");
+    const savedLocal = localStorage.getItem('mo_fashion_orders');
     if (savedLocal) {
-      try {
-        localOrders = JSON.parse(savedLocal);
-      } catch (e) {}
+      try { localOrders = JSON.parse(savedLocal); } catch (e) {}
     }
 
     try {
@@ -249,14 +197,21 @@ export default function Orders() {
         [...localOrders, ...cloudData].forEach((item: any) => {
           if (item) {
             const key = String(item.id || item._id || item.orderId);
-            if (key && key !== "undefined" && key !== "null") {
+            if (key && key !== 'undefined' && key !== 'null') {
               map.set(key, { ...map.get(key), ...item });
             }
           }
         });
         const merged = Array.from(map.values());
+        // Date sort descending
+        merged.sort((a: any, b: any) => {
+          const dateA = new Date(a.createdAt || a.created_at || a.date).getTime() || 0;
+          const dateB = new Date(b.createdAt || b.created_at || b.date).getTime() || 0;
+          return dateB - dateA;
+        });
+
         setOrders(merged);
-        localStorage.setItem("mo_fashion_orders", JSON.stringify(merged));
+        localStorage.setItem('mo_fashion_orders', JSON.stringify(merged));
       } else {
         setOrders(localOrders);
       }
@@ -271,26 +226,29 @@ export default function Orders() {
   useEffect(() => {
     fetchOrders();
 
+    // 🚀 রিয়েল-টাইম সাবস্ক্রিপশন চ্যানেল (যাতে নতুন অর্ডার আসা মাত্রই এডমিন প্যানেল আপডেট হয়)
     const channel = supabase
-      .channel("public:orders:admin:live:v35")
+      .channel('public:orders:admin:live:v40')
       .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "orders" },
-        () => {
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload) => {
           fetchOrders(true);
-          toast.success("Orders updated live! 🛒", { id: "live-order-toast" });
-        },
+          if (payload.eventType === 'INSERT') {
+            toast.success("New Order Received Live! 🛒", { duration: 4000 });
+          }
+        }
       )
       .subscribe();
 
     const handleStorageChange = () => fetchOrders(true);
-    window.addEventListener("storage", handleStorageChange);
-    window.addEventListener("orderUpdated", handleStorageChange);
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('orderUpdated', handleStorageChange);
 
     return () => {
       supabase.removeChannel(channel);
-      window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("orderUpdated", handleStorageChange);
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('orderUpdated', handleStorageChange);
     };
   }, []);
 
@@ -301,23 +259,21 @@ export default function Orders() {
 
   const handleUpdateStatus = async (newStatus: string) => {
     if (!selectedOrder) return;
-    const orderId = String(
-      selectedOrder._id || selectedOrder.id || selectedOrder.orderId,
-    );
+    const orderId = String(selectedOrder._id || selectedOrder.id || selectedOrder.orderId);
 
     const updatedOrderObj = { ...selectedOrder, status: newStatus };
 
-    const updatedList = orders.map((o: any) =>
-      String(o._id || o.id || o.orderId) === orderId ? updatedOrderObj : o,
+    const updatedList = orders.map((o: any) => 
+      String(o._id || o.id || o.orderId) === orderId ? updatedOrderObj : o
     );
     setOrders(updatedList);
-    localStorage.setItem("mo_fashion_orders", JSON.stringify(updatedList));
+    localStorage.setItem('mo_fashion_orders', JSON.stringify(updatedList));
     setSelectedOrder(updatedOrderObj);
 
     try {
       await saveSupabaseOrder(updatedOrderObj);
       toast.success(`Order status updated to "${newStatus}" LIVE! 🎉`);
-      window.dispatchEvent(new Event("orderUpdated"));
+      window.dispatchEvent(new Event('orderUpdated'));
     } catch (error) {
       toast.success(`Status updated to "${newStatus}" locally.`);
     }
@@ -325,25 +281,16 @@ export default function Orders() {
 
   const handleDeleteOrder = async (id: string) => {
     const targetId = String(id);
-    if (
-      window.confirm(
-        "Are you sure you want to delete this order? This action cannot be undone.",
-      )
-    ) {
-      const remainingOrders = orders.filter(
-        (o: any) => String(o._id || o.id || o.orderId) !== targetId,
-      );
+    if (window.confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
+      const remainingOrders = orders.filter((o: any) => String(o._id || o.id || o.orderId) !== targetId);
       setOrders(remainingOrders);
-      localStorage.setItem(
-        "mo_fashion_orders",
-        JSON.stringify(remainingOrders),
-      );
+      localStorage.setItem('mo_fashion_orders', JSON.stringify(remainingOrders));
       setIsModalOpen(false);
 
       try {
         await deleteSupabaseOrder(targetId);
         toast.success("Order deleted successfully!");
-        window.dispatchEvent(new Event("orderUpdated"));
+        window.dispatchEvent(new Event('orderUpdated'));
       } catch (error) {
         toast.success("Order deleted locally.");
       }
@@ -353,31 +300,23 @@ export default function Orders() {
   const validOrders = Array.isArray(orders) ? orders : [];
   const filteredOrders = validOrders.filter((order: any) => {
     const customerName = getCustomerFullName(order);
-    const orderIdStr = String(order.orderId || order.id || order._id || "");
-    const phoneStr = String(
-      order.phone ||
-        order.customerInfo?.phone ||
-        order.customer_info?.phone ||
-        "",
-    );
+    const orderIdStr = String(order.orderId || order.id || order._id || '');
+    
+    let info = safeJsonParse(order.customerInfo || order.customer_info) || {};
+    const phoneStr = String(info.phone || order.phone || '');
 
-    const matchesSearch =
-      orderIdStr.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      phoneStr.includes(searchQuery);
-
-    const matchesStatus =
-      filterStatus === "All" ||
-      String(order.status).toLowerCase() === filterStatus.toLowerCase();
-
+    const matchesSearch = orderIdStr.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          phoneStr.includes(searchQuery);
+                          
+    const matchesStatus = filterStatus === 'All' || String(order.status).toLowerCase() === filterStatus.toLowerCase();
+    
     return matchesSearch && matchesStatus;
   });
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      const allIds = filteredOrders.map((o: any) =>
-        String(o.orderId || o.id || o._id),
-      );
+      const allIds = filteredOrders.map((o: any) => String(o.orderId || o.id || o._id));
       setSelectedIds(allIds);
     } else {
       setSelectedIds([]);
@@ -387,7 +326,7 @@ export default function Orders() {
   const handleToggleSelectOne = (id: string) => {
     const targetId = String(id);
     if (selectedIds.includes(targetId)) {
-      setSelectedIds(selectedIds.filter((i) => i !== targetId));
+      setSelectedIds(selectedIds.filter(i => i !== targetId));
     } else {
       setSelectedIds([...selectedIds, targetId]);
     }
@@ -396,16 +335,10 @@ export default function Orders() {
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
 
-    if (
-      window.confirm(
-        `Are you sure you want to PERMANENTLY delete ${selectedIds.length} selected order(s)?`,
-      )
-    ) {
-      const remaining = orders.filter(
-        (o: any) => !selectedIds.includes(String(o.orderId || o.id || o._id)),
-      );
+    if (window.confirm(`Are you sure you want to PERMANENTLY delete ${selectedIds.length} selected order(s)?`)) {
+      const remaining = orders.filter((o: any) => !selectedIds.includes(String(o.orderId || o.id || o._id)));
       setOrders(remaining);
-      localStorage.setItem("mo_fashion_orders", JSON.stringify(remaining));
+      localStorage.setItem('mo_fashion_orders', JSON.stringify(remaining));
 
       const toastId = toast.loading(`Deleting ${selectedIds.length} orders...`);
 
@@ -414,10 +347,8 @@ export default function Orders() {
       }
 
       setSelectedIds([]);
-      toast.success(`${selectedIds.length} orders deleted LIVE! 🎉`, {
-        id: toastId,
-      });
-      window.dispatchEvent(new Event("orderUpdated"));
+      toast.success(`${selectedIds.length} orders deleted LIVE! 🎉`, { id: toastId });
+      window.dispatchEvent(new Event('orderUpdated'));
     }
   };
 
@@ -430,27 +361,20 @@ export default function Orders() {
     });
 
     setOrders(updatedList);
-    localStorage.setItem("mo_fashion_orders", JSON.stringify(updatedList));
+    localStorage.setItem('mo_fashion_orders', JSON.stringify(updatedList));
 
     const toastId = toast.loading(`Updating status to "${newStatus}"...`);
 
     for (const id of selectedIds) {
-      const found = orders.find(
-        (o: any) => String(o.orderId || o.id || o._id) === id,
-      );
+      const found = orders.find((o: any) => String(o.orderId || o.id || o._id) === id);
       if (found) {
-        await saveSupabaseOrder({ ...found, status: newStatus }).catch(
-          () => null,
-        );
+        await saveSupabaseOrder({ ...found, status: newStatus }).catch(() => null);
       }
     }
 
     setSelectedIds([]);
-    toast.success(
-      `Updated ${selectedIds.length} orders to "${newStatus}" LIVE! 🎉`,
-      { id: toastId },
-    );
-    window.dispatchEvent(new Event("orderUpdated"));
+    toast.success(`Updated ${selectedIds.length} orders to "${newStatus}" LIVE! 🎉`, { id: toastId });
+    window.dispatchEvent(new Event('orderUpdated'));
   };
 
   return (
@@ -464,28 +388,21 @@ export default function Orders() {
         <div>
           <div className="flex items-center space-x-3">
             <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase flex items-center">
-              <Package
-                className="mr-3 text-[#D4AF37] animate-bounce"
-                size={28}
-              />{" "}
-              Orders Management
+              <Package className="mr-3 text-[#D4AF37] animate-bounce" size={28} /> Orders Management
             </h1>
             <span className="bg-[#D4AF37]/10 text-[#D4AF37] text-xs font-bold px-3.5 py-1.5 rounded-full border border-[#D4AF37]/30 flex items-center animate-pulse shadow-sm">
               Worldwide Cloud Live Sync
             </span>
           </div>
-          <p className="text-sm text-gray-400 mt-1">
-            Track, process, and manage live customer orders from Supabase Cloud
-            DB
-          </p>
+          <p className="text-sm text-gray-400 mt-1">Track, process, and manage live customer orders from Supabase Cloud DB</p>
         </div>
 
-        <button
+        <button 
           onClick={() => fetchOrders(false)}
           className="p-2.5 bg-[#111111] hover:bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 rounded-xl transition-all duration-200 active:scale-95 flex items-center space-x-2 font-bold text-xs"
           title="Refresh Live Orders"
         >
-          <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           <span>Refresh Orders</span>
         </button>
       </div>
@@ -502,7 +419,7 @@ export default function Orders() {
             <select
               onChange={(e) => {
                 if (e.target.value) handleBulkUpdateStatus(e.target.value);
-                e.target.value = "";
+                e.target.value = '';
               }}
               className="bg-[#111111] border border-[#D4AF37]/40 rounded-xl px-3 py-2 text-xs text-white font-bold focus:outline-none cursor-pointer"
             >
@@ -528,9 +445,9 @@ export default function Orders() {
       {/* Search and Filters */}
       <div className="bg-[#1A1A1A] p-4 rounded-xl border border-[#D4AF37]/20 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center shadow-lg transition-all duration-300">
         <div className="relative w-full max-w-md">
-          <input
-            type="text"
-            placeholder="Search by Order ID, Name or Phone..."
+          <input 
+            type="text" 
+            placeholder="Search by Order ID, Name or Phone..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl px-10 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]/40 placeholder-gray-500 transition-all duration-200 text-sm"
@@ -538,7 +455,7 @@ export default function Orders() {
           <Search className="absolute left-3.5 top-3 text-gray-500" size={18} />
         </div>
         <div className="w-full md:w-auto">
-          <select
+          <select 
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
             className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] cursor-pointer text-sm transition-colors font-semibold"
@@ -560,155 +477,90 @@ export default function Orders() {
             <thead className="bg-[#111111] border-b border-[#D4AF37]/20">
               <tr>
                 <th className="px-4 py-4 w-10 text-center">
-                  <input
-                    type="checkbox"
-                    checked={
-                      filteredOrders.length > 0 &&
-                      selectedIds.length === filteredOrders.length
-                    }
+                  <input 
+                    type="checkbox" 
+                    checked={filteredOrders.length > 0 && selectedIds.length === filteredOrders.length}
                     onChange={handleSelectAll}
                     className="w-4 h-4 accent-[#D4AF37] rounded cursor-pointer"
                     title="Select All Orders"
                   />
                 </th>
-                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">
-                  Order ID
-                </th>
-                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">
-                  Customer
-                </th>
-                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">
-                  Date & Time
-                </th>
-                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">
-                  Total Amount
-                </th>
-                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider text-right">
-                  Action
-                </th>
+                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Order ID</th>
+                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Customer</th>
+                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Date & Time</th>
+                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Total Amount</th>
+                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Status</th>
+                <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800">
               {loading && orders.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={7}
-                    className="px-6 py-12 text-center text-[#D4AF37]"
-                  >
+                  <td colSpan={7} className="px-6 py-12 text-center text-[#D4AF37]">
                     <div className="flex flex-col items-center justify-center space-y-3">
                       <RefreshCw className="animate-spin w-8 h-8 text-[#D4AF37]" />
-                      <p className="font-medium animate-pulse">
-                        Fetching orders live from Supabase Cloud DB...
-                      </p>
+                      <p className="font-medium animate-pulse">Fetching orders live from Supabase Cloud DB...</p>
                     </div>
                   </td>
                 </tr>
               ) : (
                 filteredOrders.map((order: any) => {
                   const customerName = getCustomerFullName(order);
-                  const customerEmail = order.customerInfo
-                    ? order.customerInfo.email || order.email
-                    : order.email || "N/A";
-                  const customerPhone = order.customerInfo
-                    ? order.customerInfo.phone || order.phone
-                    : order.phone || "";
+                  let info = safeJsonParse(order.customerInfo || order.customer_info) || {};
+                  
+                  const customerEmail = info.email || order.email || 'N/A';
+                  const customerPhone = info.phone || order.phone || '';
                   const formattedDateTime = getFormattedDateTime(order);
 
                   const summary = getOrderSummaryObj(order);
-                  const orderTotalNum = parseSafeNumber(
-                    summary.total || order.total,
-                  );
-                  const displayOrderId =
-                    order.orderId || order.id || order._id || "";
+                  const orderTotalNum = parseSafeNumber(summary.total || order.total);
+                  const displayOrderId = order.orderId || order.id || order._id || '';
 
-                  const isChecked = selectedIds.includes(
-                    String(displayOrderId),
-                  );
+                  const isChecked = selectedIds.includes(String(displayOrderId));
 
                   return (
-                    <tr
-                      key={displayOrderId || Math.random()}
-                      className={`hover:bg-[#111111] transition-all duration-200 group ${isChecked ? "bg-[#D4AF37]/5" : ""}`}
-                    >
+                    <tr key={displayOrderId || Math.random()} className={`hover:bg-[#111111] transition-all duration-200 group ${isChecked ? 'bg-[#D4AF37]/5' : ''}`}>
                       <td className="px-4 py-4 text-center">
-                        <input
-                          type="checkbox"
+                        <input 
+                          type="checkbox" 
                           checked={isChecked}
-                          onChange={() =>
-                            handleToggleSelectOne(String(displayOrderId))
-                          }
+                          onChange={() => handleToggleSelectOne(String(displayOrderId))}
                           className="w-4 h-4 accent-[#D4AF37] rounded cursor-pointer"
                         />
                       </td>
                       <td className="px-6 py-4 font-bold text-[#D4AF37] uppercase tracking-wider group-hover:scale-105 transition-transform">
-                        {String(displayOrderId).startsWith("#")
-                          ? displayOrderId
-                          : `#ORD-${String(displayOrderId).slice(-6).toUpperCase()}`}
+                        {String(displayOrderId).startsWith('#') ? displayOrderId : `#ORD-${String(displayOrderId).slice(-6).toUpperCase()}`}
                       </td>
                       <td className="px-6 py-4">
-                        <p className="font-bold text-white group-hover:text-[#D4AF37] transition-colors">
-                          {customerName}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {customerPhone
-                            ? `Phone: ${customerPhone}`
-                            : customerEmail}
-                        </p>
+                        <p className="font-bold text-white group-hover:text-[#D4AF37] transition-colors">{customerName}</p>
+                        <p className="text-xs text-gray-400">{customerPhone ? `Phone: ${customerPhone}` : customerEmail}</p>
                       </td>
-                      <td className="px-6 py-4 text-gray-400 text-xs font-medium">
-                        {formattedDateTime}
-                      </td>
-                      <td className="px-6 py-4 font-bold text-[#D4AF37]">
-                        ৳{orderTotalNum.toFixed(2)}
-                      </td>
+                      <td className="px-6 py-4 text-gray-400 text-xs font-medium">{formattedDateTime}</td>
+                      <td className="px-6 py-4 font-bold text-[#D4AF37]">৳{orderTotalNum.toFixed(2)}</td>
                       <td className="px-6 py-4">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-bold flex items-center w-max border transition-all duration-300 ${
-                            String(order.status).toLowerCase() === "delivered"
-                              ? "text-green-400 bg-green-500/10 border-green-500/30 shadow-sm shadow-green-500/20"
-                              : String(order.status).toLowerCase() === "shipped"
-                                ? "text-blue-400 bg-blue-500/10 border-blue-500/30 shadow-sm shadow-blue-500/20"
-                                : String(order.status).toLowerCase() ===
-                                      "processing" ||
-                                    String(order.status).toLowerCase() ===
-                                      "pending"
-                                  ? "text-yellow-400 bg-yellow-500/10 border-yellow-500/30 animate-pulse"
-                                  : String(order.status).toLowerCase() ===
-                                      "cancelled"
-                                    ? "text-red-400 bg-red-500/10 border-red-500/30"
-                                    : "text-orange-400 bg-orange-500/10 border-orange-500/30"
-                          }`}
-                        >
-                          {String(order.status).toLowerCase() ===
-                            "delivered" && (
-                            <CheckCircle size={12} className="mr-1.5" />
-                          )}
-                          {String(order.status).toLowerCase() === "shipped" && (
-                            <Truck size={12} className="mr-1.5" />
-                          )}
-                          {(String(order.status).toLowerCase() ===
-                            "processing" ||
-                            String(order.status).toLowerCase() ===
-                              "pending") && (
-                            <Clock size={12} className="mr-1.5" />
-                          )}
-                          {String(order.status).toLowerCase() ===
-                            "cancelled" && <X size={12} className="mr-1.5" />}
-                          {order.status || "Pending"}
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center w-max border transition-all duration-300 ${
+                          String(order.status).toLowerCase() === 'delivered' ? 'text-green-400 bg-green-500/10 border-green-500/30 shadow-sm shadow-green-500/20' : 
+                          String(order.status).toLowerCase() === 'shipped' ? 'text-blue-400 bg-blue-500/10 border-blue-500/30 shadow-sm shadow-blue-500/20' : 
+                          (String(order.status).toLowerCase() === 'processing' || String(order.status).toLowerCase() === 'pending') ? 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30 animate-pulse' :
+                          String(order.status).toLowerCase() === 'cancelled' ? 'text-red-400 bg-red-500/10 border-red-500/30' :
+                          'text-orange-400 bg-orange-500/10 border-orange-500/30'
+                        }`}>
+                          {String(order.status).toLowerCase() === 'delivered' && <CheckCircle size={12} className="mr-1.5" />}
+                          {String(order.status).toLowerCase() === 'shipped' && <Truck size={12} className="mr-1.5" />}
+                          {(String(order.status).toLowerCase() === 'processing' || String(order.status).toLowerCase() === 'pending') && <Clock size={12} className="mr-1.5" />}
+                          {String(order.status).toLowerCase() === 'cancelled' && <X size={12} className="mr-1.5" />}
+                          {order.status || 'Pending'}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end space-x-2">
-                          <button
+                          <button 
                             onClick={() => handleViewOrder(order)}
                             className="px-4 py-1.5 text-xs bg-[#D4AF37]/10 text-[#D4AF37] hover:bg-[#D4AF37] hover:text-black transition-all duration-200 rounded-xl font-bold border border-[#D4AF37]/30 shadow-sm active:scale-95"
                           >
                             View Details
                           </button>
-                          <button
+                          <button 
                             onClick={() => handleDeleteOrder(displayOrderId)}
                             className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-all duration-200 bg-[#111111] rounded-xl border border-gray-800 hover:border-red-500/50 active:scale-95"
                             title="Delete Order"
@@ -724,19 +576,11 @@ export default function Orders() {
 
               {filteredOrders.length === 0 && !loading && (
                 <tr>
-                  <td
-                    colSpan={7}
-                    className="px-6 py-12 text-center text-gray-500"
-                  >
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <Package size={36} className="text-gray-600 opacity-40" />
-                      <p className="text-base font-semibold text-gray-400">
-                        No orders found in database!
-                      </p>
-                      <p className="text-xs text-gray-600">
-                        When a customer places an order from any device, it will
-                        appear here live in real-time.
-                      </p>
+                      <p className="text-base font-semibold text-gray-400">No orders found in database!</p>
+                      <p className="text-xs text-gray-600">When a customer places an order from any device, it will appear here live in real-time.</p>
                     </div>
                   </td>
                 </tr>
@@ -750,31 +594,29 @@ export default function Orders() {
       {isModalOpen && selectedOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md transition-opacity duration-300">
           <div className="bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+            
             <div className="flex justify-between items-center p-6 border-b border-[#D4AF37]/20 bg-[#111111]">
               <div className="flex items-center space-x-2">
                 <Sparkles className="text-[#D4AF37]" size={22} />
                 <h2 className="text-xl font-serif font-bold text-[#D4AF37] uppercase tracking-wide">
-                  Order Details:{" "}
-                  {selectedOrder.orderId ||
-                    selectedOrder.id ||
-                    selectedOrder._id}
+                  Order Details: {selectedOrder.orderId || selectedOrder.id || selectedOrder._id}
                 </h2>
               </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
+              <button 
+                onClick={() => setIsModalOpen(false)} 
                 className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition-colors"
               >
                 <X size={24} />
               </button>
             </div>
-
+            
             <div className="overflow-y-auto custom-scrollbar p-6 space-y-6">
+              
               {/* 1. Customer Bio & Shipping Info */}
               <div className="bg-[#111111] p-5 rounded-2xl border border-gray-800/80 shadow-md space-y-3">
                 <div className="flex justify-between items-center border-b border-gray-800 pb-2">
                   <h3 className="text-[#D4AF37] font-bold uppercase tracking-wider text-xs flex items-center">
-                    <User size={16} className="mr-2 text-[#D4AF37]" /> Customer
-                    Bio & Shipping Info
+                    <User size={16} className="mr-2 text-[#D4AF37]" /> Customer Bio & Shipping Info
                   </h3>
                   <span className="text-[10px] text-gray-400 flex items-center font-bold">
                     <Calendar size={12} className="mr-1 text-[#D4AF37]" />
@@ -784,59 +626,40 @@ export default function Orders() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
                   <div>
-                    <p className="text-gray-500 text-xs font-semibold">
-                      Full Name
-                    </p>
+                    <p className="text-gray-500 text-xs font-semibold">Full Name</p>
                     <p className="text-white font-bold text-sm mt-0.5">
                       {getCustomerFullName(selectedOrder)}
                     </p>
                   </div>
 
                   <div>
-                    <p className="text-gray-500 text-xs font-semibold">
-                      Email Address
-                    </p>
+                    <p className="text-gray-500 text-xs font-semibold">Email Address</p>
                     <p className="text-white font-medium text-sm mt-0.5 flex items-center">
                       <Mail size={12} className="mr-1.5 text-gray-500" />
-                      {selectedOrder.customerInfo?.email ||
-                        selectedOrder.email ||
-                        "N/A"}
+                      {safeJsonParse(selectedOrder.customerInfo || selectedOrder.customer_info)?.email || selectedOrder.email || 'N/A'}
                     </p>
                   </div>
 
                   <div>
-                    <p className="text-gray-500 text-xs font-semibold">
-                      Phone Number
-                    </p>
+                    <p className="text-gray-500 text-xs font-semibold">Phone Number</p>
                     <p className="text-[#D4AF37] font-bold text-sm mt-0.5 flex items-center">
                       <Phone size={12} className="mr-1.5 text-[#D4AF37]" />
-                      {selectedOrder.customerInfo?.phone ||
-                        selectedOrder.phone ||
-                        "N/A"}
+                      {safeJsonParse(selectedOrder.customerInfo || selectedOrder.customer_info)?.phone || selectedOrder.phone || 'N/A'}
                     </p>
                   </div>
 
                   <div>
-                    <p className="text-gray-500 text-xs font-semibold">
-                      Payment Method
-                    </p>
+                    <p className="text-gray-500 text-xs font-semibold">Payment Method</p>
                     <p className="text-white font-bold text-sm mt-0.5 flex items-center">
                       <CreditCard size={12} className="mr-1.5 text-[#D4AF37]" />
-                      {selectedOrder.paymentDetails?.method ||
-                        selectedOrder.paymentMethod ||
-                        "Cash on Delivery"}
+                      {safeJsonParse(selectedOrder.paymentDetails || selectedOrder.payment_details)?.method || selectedOrder.paymentMethod || 'Cash on Delivery'}
                     </p>
                   </div>
 
                   <div className="md:col-span-2 bg-[#1A1A1A] p-3.5 rounded-xl border border-gray-800 flex items-start space-x-3 mt-1">
-                    <MapPin
-                      size={20}
-                      className="text-[#D4AF37] mt-0.5 shrink-0"
-                    />
+                    <MapPin size={20} className="text-[#D4AF37] mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">
-                        Full Delivery Address
-                      </p>
+                      <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Full Delivery Address</p>
                       <p className="text-white font-medium text-sm mt-1 leading-relaxed">
                         {getFullAddress(selectedOrder)}
                       </p>
@@ -848,135 +671,77 @@ export default function Orders() {
               {/* 2. Itemized Products List */}
               <div className="bg-[#111111] p-5 rounded-2xl border border-gray-800/80 shadow-md">
                 <h3 className="text-[#D4AF37] font-bold mb-4 uppercase tracking-wider text-xs border-b border-gray-800 pb-2 flex items-center">
-                  <Package size={16} className="mr-2 text-[#D4AF37]" /> Ordered
-                  Items ({getOrderItemsList(selectedOrder).length})
+                  <Package size={16} className="mr-2 text-[#D4AF37]" /> Ordered Items ({getOrderItemsList(selectedOrder).length})
                 </h3>
-
+                
                 <div className="space-y-3.5 mb-4 max-h-60 overflow-y-auto custom-scrollbar pr-1">
                   {getOrderItemsList(selectedOrder).length === 0 ? (
-                    <p className="text-gray-500 text-xs italic text-center py-4">
-                      No product item details recorded.
-                    </p>
+                    <p className="text-gray-500 text-xs italic text-center py-4">No product item details recorded.</p>
                   ) : (
-                    getOrderItemsList(selectedOrder).map(
-                      (item: any, idx: number) => {
-                        const itemImg = getItemImage(item);
-                        const itemQty = parseSafeNumber(item.quantity) || 1;
-                        const itemPrice = parseSafeNumber(item.price);
-                        const itemSubtotal = itemQty * itemPrice;
+                    getOrderItemsList(selectedOrder).map((item: any, idx: number) => {
+                      const itemImg = getItemImage(item);
+                      const itemQty = parseSafeNumber(item.quantity) || 1;
+                      const itemPrice = parseSafeNumber(item.price);
+                      const itemSubtotal = itemQty * itemPrice;
 
-                        return (
-                          <div
-                            key={idx}
-                            className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 bg-[#1A1A1A] rounded-xl border border-gray-800 gap-3"
-                          >
-                            <div className="flex items-center space-x-3.5">
-                              <div className="w-14 h-14 rounded-xl bg-[#111111] border border-[#D4AF37]/30 overflow-hidden shrink-0 flex items-center justify-center shadow-md">
-                                {itemImg ? (
-                                  <img
-                                    src={itemImg}
-                                    alt={item.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <ImageIcon
-                                    size={22}
-                                    className="text-[#D4AF37]/60"
-                                  />
-                                )}
-                              </div>
-                              <div>
-                                <p className="font-bold text-white text-sm line-clamp-1">
-                                  {item.name || "Ordered Fashion Item"}
-                                </p>
-
-                                {/* 🚀 কাস্টমারের নির্বাচিত সকল রিয়েল ভ্যারিয়েন্ট: Qty, Size, Color, Material, Options */}
-                                <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[11px] text-gray-400">
-                                  <span className="text-[#D4AF37] font-bold bg-[#D4AF37]/10 px-2 py-0.5 rounded border border-[#D4AF37]/20 shadow-sm">
-                                    Qty: x{itemQty}
-                                  </span>
-                                  {item.size &&
-                                    String(item.size).trim() !== "" && (
-                                      <span className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-700 shadow-sm">
-                                        Size:{" "}
-                                        <strong className="text-white">
-                                          {item.size}
-                                        </strong>
-                                      </span>
-                                    )}
-                                  {item.color &&
-                                    String(item.color).trim() !== "" && (
-                                      <span className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-700 shadow-sm">
-                                        Color:{" "}
-                                        <strong className="text-white">
-                                          {item.color}
-                                        </strong>
-                                      </span>
-                                    )}
-                                  {item.material &&
-                                    String(item.material).trim() !== "" && (
-                                      <span className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-700 shadow-sm">
-                                        Material:{" "}
-                                        <strong className="text-white">
-                                          {item.material}
-                                        </strong>
-                                      </span>
-                                    )}
-
-                                  {Array.isArray(item.selectedVariants)
-                                    ? item.selectedVariants.map(
-                                        (v: any, vIdx: number) => (
-                                          <span
-                                            key={vIdx}
-                                            className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-700 shadow-sm capitalize"
-                                          >
-                                            {v.name || v.label || "Option"}:{" "}
-                                            <strong className="text-white">
-                                              {v.value ||
-                                                v.option ||
-                                                (Array.isArray(v.options)
-                                                  ? v.options.join(", ")
-                                                  : v.options) ||
-                                                ""}
-                                            </strong>
-                                          </span>
-                                        ),
-                                      )
-                                    : typeof item.selectedVariants ===
-                                          "object" &&
-                                        item.selectedVariants !== null
-                                      ? Object.entries(
-                                          item.selectedVariants,
-                                        ).map(([key, val], vIdx) => (
-                                          <span
-                                            key={vIdx}
-                                            className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-700 shadow-sm capitalize"
-                                          >
-                                            {key}:{" "}
-                                            <strong className="text-white">
-                                              {String(val)}
-                                            </strong>
-                                          </span>
-                                        ))
-                                      : null}
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="text-right sm:self-center">
-                              <p className="font-bold text-[#D4AF37] text-base">
-                                ৳{itemSubtotal.toFixed(2)}
-                              </p>
-                              {itemQty > 1 && (
-                                <p className="text-[10px] text-gray-500">
-                                  ৳{itemPrice.toFixed(2)} each
-                                </p>
+                      return (
+                        <div key={idx} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 bg-[#1A1A1A] rounded-xl border border-gray-800 gap-3">
+                          <div className="flex items-center space-x-3.5">
+                            <div className="w-14 h-14 rounded-xl bg-[#111111] border border-[#D4AF37]/30 overflow-hidden shrink-0 flex items-center justify-center shadow-md">
+                              {itemImg ? (
+                                <img src={itemImg} alt={item.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <ImageIcon size={22} className="text-[#D4AF37]/60" />
                               )}
                             </div>
+                            <div>
+                              <p className="font-bold text-white text-sm line-clamp-1">{item.name || 'Ordered Fashion Item'}</p>
+                              
+                              {/* 🚀 কাস্টমারের নির্বাচিত সকল রিয়েল ভ্যারিয়েন্ট: Qty, Size, Color, Material, Options */}
+                              <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[11px] text-gray-400">
+                                <span className="text-[#D4AF37] font-bold bg-[#D4AF37]/10 px-2 py-0.5 rounded border border-[#D4AF37]/20 shadow-sm">
+                                  Qty: x{itemQty}
+                                </span>
+                                {item.size && String(item.size).trim() !== '' && (
+                                  <span className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-700 shadow-sm">
+                                    Size: <strong className="text-white">{item.size}</strong>
+                                  </span>
+                                )}
+                                {item.color && String(item.color).trim() !== '' && (
+                                  <span className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-700 shadow-sm">
+                                    Color: <strong className="text-white">{item.color}</strong>
+                                  </span>
+                                )}
+                                {item.material && String(item.material).trim() !== '' && (
+                                  <span className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-700 shadow-sm">
+                                    Material: <strong className="text-white">{item.material}</strong>
+                                  </span>
+                                )}
+                                
+                                {Array.isArray(item.selectedVariants) ? (
+                                  item.selectedVariants.map((v: any, vIdx: number) => (
+                                    <span key={vIdx} className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-700 shadow-sm capitalize">
+                                      {v.name || v.label || 'Option'}: <strong className="text-white">{v.value || v.option || (Array.isArray(v.options) ? v.options.join(', ') : v.options) || ''}</strong>
+                                    </span>
+                                  ))
+                                ) : typeof item.selectedVariants === 'object' && item.selectedVariants !== null ? (
+                                  Object.entries(item.selectedVariants).map(([key, val], vIdx) => (
+                                    <span key={vIdx} className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-700 shadow-sm capitalize">
+                                      {key}: <strong className="text-white">{String(val)}</strong>
+                                    </span>
+                                  ))
+                                ) : null}
+                              </div>
+                            </div>
                           </div>
-                        );
-                      },
-                    )
+
+                          <div className="text-right sm:self-center">
+                            <p className="font-bold text-[#D4AF37] text-base">৳{itemSubtotal.toFixed(2)}</p>
+                            {itemQty > 1 && <p className="text-[10px] text-gray-500">৳{itemPrice.toFixed(2)} each</p>}
+                          </div>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
 
@@ -987,32 +752,24 @@ export default function Orders() {
                   const shipNum = parseSafeNumber(summary.shipping);
                   const taxNum = parseSafeNumber(summary.tax);
                   const discountNum = parseSafeNumber(summary.discount);
-                  const totalNum = parseSafeNumber(
-                    summary.total || selectedOrder.total,
-                  );
+                  const totalNum = parseSafeNumber(summary.total || selectedOrder.total);
 
                   return (
                     <div className="pt-3 border-t border-gray-800/80 space-y-2 text-xs">
                       <div className="flex justify-between text-gray-400">
                         <span>Subtotal:</span>
-                        <span className="text-white font-medium">
-                          ৳{subtotalNum.toFixed(2)}
-                        </span>
+                        <span className="text-white font-medium">৳{subtotalNum.toFixed(2)}</span>
                       </div>
 
                       <div className="flex justify-between text-gray-400">
                         <span>Shipping Fee:</span>
-                        <span className="text-[#D4AF37] font-bold">
-                          ৳{shipNum.toFixed(2)}
-                        </span>
+                        <span className="text-[#D4AF37] font-bold">৳{shipNum.toFixed(2)}</span>
                       </div>
 
                       {taxNum > 0 && (
                         <div className="flex justify-between text-gray-400">
                           <span>Tax:</span>
-                          <span className="text-white font-medium">
-                            ৳{taxNum.toFixed(2)}
-                          </span>
+                          <span className="text-white font-medium">৳{taxNum.toFixed(2)}</span>
                         </div>
                       )}
 
@@ -1027,9 +784,7 @@ export default function Orders() {
                       )}
 
                       <div className="flex justify-between items-center pt-2.5 border-t border-gray-800 text-sm">
-                        <span className="text-white font-bold">
-                          Grand Total Amount:
-                        </span>
+                        <span className="text-white font-bold">Grand Total Amount:</span>
                         <span className="text-[#D4AF37] font-bold text-2xl tracking-wide">
                           ৳{totalNum.toFixed(2)}
                         </span>
@@ -1041,24 +796,16 @@ export default function Orders() {
 
               {/* Status Update Actions */}
               <div className="bg-[#111111] p-5 rounded-2xl border border-gray-800">
-                <label className="block text-gray-300 text-xs uppercase tracking-wider mb-3 font-bold">
-                  Update Order Status Live
-                </label>
+                <label className="block text-gray-300 text-xs uppercase tracking-wider mb-3 font-bold">Update Order Status Live</label>
                 <div className="flex flex-wrap gap-2.5">
-                  {[
-                    "Pending",
-                    "Processing",
-                    "Shipped",
-                    "Delivered",
-                    "Cancelled",
-                  ].map((status) => (
+                  {['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'].map((status) => (
                     <button
                       key={status}
                       onClick={() => handleUpdateStatus(status)}
                       className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all duration-200 active:scale-95 ${
                         selectedOrder.status === status
-                          ? "bg-[#D4AF37] text-black border-[#D4AF37] shadow-lg shadow-[#D4AF37]/20 scale-105"
-                          : "bg-[#1A1A1A] text-gray-400 border-gray-700 hover:border-[#D4AF37] hover:text-[#D4AF37]"
+                        ? 'bg-[#D4AF37] text-black border-[#D4AF37] shadow-lg shadow-[#D4AF37]/20 scale-105'
+                        : 'bg-[#1A1A1A] text-gray-400 border-gray-700 hover:border-[#D4AF37] hover:text-[#D4AF37]'
                       }`}
                     >
                       {status}
@@ -1066,10 +813,12 @@ export default function Orders() {
                   ))}
                 </div>
               </div>
+
             </div>
           </div>
         </div>
       )}
+      
     </div>
   );
 }
