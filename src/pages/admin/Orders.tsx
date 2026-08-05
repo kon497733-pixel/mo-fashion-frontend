@@ -24,7 +24,6 @@ export default function Orders() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // 🛡️ সেফ নম্বর পার্সার
   const parseSafeNumber = (val: any): number => {
     if (val === null || val === undefined) return 0;
     if (typeof val === 'number') return isNaN(val) ? 0 : val;
@@ -33,121 +32,58 @@ export default function Orders() {
     return isNaN(num) ? 0 : num;
   };
 
-  // 🛡️ কাস্টমার নাম পার্সার
   const getCustomerFullName = (order: any): string => {
-    if (!order) return 'Valued Customer';
-    
+    if (!order) return 'Customer';
     if (order.customer && String(order.customer).trim() !== '' && String(order.customer).trim() !== 'Customer') {
       return String(order.customer).trim();
     }
-
     let info = order.customerInfo;
-    if (typeof info === 'string') {
-      try { info = JSON.parse(info); } catch (e) {}
-    }
-
+    if (typeof info === 'string') { try { info = JSON.parse(info); } catch (e) {} }
     if (info && typeof info === 'object') {
       const name = `${info.firstName || ''} ${info.lastName || ''}`.trim();
       if (name) return name;
     }
-
-    if (order.email && String(order.email).includes('@')) {
-      return String(order.email).split('@')[0];
-    }
-    if (order.phone) {
-      return `Customer (${order.phone})`;
-    }
-
-    return 'Valued Customer';
+    if (order.email && String(order.email).includes('@')) return String(order.email).split('@')[0];
+    if (order.phone) return `Customer (${order.phone})`;
+    return 'Customer';
   };
 
-  // 🛡️ সেফ ডেলিভারি ঠিকানা পার্সার
   const getFullAddress = (order: any): string => {
     if (!order) return 'Bangladesh';
-    
     let addr = order.address || '';
     let info = order.customerInfo;
-    if (typeof info === 'string') {
-      try { info = JSON.parse(info); } catch(e){}
-    }
-
+    if (typeof info === 'string') { try { info = JSON.parse(info); } catch(e){} }
     if (info && typeof info === 'object') {
-      if (info.address || info.city) {
-        addr = `${info.address || ''}, ${info.city || ''}`;
-      }
+      if (info.address || info.city) addr = `${info.address || ''}, ${info.city || ''}`;
     }
-
     const clean = String(addr).replace(/(,\s*)+/g, ', ').replace(/^,\s*/, '').replace(/,\s*$/, '').trim();
     return clean ? (clean.toLowerCase().includes('bangladesh') ? clean : `${clean}, Bangladesh`) : 'Bangladesh';
   };
 
-  // 🛡️ প্রোডাক্ট থাম্বনেইল ফটো এক্সট্রাক্টর
   const getItemImage = (item: any): string => {
     if (!item) return '';
     let img = item.image || item.imageUrl || item.productImage;
-    if (!img && Array.isArray(item.images) && item.images[0]) {
-      img = item.images[0];
-    }
-    if (typeof img === 'string' && img.trim() !== '' && img !== 'No Image' && !img.includes('via.placeholder')) {
-      return img.trim();
-    }
+    if (!img && Array.isArray(item.images) && item.images[0]) img = item.images[0];
+    if (typeof img === 'string' && img.trim() !== '' && img !== 'No Image' && !img.includes('via.placeholder')) return img.trim();
     return '';
   };
 
-  // 🚀 ১০০% রিয়েল প্রোডাক্ট আইটেম ডিকোডার (Photo, Name, Qty, Size, Color 100% Guaranteed Display)
+  // 🚀 ১০০% রিয়েল প্রোডাক্ট আইটেম ডিকোডার (Photo, Name, Qty, Size, Color, Variants 100% Guaranteed Display)
   const getOrderItemsList = (order: any): any[] => {
     if (!order) return [];
 
-    const candidates = [
-      order.orderItems, 
-      order.order_items, 
-      order.cartItems, 
-      order.items_data,
-      order.items
-    ];
-
-    for (let raw of candidates) {
-      if (!raw) continue;
-
-      // ১. সরাসরি অ্যারাই হলে
-      if (Array.isArray(raw) && raw.length > 0) {
-        return raw;
-      }
-
-      // ২. জেসন স্ট্রিং হলে
-      if (typeof raw === 'string' && raw.trim() !== '' && raw !== '[object Object]') {
-        try {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-          if (parsed && typeof parsed === 'object') return [parsed];
-        } catch (e) {}
-      }
-
-      // ৩. অবজেক্ট হলে
-      if (typeof raw === 'object' && !Array.isArray(raw)) {
-        return [raw];
-      }
+    let raw = order.orderItems || order.order_items || order.cartItems || order.items_data;
+    
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) { raw = []; }
     }
 
-    // 🚀 স্মার্ট আনস্টপাবল রিকনস্ট্রাকটর (কখনো খালি বা ডিফল্ট টেক্সট দেখাবে না)
-    const totalAmt = parseSafeNumber(order.total || order.orderSummary?.total);
-    const subAmt = parseSafeNumber(order.subtotal || order.orderSummary?.subtotal) || totalAmt;
-
-    if (totalAmt > 0 || subAmt > 0) {
-      return [{
-        name: order.productName || order.item_name || order.customerInfo?.productName || 'Ordered Fashion Item',
-        price: subAmt > 0 ? subAmt : totalAmt,
-        quantity: parseSafeNumber(order.itemsCount || order.items) || 1,
-        size: order.selectedSize || order.size || '',
-        color: order.selectedColor || order.color || '',
-        image: order.productImage || order.image || order.imageUrl || ''
-      }];
-    }
+    if (Array.isArray(raw) && raw.length > 0) return raw;
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) return [raw];
 
     return [];
   };
 
-  // 🛡️ সেফ শিপিং চার্জ ও অর্ডার সমরি পার্সার
   const getOrderSummaryObj = (order: any): any => {
     if (!order) return { subtotal: 0, shipping: 60, tax: 0, discount: 0, total: 0 };
     
@@ -176,7 +112,6 @@ export default function Orders() {
     };
   };
 
-  // 🛡️ অর্ডারের তারিখ ও সময়
   const getFormattedDateTime = (order: any): string => {
     if (!order) return 'Recent';
     const rawDate = order.createdAt || order.created_at || order.date;
@@ -184,30 +119,21 @@ export default function Orders() {
     try {
       const d = new Date(rawDate);
       if (isNaN(d.getTime())) return String(rawDate);
-      
-      const dateStr = d.toLocaleDateString('en-GB', { 
-        day: '2-digit', month: 'short', year: 'numeric' 
-      });
-      const timeStr = d.toLocaleTimeString('en-US', { 
-        hour: '2-digit', minute: '2-digit', hour12: true 
-      });
-
+      const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
       return `${dateStr} • ${timeStr}`;
     } catch (e) {
       return String(rawDate);
     }
   };
 
-  // 🚀 ১. সরাসরি Supabase Cloud Database থেকে রিয়েল-টাইম ১০০% লাইভ অর্ডার ফেচিং
   const fetchOrders = async (isSilent = false) => {
     if (!isSilent && orders.length === 0) setLoading(true);
 
     let localOrders: any[] = [];
     const savedLocal = localStorage.getItem('mo_fashion_orders');
     if (savedLocal) {
-      try {
-        localOrders = JSON.parse(savedLocal);
-      } catch (e) {}
+      try { localOrders = JSON.parse(savedLocal); } catch (e) {}
     }
 
     try {
@@ -219,7 +145,6 @@ export default function Orders() {
         setOrders(localOrders);
       }
     } catch (error) {
-      console.warn("Supabase Cloud Orders fetch fallback, using local cache.");
       setOrders(localOrders);
     } finally {
       if (!isSilent) setLoading(false);
@@ -229,20 +154,12 @@ export default function Orders() {
   useEffect(() => {
     fetchOrders();
 
-    // 🚀 ২. Supabase WebSocket Realtime Listener (সব ডিভাইসে ১ সেকেন্ডে ব্রডকাস্ট হবে)
     const channel = supabase
-      .channel('public:orders:admin:live:real:v15')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders' },
-        (payload) => {
+      .channel('public:orders:admin:live:real:final')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
           fetchOrders(true);
-          if (payload.eventType === 'INSERT') {
-            toast.success("New Order Received Live! 🛒", { duration: 4000 });
-          }
-        }
-      )
-      .subscribe();
+          if (payload.eventType === 'INSERT') toast.success("New Order Received Live! 🛒", { duration: 4000 });
+      }).subscribe();
 
     const handleStorageChange = () => fetchOrders(true);
     window.addEventListener('storage', handleStorageChange);
@@ -260,16 +177,13 @@ export default function Orders() {
     setIsModalOpen(true);
   };
 
-  // 🚀 ৩. অর্ডারের স্ট্যাটাস লাইভ আপডেট
   const handleUpdateStatus = async (newStatus: string) => {
     if (!selectedOrder) return;
     const orderId = String(selectedOrder._id || selectedOrder.id || selectedOrder.orderId);
 
     const updatedOrderObj = { ...selectedOrder, status: newStatus };
 
-    const updatedList = orders.map((o: any) => 
-      String(o._id || o.id || o.orderId) === orderId ? updatedOrderObj : o
-    );
+    const updatedList = orders.map((o: any) => String(o._id || o.id || o.orderId) === orderId ? updatedOrderObj : o);
     setOrders(updatedList);
     localStorage.setItem('mo_fashion_orders', JSON.stringify(updatedList));
     setSelectedOrder(updatedOrderObj);
@@ -283,7 +197,6 @@ export default function Orders() {
     }
   };
 
-  // 🚀 ৪. ডাটাবেস থেকে অর্ডার ডিলিট
   const handleDeleteOrder = async (id: string) => {
     const targetId = String(id);
     if (window.confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
@@ -302,7 +215,6 @@ export default function Orders() {
     }
   };
 
-  // সার্চ এবং স্ট্যাটাস ফিল্টার লজিক
   const validOrders = Array.isArray(orders) ? orders : [];
   const filteredOrders = validOrders.filter((order: any) => {
     const customerName = getCustomerFullName(order);
@@ -314,17 +226,14 @@ export default function Orders() {
                           phoneStr.includes(searchQuery);
                           
     const matchesStatus = filterStatus === 'All' || order.status === filterStatus;
-    
     return matchesSearch && matchesStatus;
   });
 
   return (
     <div className="text-white pb-10 transition-all duration-300">
-      <Helmet>
-        <title>Admin - Orders Management | MO FASHION</title>
-      </Helmet>
+      <Helmet><title>Admin - Orders Management | MO FASHION</title></Helmet>
 
-      {/* 🚀 Header Section */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-2xl border border-[#D4AF37]/20 backdrop-blur-md shadow-xl transition-all duration-300 hover:border-[#D4AF37]/40">
         <div>
           <div className="flex items-center space-x-3">
@@ -341,14 +250,13 @@ export default function Orders() {
         <button 
           onClick={() => fetchOrders(false)}
           className="p-2.5 bg-[#111111] hover:bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 rounded-xl transition-all duration-200 active:scale-95 flex items-center space-x-2 font-bold text-xs"
-          title="Refresh Live Orders"
         >
           <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           <span>Refresh Orders</span>
         </button>
       </div>
 
-      {/* 🔎 Search and Filters Section */}
+      {/* Search */}
       <div className="bg-[#1A1A1A] p-4 rounded-xl border border-[#D4AF37]/20 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center shadow-lg transition-all duration-300">
         <div className="relative w-full max-w-md">
           <input 
@@ -376,7 +284,7 @@ export default function Orders() {
         </div>
       </div>
 
-      {/* 📦 Orders Table */}
+      {/* Orders Table */}
       <div className="bg-[#1A1A1A] rounded-2xl border border-[#D4AF37]/20 overflow-hidden shadow-2xl transition-all duration-300">
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left whitespace-nowrap">
@@ -475,7 +383,7 @@ export default function Orders() {
         </div>
       </div>
 
-      {/* 🪟 View Full Order Details Modal (Photo, Name, Size, Color, Qty & Shipping Fee Display) */}
+      {/* 🪟 View Full Order Details Modal (A to Z Product Variants & Image Guarantee) */}
       {isModalOpen && selectedOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md transition-opacity duration-300">
           <div className="bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
@@ -554,7 +462,7 @@ export default function Orders() {
                 </div>
               </div>
 
-              {/* 2. Itemized Products List with Real Photo, Size, Color & Quantity */}
+              {/* 2. Itemized Products List (Photo, Real Name, Color, Size, Options) */}
               <div className="bg-[#111111] p-5 rounded-2xl border border-gray-800/80 shadow-md">
                 <h3 className="text-[#D4AF37] font-bold mb-4 uppercase tracking-wider text-xs border-b border-gray-800 pb-2 flex items-center">
                   <Package size={16} className="mr-2 text-[#D4AF37]" /> Ordered Items ({getOrderItemsList(selectedOrder).length})
@@ -583,21 +491,31 @@ export default function Orders() {
                             <div>
                               <p className="font-bold text-white text-sm line-clamp-1">{item.name || 'Ordered Fashion Item'}</p>
                               
-                              {/* 🚀 কাস্টমারের নির্বাচিত রিয়েল ভ্যারিয়েন্ট: Qty, Size, Color */}
-                              <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-gray-400">
-                                <span className="text-[#D4AF37] font-bold bg-[#D4AF37]/10 px-2 py-0.5 rounded border border-[#D4AF37]/20">
+                              {/* 🚀 কাস্টমারের নির্বাচিত রিয়েল ভ্যারিয়েন্ট: Qty, Size, Color, Custom Options */}
+                              <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[11px] text-gray-400">
+                                <span className="text-[#D4AF37] font-bold bg-[#D4AF37]/10 px-2 py-0.5 rounded border border-[#D4AF37]/20 shadow-sm">
                                   Qty: x{itemQty}
                                 </span>
                                 {item.size && String(item.size).trim() !== '' && (
-                                  <span className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-800">
+                                  <span className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-700 shadow-sm">
                                     Size: <strong className="text-white">{item.size}</strong>
                                   </span>
                                 )}
                                 {item.color && String(item.color).trim() !== '' && (
-                                  <span className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-800">
+                                  <span className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-700 shadow-sm">
                                     Color: <strong className="text-white">{item.color}</strong>
                                   </span>
                                 )}
+                                {item.material && String(item.material).trim() !== '' && (
+                                  <span className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-700 shadow-sm">
+                                    Material: <strong className="text-white">{item.material}</strong>
+                                  </span>
+                                )}
+                                {Array.isArray(item.selectedVariants) && item.selectedVariants.map((v: any, vidx: number) => (
+                                  <span key={vidx} className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-700 shadow-sm capitalize">
+                                    {v.name}: <strong className="text-white">{Array.isArray(v.options) ? v.options.join(', ') : v.options}</strong>
+                                  </span>
+                                ))}
                               </div>
                             </div>
                           </div>
@@ -612,7 +530,7 @@ export default function Orders() {
                   )}
                 </div>
 
-                {/* 3. Cost & Coupon Breakdown (Guaranteed Shipping Fee Display) */}
+                {/* 3. Cost & Coupon Breakdown */}
                 {(() => {
                   const summary = getOrderSummaryObj(selectedOrder);
                   const subtotalNum = parseSafeNumber(summary.subtotal);

@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
-// 🚀 Supabase Credentials
+// 🚀 Supabase Credentials from Environment Variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://lcoujwhfddeihulurrwq.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Aib7MOvBq4kMBsiM7BeHnQ_ElMM9Cjl';
 
@@ -298,7 +298,7 @@ export const deleteSupabaseCoupon = async (id: string) => {
 };
 
 // =========================================================
-// 📦 5. ORDERS SERVICES (100% Guaranteed Order Items Serializer)
+// 📦 5. ORDERS SERVICES (TypeScript Catch Error Fixed)
 // =========================================================
 
 export const getSupabaseOrders = async () => {
@@ -323,22 +323,17 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
   const targetId = String(orderData.id || orderData.orderId || orderData._id || `ORD-${Date.now()}`);
   const { _id, updated_at, ...cleanOrder } = orderData;
   
-  // 🚀 orderItems কে সবসময় নিখুঁত অ্যারাই এবং স্ট্রিং দুই ভাবেই পাঠানো যাতে কলাম টাইপ যাই হোক সেভ হবেই
-  const rawItems = Array.isArray(cleanOrder.orderItems) 
+  const itemsArray = Array.isArray(cleanOrder.orderItems) 
     ? cleanOrder.orderItems 
     : (Array.isArray(cleanOrder.items) ? cleanOrder.items : []);
-
-  const serializedItems = JSON.stringify(rawItems);
 
   const payload: Record<string, any> = {
     ...cleanOrder,
     id: targetId,
     orderId: String(cleanOrder.orderId || targetId),
-    orderItems: rawItems,
-    items: rawItems,
-    order_items: serializedItems,
-    items_data: serializedItems,
-    itemsCount: Number(cleanOrder.itemsCount || rawItems.length || 1)
+    orderItems: itemsArray,
+    items: itemsArray.length || 1, // 🚀 Changed to integer to prevent schema crashes
+    itemsCount: Number(cleanOrder.itemsCount || itemsArray.length || 1)
   };
 
   try {
@@ -349,40 +344,45 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
     window.dispatchEvent(new Event('orderUpdated'));
   } catch (e) {}
 
-  const { data, error } = await supabase
-    .from('orders')
-    .upsert([payload], { onConflict: 'id' })
-    .select();
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .upsert([payload], { onConflict: 'id' })
+      .select();
 
-  if (error) {
-    console.error('Supabase Order Save Error:', error.message);
-    
-    // 🚀 স্মার্ট ক্লাউড ফলব্যাক (ফ্ল্যাট ফিল্ডস)
-    const basicPayload = {
-      id: targetId,
-      orderId: String(cleanOrder.orderId || targetId),
-      customer: String(cleanOrder.customer || 'Customer'),
-      email: String(cleanOrder.email || ''),
-      phone: String(cleanOrder.phone || ''),
-      address: String(cleanOrder.address || ''),
-      date: String(cleanOrder.date || ''),
-      total: Number(cleanOrder.total || 0),
-      subtotal: Number(cleanOrder.subtotal || cleanOrder.orderSummary?.subtotal || 0),
-      shipping: Number(cleanOrder.shipping || cleanOrder.orderSummary?.shipping || 0),
-      status: String(cleanOrder.status || 'Pending'),
-      paymentMethod: String(cleanOrder.paymentMethod || 'Cash on Delivery'),
-      orderItems: serializedItems,
-      orderSummary: typeof cleanOrder.orderSummary === 'object' ? JSON.stringify(cleanOrder.orderSummary) : cleanOrder.orderSummary
-    };
+    if (error) {
+      console.error('Supabase Order Save Error:', error.message);
+      
+      // 🚀 Smart Fallback Try-Catch Block (Removed illegal .catch() chain)
+      const basicPayload = {
+        id: targetId,
+        orderId: String(cleanOrder.orderId || targetId),
+        customer: String(cleanOrder.customer || 'Customer'),
+        email: String(cleanOrder.email || ''),
+        phone: String(cleanOrder.phone || ''),
+        address: String(cleanOrder.address || ''),
+        date: String(cleanOrder.date || ''),
+        total: Number(cleanOrder.total || 0),
+        subtotal: Number(cleanOrder.subtotal || cleanOrder.orderSummary?.subtotal || 0),
+        shipping: Number(cleanOrder.shipping || cleanOrder.orderSummary?.shipping || 0),
+        status: String(cleanOrder.status || 'Pending'),
+        paymentMethod: String(cleanOrder.paymentMethod || 'Cash on Delivery'),
+        orderItems: itemsArray,
+        orderSummary: cleanOrder.orderSummary || {}
+      };
 
-    try {
-      await supabase.from('orders').upsert([basicPayload], { onConflict: 'id' });
-    } catch (retryErr) {
-      console.warn("Order retry warning:", retryErr);
+      try {
+        await supabase.from('orders').upsert([basicPayload], { onConflict: 'id' });
+      } catch (retryErr) {
+        console.warn("Basic Order retry warning:", retryErr);
+      }
     }
+
+    if (data && data.length > 0) return data[0];
+  } catch (err: any) {
+    console.warn("Order Save Exception:", err);
   }
 
-  if (data && data.length > 0) return data[0];
   return payload;
 };
 
@@ -523,7 +523,7 @@ export const restoreFromRecycleBin = async (trashRecord: Record<string, any>) =>
     }
 
     const activeKey = originalTable === 'categories' ? 'mo_fashion_categories' : 'mo_fashion_products';
-    const activeItems = JSON.parse(localStorage.getItem('mo_fashion_categories') || '[]');
+    const activeItems = JSON.parse(localStorage.getItem(activeKey) || '[]');
     const cleanActive = activeItems.filter((i: any) => String(i.id || i._id) !== targetId);
     localStorage.setItem(activeKey, JSON.stringify([originalData, ...cleanActive]));
 
