@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   Plus, Edit, Trash2, X, Image as ImageIcon, Folder, Upload, Eye, 
-  Package, CheckCircle, XCircle, Tag, RefreshCw 
+  Package, CheckCircle, XCircle, Tag, RefreshCw
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
@@ -15,7 +15,7 @@ import {
   getSupabaseSettings 
 } from '../../lib/supabase';
 
-// 🚀 ৩ সেকেন্ড পর পর স্বয়ংক্রিয় ছবি স্লাইড হওয়ার স্মুথ কম্পোনেন্ট (Automatic Slideshow Component)
+// 🚀 ৩ সেকেন্ড পর পর স্বয়ংক্রিয় ছবি স্লাইড হওয়ার ৩ডি কম্পোনেন্ট
 function CategoryImageSlider({ images, name }: { images: string[]; name: string }) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -23,11 +23,11 @@ function CategoryImageSlider({ images, name }: { images: string[]; name: string 
     if (!Array.isArray(images) || images.length <= 1) return;
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % images.length);
-    }, 3000); // 3 Seconds Smooth Transition
+    }, 3000);
     return () => clearInterval(interval);
   }, [images]);
 
-  const validImages = Array.isArray(images) ? images.filter(img => img && img.trim() !== '' && !img.includes('No+Image')) : [];
+  const validImages = Array.isArray(images) ? images.filter(img => img && typeof img === 'string' && img.trim() !== '' && !img.includes('No+Image')) : [];
 
   if (validImages.length === 0) {
     return (
@@ -67,7 +67,7 @@ function CategoryImageSlider({ images, name }: { images: string[]; name: string 
   );
 }
 
-export default function Categories() {
+export default function CategoryManagement() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadIndex, setUploadIndex] = useState<number | null>(null);
 
@@ -90,20 +90,13 @@ export default function Categories() {
   const [categories, setCategories] = useState<any[]>(() => {
     const saved = localStorage.getItem('mo_fashion_categories');
     if (saved) {
-      try {
-        return sanitizeCategories(JSON.parse(saved));
-      } catch (e) {
-        return [];
-      }
+      try { return sanitizeCategories(JSON.parse(saved)); } catch (e) { return []; }
     }
     return [];
   });
 
   const [products, setProducts] = useState<any[]>([]);
-  const [settings, setSettings] = useState<any>({
-    storeName: 'MO FASHION',
-    logoUrl: ''
-  });
+  const [settings, setSettings] = useState<any>({ storeName: 'MO FASHION', logoUrl: '' });
   const [loading, setLoading] = useState(true);
 
   // মোডাল স্টেটস
@@ -129,9 +122,7 @@ export default function Categories() {
     let localCategories: any[] = [];
     const savedLocalCat = localStorage.getItem('mo_fashion_categories');
     if (savedLocalCat) {
-      try {
-        localCategories = sanitizeCategories(JSON.parse(savedLocalCat));
-      } catch (e) {}
+      try { localCategories = sanitizeCategories(JSON.parse(savedLocalCat)); } catch (e) {}
     }
 
     try {
@@ -177,20 +168,16 @@ export default function Categories() {
     fetchCategoriesAndProducts();
 
     const channel = supabase
-      .channel('public:categories:management:live:v60')
+      .channel('public:categories:management:live:v70')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'categories' },
-        () => {
-          fetchCategoriesAndProducts();
-        }
+        () => fetchCategoriesAndProducts()
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'products' },
-        () => {
-          fetchCategoriesAndProducts();
-        }
+        () => fetchCategoriesAndProducts()
       )
       .subscribe();
 
@@ -199,19 +186,27 @@ export default function Categories() {
     };
   }, []);
 
-  // ৪. ইমেজ আপলোড ও কমপ্রেশন হ্যান্ডলার
+  // 🚀 ৩. UNIVERSAL BASE64 IMAGE ENCODING (পিসির ফাইল থেকে ইউনিভার্সাল ওয়েব ইমেজে রূপান্তর)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && uploadIndex !== null) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("File size must be less than 5MB!");
+        return;
+      }
+
+      const toastId = toast.loading("Converting & compressing image for all-device compatibility...");
       const reader = new FileReader();
+      
       reader.onload = (event) => {
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 500; 
+          const MAX_WIDTH = 600; 
           const scaleFactor = Math.min(1, MAX_WIDTH / img.width);
           canvas.width = img.width * scaleFactor;
           canvas.height = img.height * scaleFactor;
+
           const ctx = canvas.getContext('2d');
           if (ctx) {
             ctx.imageSmoothingEnabled = true;
@@ -219,11 +214,13 @@ export default function Categories() {
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           }
           
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.65); 
+          // 🚀 WebP/JPEG Base64 Data URL (Works on Mobile, iPhone, Desktop everywhere!)
+          const universalImageDataUrl = canvas.toDataURL('image/jpeg', 0.85); 
           const updatedImages = [...formData.images];
-          updatedImages[uploadIndex] = compressedBase64;
+          updatedImages[uploadIndex] = universalImageDataUrl;
+          
           setFormData({ ...formData, images: updatedImages });
-          toast.success('Image loaded & compressed successfully!');
+          toast.success('Universal photo compressed & attached! 🎉', { id: toastId });
         };
         img.src = event.target?.result as string;
       };
@@ -251,7 +248,7 @@ export default function Categories() {
     setIsModalOpen(true);
   };
 
-  // 🗑️ ৫. ক্যাটাগরি ডিলিট (রিসাইকেল বিনে প্রেরণ ও অল-ডিভাইস সিঙ্ক)
+  // 🗑️ ৪. ক্যাটাগরি ডিলিট (রিসাইকেল বিনে প্রেরণ ও অল-ডিভাইস সিঙ্ক)
   const handleDelete = async (category: any) => {
     const catId = String(category._id || category.id);
     const catName = category.name || 'Category';
@@ -268,7 +265,7 @@ export default function Categories() {
         window.dispatchEvent(new Event('storage'));
         window.dispatchEvent(new Event('categoryUpdated'));
 
-        toast.success(`Category "${catName}" moved to Recycle Bin & removed from live store! 🗑️`);
+        toast.success(`Category "${catName}" moved to Recycle Bin! 🗑️`);
       } catch (e) {
         toast.success("Category deleted locally.");
       }
@@ -288,7 +285,7 @@ export default function Categories() {
     setFormData({ ...formData, images: updatedImages });
   };
 
-  // 🚀 ৬. সেভ ক্যাটাগরি লজিক (Supabase Cloud-এ পার্মানেন্ট সেভ ও অল-ডিভাইস সিঙ্ক)
+  // 🚀 ৫. সেভ ক্যাটাগরি লজিক (Supabase Cloud-এ পার্মানেন্ট সেভ ও অল-ডিভাইস সিঙ্ক)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
@@ -358,7 +355,7 @@ export default function Categories() {
               Total: {categories.length} Categories
             </span>
           </div>
-          <p className="text-sm text-gray-400 mt-1">Manage live categories and auto-sliding slideshow images (Supabase Cloud Sync)</p>
+          <p className="text-sm text-gray-400 mt-1">Manage live categories and auto-sliding slideshow images (All-Device Sync)</p>
         </div>
 
         <div className="flex items-center space-x-3">
@@ -610,7 +607,7 @@ export default function Categories() {
               </div>
 
               <div className="space-y-3 pt-2">
-                <label className="block text-xs text-[#D4AF37] font-bold">Category Slideshow Images (Desktop or URLs)</label>
+                <label className="block text-xs text-[#D4AF37] font-bold">Category Slideshow Images (Desktop Photo or Web URLs)</label>
                 {formData.images.map((img, i) => (
                   <div key={i} className="flex gap-2 items-center bg-[#111111] p-2 rounded-xl border border-gray-800">
                     <div className="w-10 h-10 rounded-lg bg-[#1A1A1A] border border-gray-700 overflow-hidden shrink-0 flex items-center justify-center">
@@ -627,8 +624,8 @@ export default function Categories() {
                     <button 
                       type="button" 
                       onClick={() => { setUploadIndex(i); fileInputRef.current?.click(); }} 
-                      className="p-2 bg-gray-800 text-[#D4AF37] hover:bg-[#D4AF37] hover:text-black rounded-lg transition-colors shrink-0" 
-                      title="Upload from desktop"
+                      className="p-2 bg-gray-800 text-[#D4AF37] hover:bg-[#D4AF37] hover:text-black rounded-lg transition-colors shrink-0 font-bold flex items-center space-x-1" 
+                      title="Upload photo from PC"
                     >
                       <Upload size={14} />
                     </button>
