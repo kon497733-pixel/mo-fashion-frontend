@@ -188,7 +188,7 @@ export default function CheckoutPage() {
     setSelectedThana(thanas[0] || '');
   };
 
-  // 🚀 রিয়েল-টাইম সাবটোটাল ও প্রোডাক্ট আইটেম প্রস্তুতি (A to Z Product Variants Preserved)
+  // 🚀 রিয়েল-টাইম সাবটোটাল ও প্রোডাক্ট আইটেম প্রস্তুতি (A to Z Details Preserved)
   let subtotalAfterProductDiscount = 0;
   const formattedOrderItems = items.map((cartItem: any) => {
     const dbProduct = dbProducts.find(p => String(p.id || p._id) === String(cartItem.id));
@@ -209,7 +209,6 @@ export default function CheckoutPage() {
       productImage = dbProduct.imageUrl;
     }
 
-    // 🚀 (...cartItem) দিয়ে কাস্টমারের বেছে নেওয়া সাইজ, কালার, টাইপ, ম্যাটেরিয়াল, অতিরিক্ত অপশন ১০০% হুবহু সংরক্ষণ
     return {
       ...cartItem,
       id: String(cartItem.id),
@@ -303,7 +302,6 @@ export default function CheckoutPage() {
     const fullLocationStr = `${selectedThana}, ${selectedDistrict}, ${selectedDivision}`;
     const fullAddressStr = `${formData.address.trim()}, ${fullLocationStr}${formData.postalCode.trim() ? ' - ' + formData.postalCode.trim() : ''}, Bangladesh`;
 
-    // 🚀 A to Z পূর্ণাঙ্গ অর্ডার পে-লোড (সহজ ও ডিরেক্ট অ্যারাই পে-লোড যা saveSupabaseOrder সেফলি জেসন ফরম্যাট করবে)
     const orderPayload = {
       id: orderId,
       _id: orderId,
@@ -359,11 +357,15 @@ export default function CheckoutPage() {
       joinDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
     };
 
-    // 🚀 ১. ক্লাউড ডাটাবেসে অর্ডার সেভ
+    // 🚀 ১. ক্লাউড ডাটাবেসে অর্ডার সেভ (STRICT CLOUD VALIDATION)
     try {
       await saveSupabaseOrder(orderPayload);
-    } catch (orderErr) {
-      console.warn("Cloud Order Save Warning:", orderErr);
+    } catch (orderErr: any) {
+      console.error("Cloud Order Save Error:", orderErr);
+      setIsSubmitting(false);
+      // 🚨 EXPOSE EXACT CLOUD ERROR TO SCREEN
+      toast.error(orderErr.message || "Failed to save order to Cloud Database!", { id: toastId, duration: 6000 });
+      return; 
     }
 
     // 🚀 ২. ক্লাউড ডাটাবেসে কাস্টমার সেভ

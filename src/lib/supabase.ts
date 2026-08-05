@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
-// 🚀 Supabase Credentials from Environment Variables
+// 🚀 Supabase Credentials
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://lcoujwhfddeihulurrwq.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Aib7MOvBq4kMBsiM7BeHnQ_ElMM9Cjl';
 
@@ -12,7 +12,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-// 🛡️ সেফ জেসন পার্সার (ডাবল জেসন স্ট্রিং বা যেকোনো টাইপকে অবজেক্ট/অ্যারাইতে কনভার্ট করার জন্য)
+// 🛡️ সেফ জেসন পার্সার
 const safeJsonParse = (input: any): any => {
   if (!input) return null;
   if (typeof input === 'object') return input;
@@ -307,7 +307,7 @@ export const deleteSupabaseCoupon = async (id: string) => {
 };
 
 // =========================================================
-// 📦 5. ORDERS SERVICES (STRICT SINGLE-JSON ENCODING FIX)
+// 📦 5. ORDERS SERVICES (STRICT ERROR EXPOSURE FIX)
 // =========================================================
 
 export const getSupabaseOrders = async () => {
@@ -343,7 +343,6 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
   const targetId = String(orderData.id || orderData.orderId || orderData._id || `ORD-${Date.now()}`);
   const { _id, updated_at, ...cleanOrder } = orderData;
   
-  // 🚀 Extract items safely regardless of input format
   let rawItems = cleanOrder.orderItems || cleanOrder.items || [];
   let parsedItems = safeJsonParse(rawItems);
   let itemsArray: any[] = Array.isArray(parsedItems) ? parsedItems : (Array.isArray(rawItems) ? rawItems : []);
@@ -352,7 +351,6 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
     itemsArray = [parsedItems];
   }
 
-  // 🚀 Guarantee single JSON stringification for DB
   const itemsString = JSON.stringify(itemsArray);
   
   const customerInfoString = typeof cleanOrder.customerInfo === 'string' 
@@ -379,7 +377,7 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
     itemsCount: Number(cleanOrder.itemsCount || itemsArray.length || 1)
   };
 
-  // Local storage optimistic write
+  // Local storage optimistic save
   try {
     const existing = JSON.parse(localStorage.getItem('mo_fashion_orders') || '[]');
     const filtered = Array.isArray(existing) ? existing.filter((o: any) => String(o.id || o.orderId || o._id) !== targetId) : [];
@@ -395,36 +393,44 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
     window.dispatchEvent(new Event('orderUpdated'));
   } catch (e) {}
 
-  // Direct Supabase Cloud Write
-  try {
-    const { data, error } = await supabase
+  // 🚀 Direct Supabase Cloud Write with Strict Error Exposure
+  const { data, error } = await supabase
+    .from('orders')
+    .upsert([payload], { onConflict: 'id' })
+    .select();
+
+  if (error) {
+    console.error('Supabase Primary Upsert Error:', error);
+
+    // Try simplified payload fallback
+    const simplePayload = {
+      id: targetId,
+      orderId: String(cleanOrder.orderId || targetId),
+      customer: String(cleanOrder.customer || 'Customer'),
+      email: String(cleanOrder.email || ''),
+      phone: String(cleanOrder.phone || ''),
+      address: String(cleanOrder.address || ''),
+      date: String(cleanOrder.date || new Date().toLocaleDateString('en-GB')),
+      total: Number(cleanOrder.total || 0),
+      status: String(cleanOrder.status || 'Pending'),
+      paymentMethod: String(cleanOrder.paymentMethod || 'Cash on Delivery'),
+      orderItems: itemsString
+    };
+
+    const { data: retryData, error: retryError } = await supabase
       .from('orders')
-      .upsert([payload], { onConflict: 'id' })
+      .upsert([simplePayload], { onConflict: 'id' })
       .select();
 
-    if (error) {
-      console.warn('Order Upsert Warning:', error.message);
-      const simplePayload = {
-        id: targetId,
-        orderId: String(cleanOrder.orderId || targetId),
-        customer: String(cleanOrder.customer || 'Customer'),
-        email: String(cleanOrder.email || ''),
-        phone: String(cleanOrder.phone || ''),
-        address: String(cleanOrder.address || ''),
-        date: String(cleanOrder.date || new Date().toLocaleDateString('en-GB')),
-        total: Number(cleanOrder.total || 0),
-        status: String(cleanOrder.status || 'Pending'),
-        paymentMethod: String(cleanOrder.paymentMethod || 'Cash on Delivery'),
-        orderItems: itemsString
-      };
-      await supabase.from('orders').upsert([simplePayload], { onConflict: 'id' });
+    if (retryError) {
+      // 🚨 EXPOSE REAL CLOUD ERROR TO SCREEN
+      throw new Error(`Cloud Database Error: ${retryError.message} (${retryError.code || 'RLS/Schema Block'})`);
     }
 
-    if (data && data.length > 0) return data[0];
-  } catch (err: any) {
-    console.warn("Order Save Exception:", err);
+    if (retryData && retryData.length > 0) return retryData[0];
   }
 
+  if (data && data.length > 0) return data[0];
   return payload;
 };
 
