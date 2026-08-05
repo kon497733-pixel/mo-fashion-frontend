@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronLeft, CreditCard, Smartphone, Banknote, Tag, MapPin, Sparkles, ShieldCheck, Navigation } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -16,7 +16,7 @@ import {
   saveSupabaseCoupon
 } from '../../lib/supabase';
 
-// 🚀 বাংলাদেশের ৬৪ জেলার তালিকা
+// 🚀 বাংলাদেশের ৬৪ জেলার এলাকা ডাটাবেস
 const bdLocations: Record<string, Record<string, string[]>> = {
   "Dhaka": {
     "Dhaka": ["Dhanmondi", "Gulshan", "Banani", "Mirpur", "Uttara", "Mohammadpur", "Tejgaon", "Badda", "Rampura", "Jatrabari", "Savar", "Dhamrai", "Keraniganj", "Dohar", "Nawabganj"],
@@ -67,6 +67,36 @@ const bdLocations: Record<string, Record<string, string[]>> = {
     "Narail": ["Narail Sadar", "Kalia", "Lohagara"],
     "Jhenaidah": ["Jhenaidah Sadar", "Harakunda", "Kaliganj", "Kotchandpur", "Maheshpur", "Shailkupa"],
     "Magura": ["Magura Sadar", "Mohammadpur", "Shalisha", "Sreepur"]
+  },
+  "Barishal": {
+    "Barishal": ["Barishal Sadar", "Agailjhara", "Babuganj", "Bakerganj", "Banaripara", "Gaurnadi", "Hizla", "Mehendiganj", "Muladi", "Wazirpur"],
+    "Bhola": ["Bhola Sadar", "Burhanuddin", "Char Fasson", "Daulatkhan", "Lalmohan", "Manpura", "Tazumuddin"],
+    "Barguna": ["Barguna Sadar", "Amatali", "Bamna", "Betagi", "Patharghata", "Taltali"],
+    "Patuakhali": ["Patuakhali Sadar", "Bawalfal", "Dashmina", "Galachipa", "Kalapara", "Mirzaganj", "Rangabali", "Dumki"],
+    "Pirojpur": ["Pirojpur Sadar", "Bhandaria", "Kawkhali", "Mathbaria", "Nazirpur", "Nesarabad", "Zianagar"],
+    "Jhalokati": ["Jhalokati Sadar", "Kathalia", "Nalchity", "Rajapur"]
+  },
+  "Sylhet": {
+    "Sylhet": ["Sylhet Sadar", "Beanibazar", "Bishwanath", "Companiganj", "Fenchuganj", "Golapganj", "Gowainghat", "Jaintiapur", "Kanaighat", "Zakiganj"],
+    "Moulvibazar": ["Moulvibazar Sadar", "Barlekha", "Juri", "Kamalganj", "Kulaura", "Rajnagar", "Sreemangal"],
+    "Habiganj": ["Habiganj Sadar", "Ajmiriganj", "Bahubal", "Baniachong", "Chunarughat", "Nabiganj", "Madhabpur"],
+    "Sunamganj": ["Sunamganj Sadar", "Bishwamharpur", "Chhatak", "Derai", "Dharamapasha", "Dowarabazar", "Jagannathpur", "Jamalganj", "Sullah", "Tahirpur"]
+  },
+  "Rangpur": {
+    "Rangpur": ["Rangpur Sadar", "Badarganj", "Gangachhara", "Kaunia", "Mithapukur", "Pirgachha", "Pirganj", "Taraganj"],
+    "Dinajpur": ["Dinajpur Sadar", "Birampur", "Birganj", "Biral", "Bochaganj", "Chirirbandar", "Phulbari", "Ghoraghat", "Hakimpur", "Kaharole", "Khanshama", "Nawabganj", "Parbatipur"],
+    "Gaibandha": ["Gaibandha Sadar", "Phulchhari", "Gobindaganj", "Palashbari", "Sadullapur", "Saghata", "Sundarganj"],
+    "Kurigram": ["Kurigram Sadar", "Bhurungamari", "Char Rajibpur", "Chilmari", "Phulbari", "Nageshwari", "Rajarhat", "Roumari", "Ulipur"],
+    "Lalmonirhat": ["Lalmonirhat Sadar", "Aditmari", "Hatibandha", "Kaliganj", "Patgram"],
+    "Nilphamari": ["Nilphamari Sadar", "Dimla", "Domar", "Jaldhaka", "Kishoreganj", "Syedpur"],
+    "Panchagarh": ["Panchagarh Sadar", "Atwari", "Boda", "Debiganj", "Tetulia"],
+    "Thakurgaon": ["Thakurgaon Sadar", "Baliadangi", "Haripur", "Pirganj", "Ranisankail"]
+  },
+  "Mymensingh": {
+    "Mymensingh": ["Mymensingh Sadar", "Bhaluka", "Trishal", "Gafargaon", "Muktagachha", "Phulpur", "Haluaghat", "Ishwarganj", "Gauripur", "Dhobaura", "Nandail", "Tara Khanda"],
+    "Jamalpur": ["Jamalpur Sadar", "Baksiganj", "Dewanganj", "Isampur", "Madarganj", "Melandaha", "Sarishabari"],
+    "Netrokona": ["Netrokona Sadar", "Atpara", "Barhatta", "Durgapur", "Kalmakanda", "Kenda", "Khaliajuri", "Madan", "Mohanganj", "Purbadhala"],
+    "Sherpur": ["Sherpur Sadar", "Jhenaigati", "Nakla", "Nalitabari", "Sreebardi"]
   }
 };
 
@@ -142,7 +172,6 @@ export default function CheckoutPage() {
     country: 'Bangladesh' 
   });
 
-  // বিভাগ পরিবর্তন হলে জেলা রিসেট
   const handleDivisionChange = (divisionName: string) => {
     setSelectedDivision(divisionName);
     const districts = Object.keys(bdLocations[divisionName] || {});
@@ -153,14 +182,13 @@ export default function CheckoutPage() {
     setSelectedThana(thanas[0] || '');
   };
 
-  // জেলা পরিবর্তন হলে থানা রিসেট
   const handleDistrictChange = (districtName: string) => {
     setSelectedDistrict(districtName);
     const thanas = bdLocations[selectedDivision]?.[districtName] || [];
     setSelectedThana(thanas[0] || '');
   };
 
-  // 🚀 রিয়েল-টাইম সাবটোটাল ও প্রোডাক্ট আইটেম প্রস্তুতি (0% Default / 100% Real Image & Name)
+  // 🚀 রিয়েল-টাইম সাবটোটাল ও প্রোডাক্ট আইটেম প্রস্তুতি (A to Z Product Variants Preserved)
   let subtotalAfterProductDiscount = 0;
   const formattedOrderItems = items.map((cartItem: any) => {
     const dbProduct = dbProducts.find(p => String(p.id || p._id) === String(cartItem.id));
@@ -181,7 +209,9 @@ export default function CheckoutPage() {
       productImage = dbProduct.imageUrl;
     }
 
+    // 🚀 (...cartItem) দিয়ে কাস্টমারের বেছে নেওয়া সাইজ, কালার, টাইপ, ম্যাটেরিয়াল, অতিরিক্ত অপশন ১০০% হুবহু সংরক্ষণ
     return {
+      ...cartItem,
       id: String(cartItem.id),
       name: productName,
       price: Number(sellingPrice.toFixed(2)),
@@ -190,12 +220,13 @@ export default function CheckoutPage() {
       quantity: Number(cartItem.quantity) || 1,
       size: String(cartItem.size || ''),
       color: String(cartItem.color || ''),
+      material: String(cartItem.material || ''),
       selectedVariants: cartItem.selectedVariants || [],
       image: productImage
     };
   });
 
-  // 🚀 চট্টগ্রাম এলাকা বা ঢাকার ভেতরের শিপিং চার্জ
+  // 🚀 শিপিং চার্জ হিসাব
   const isInsideChattogram = selectedDistrict.toLowerCase().includes('chattogram') || selectedDistrict.toLowerCase().includes('chittagong') || selectedDivision.toLowerCase().includes('chattogram');
   const shippingInside = safeSettings.shippingInside !== undefined ? Number(safeSettings.shippingInside) : 60;
   const shippingOutside = safeSettings.shippingOutside !== undefined ? Number(safeSettings.shippingOutside) : 150;
@@ -222,7 +253,6 @@ export default function CheckoutPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 🚀 ফোন নাম্বার ভ্যালিডেশন
   const validatePhone = (phone: string) => {
     const cleanPhone = phone.replace(/[\s-]/g, '');
     const bdPhoneRegex = /^(?:\+?88)?01[3-9]\d{8}$/;
@@ -235,7 +265,7 @@ export default function CheckoutPage() {
     return emailRegex.test(email.trim());
   };
 
-  // 🚀 প্লেস অর্ডার লজিক (STRICT JSON.STRINGIFY TO PREVENT DATABASE CORRUPTION)
+  // 🚀 প্লেস অর্ডার লজিক
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault(); 
     
@@ -254,6 +284,11 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (!validateEmail(formData.email)) {
+      toast.error("Please enter a valid Email Address!");
+      return;
+    }
+
     if (!formData.address.trim()) {
       toast.error("Please enter your street address!");
       return;
@@ -268,12 +303,13 @@ export default function CheckoutPage() {
     const fullLocationStr = `${selectedThana}, ${selectedDistrict}, ${selectedDivision}`;
     const fullAddressStr = `${formData.address.trim()}, ${fullLocationStr}${formData.postalCode.trim() ? ' - ' + formData.postalCode.trim() : ''}, Bangladesh`;
 
-    // 🚀 ১০০% সেফ স্ট্রিং পে-লোড (যাতে ডাটাবেসে আর কোনো [object Object] ক্র্যাশ না হয়)
+    // 🚀 A to Z পূর্ণাঙ্গ অর্ডার পে-লোড (সহজ ও ডিরেক্ট অ্যারাই পে-লোড যা saveSupabaseOrder সেফলি জেসন ফরম্যাট করবে)
     const orderPayload = {
       id: orderId,
+      _id: orderId,
       orderId: orderId,
       customer: customerName,
-      customerInfo: JSON.stringify({
+      customerInfo: {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
         email: customerEmail,
@@ -282,7 +318,7 @@ export default function CheckoutPage() {
         city: fullLocationStr,
         postalCode: formData.postalCode.trim() || 'N/A',
         country: 'Bangladesh'
-      }),
+      },
       email: customerEmail,
       phone: formData.phone.trim(),
       address: fullAddressStr,
@@ -292,24 +328,27 @@ export default function CheckoutPage() {
       shipping: Number(shipping.toFixed(2)),
       tax: Number(taxAmount.toFixed(2)),
       discount: Number(finalCouponDiscountAmount.toFixed(2)),
+      couponCode: appliedCoupon ? appliedCoupon.code : null,
       total: Number(totalAmount.toFixed(2)),
       status: 'Pending',
-      items: items.length, // Only an integer
+      itemsCount: items.length,
       paymentMethod: paymentMethod,
-      paymentDetails: JSON.stringify({ method: paymentMethod, status: 'Pending' }),
-      orderItems: JSON.stringify(formattedOrderItems), // 🚀 STRICT JSON STRING
-      orderSummary: JSON.stringify({ // 🚀 STRICT JSON STRING
+      paymentDetails: { method: paymentMethod, status: 'Pending' },
+      orderItems: formattedOrderItems,
+      items: formattedOrderItems,
+      orderSummary: {
         subtotal: Number(subtotalAfterProductDiscount.toFixed(2)),
         shipping: Number(shipping.toFixed(2)),
         tax: Number(taxAmount.toFixed(2)),
         total: Number(totalAmount.toFixed(2)),
         couponCode: appliedCoupon ? appliedCoupon.code : null,
         discount: Number(finalCouponDiscountAmount.toFixed(2))
-      })
+      }
     };
 
     const customerPayload = {
       id: `CUST-${formData.phone.trim()}`,
+      _id: `CUST-${formData.phone.trim()}`,
       name: customerName,
       email: customerEmail,
       phone: formData.phone.trim(),
@@ -320,21 +359,21 @@ export default function CheckoutPage() {
       joinDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
     };
 
-    // 🚀 ১. অর্ডার সেভ - ক্লাউড ডাটাবেস (Supabase Cloud Direct Write)
+    // 🚀 ১. ক্লাউড ডাটাবেসে অর্ডার সেভ
     try {
       await saveSupabaseOrder(orderPayload);
     } catch (orderErr) {
       console.warn("Cloud Order Save Warning:", orderErr);
     }
 
-    // 🚀 ২. কাস্টমার সেভ - ক্লাউড ডাটাবেস
+    // 🚀 ২. ক্লাউড ডাটাবেসে কাস্টমার সেভ
     try {
       await saveSupabaseCustomer(customerPayload);
     } catch (custErr) {
       console.warn("Cloud Customer Save Warning:", custErr);
     }
 
-    // 🚀 ৩. প্রোডাক্টের স্টক কমানো এবং সোল্ড কাউন্ট বাড়ানো
+    // 🚀 ৩. প্রোডাক্ট স্টক আপডেট
     try {
       const savedProducts = JSON.parse(localStorage.getItem('mo_fashion_products') || '[]');
       for (const p of savedProducts) {
@@ -357,7 +396,7 @@ export default function CheckoutPage() {
       }
     } catch (prodErr) {}
 
-    // 🚀 ৪. কুপন ইউজ কাউন্ট বাড়ানো
+    // 🚀 ৪. কুপন ইউজ কাউন্ট আপডেট
     try {
       if (appliedCoupon) {
         const allCoupons = await getSupabaseCoupons();
@@ -395,7 +434,7 @@ export default function CheckoutPage() {
           <span>Back to Cart</span>
         </Link>
 
-        {/* 🚀 Header */}
+        {/* Header */}
         <div className="flex items-center justify-between mb-8 pb-4 border-b border-[#D4AF37]/20">
           <h1 className="text-3xl md:text-4xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase flex items-center">
             <Sparkles className="mr-3 text-[#D4AF37]" size={32} />
@@ -446,14 +485,13 @@ export default function CheckoutPage() {
                   <input type="text" name="address" required value={formData.address} onChange={handleChange} className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-colors text-sm" placeholder="e.g. House #12, Road #5, Block C" />
                 </div>
 
-                {/* 🚀 ৩-ধাপের এলাকা ড্রপডাউন (বিভাগ ➔ জেলা ➔ থানা/উপজেলা) */}
+                {/* ৩-ধাপের এলাকা ড্রপডাউন */}
                 <div className="bg-[#111111] p-4 rounded-xl border border-gray-800 space-y-4">
                   <span className="text-xs text-[#D4AF37] font-bold uppercase tracking-wider flex items-center">
                     <Navigation size={14} className="mr-1.5" /> Select Delivery Location Hierarchy
                   </span>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* ১. বিভাগ সিলেক্ট */}
                     <div>
                       <label className="block text-gray-400 text-xs font-bold mb-1.5 uppercase">1. Division (বিভাগ) *</label>
                       <select 
@@ -467,7 +505,6 @@ export default function CheckoutPage() {
                       </select>
                     </div>
 
-                    {/* ২. জেলা সিলেক্ট */}
                     <div>
                       <label className="block text-gray-400 text-xs font-bold mb-1.5 uppercase">2. District (জেলা) *</label>
                       <select 
@@ -481,7 +518,6 @@ export default function CheckoutPage() {
                       </select>
                     </div>
 
-                    {/* ৩. থানা / উপজেলা সিলেক্ট */}
                     <div>
                       <label className="block text-gray-400 text-xs font-bold mb-1.5 uppercase">3. Thana / Upazila (থানা) *</label>
                       <select 

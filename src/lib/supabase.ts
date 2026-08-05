@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
-// 🚀 Supabase Credentials
+// 🚀 Supabase Credentials from Environment Variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://lcoujwhfddeihulurrwq.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Aib7MOvBq4kMBsiM7BeHnQ_ElMM9Cjl';
 
@@ -11,6 +11,26 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
   },
 });
+
+// 🛡️ সেফ জেসন পার্সার (ডাবল জেসন স্ট্রিং বা যেকোনো টাইপকে অবজেক্ট/অ্যারাইতে কনভার্ট করার জন্য)
+const safeJsonParse = (input: any): any => {
+  if (!input) return null;
+  if (typeof input === 'object') return input;
+  if (typeof input === 'string') {
+    const trimmed = input.trim();
+    if (!trimmed || trimmed === '[object Object]') return null;
+    try {
+      let parsed = JSON.parse(trimmed);
+      if (typeof parsed === 'string') {
+        try { parsed = JSON.parse(parsed); } catch (e) {}
+      }
+      return parsed;
+    } catch (e) {
+      return null;
+    }
+  }
+  return null;
+};
 
 // 🛡️ ইউনিভার্সাল সেফ সেভ ও মার্জ ফাংশন
 const mergeAndStore = (cloudData: any[], localKey: string) => {
@@ -287,7 +307,7 @@ export const deleteSupabaseCoupon = async (id: string) => {
 };
 
 // =========================================================
-// 📦 5. ORDERS SERVICES (MULTI-DEVICE CLOUD FIX)
+// 📦 5. ORDERS SERVICES (STRICT SINGLE-JSON ENCODING FIX)
 // =========================================================
 
 export const getSupabaseOrders = async () => {
@@ -299,23 +319,15 @@ export const getSupabaseOrders = async () => {
 
     if (!error && Array.isArray(data)) {
       const formatted = data.map((order: any) => {
-        let itemsData = order.orderItems;
-        if (typeof itemsData === 'string') {
-          try { itemsData = JSON.parse(itemsData); } catch(e){}
-        }
-        let summaryData = order.orderSummary;
-        if (typeof summaryData === 'string') {
-          try { summaryData = JSON.parse(summaryData); } catch(e){}
-        }
-        let infoData = order.customerInfo;
-        if (typeof infoData === 'string') {
-          try { infoData = JSON.parse(infoData); } catch(e){}
-        }
+        const parsedItems = safeJsonParse(order.orderItems || order.order_items || order.cartItems);
+        const parsedSummary = safeJsonParse(order.orderSummary || order.order_summary);
+        const parsedInfo = safeJsonParse(order.customerInfo || order.customer_info);
+
         return {
           ...order,
-          orderItems: itemsData,
-          orderSummary: summaryData,
-          customerInfo: infoData
+          orderItems: Array.isArray(parsedItems) ? parsedItems : (parsedItems ? [parsedItems] : []),
+          orderSummary: parsedSummary || {},
+          customerInfo: parsedInfo || {}
         };
       });
 
@@ -331,22 +343,20 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
   const targetId = String(orderData.id || orderData.orderId || orderData._id || `ORD-${Date.now()}`);
   const { _id, updated_at, ...cleanOrder } = orderData;
   
-  // 🚀 Fix: Extract items safely regardless of String or Array type
-  let orderItemsRaw = cleanOrder.orderItems || cleanOrder.items || [];
-  let itemsArray: any[] = [];
+  // 🚀 Extract items safely regardless of input format
+  let rawItems = cleanOrder.orderItems || cleanOrder.items || [];
+  let parsedItems = safeJsonParse(rawItems);
+  let itemsArray: any[] = Array.isArray(parsedItems) ? parsedItems : (Array.isArray(rawItems) ? rawItems : []);
 
-  if (typeof orderItemsRaw === 'string') {
-    try { itemsArray = JSON.parse(orderItemsRaw); } catch (e) { itemsArray = []; }
-  } else if (Array.isArray(orderItemsRaw)) {
-    itemsArray = orderItemsRaw;
+  if (itemsArray.length === 0 && parsedItems && typeof parsedItems === 'object') {
+    itemsArray = [parsedItems];
   }
 
-  const orderItemsString = typeof cleanOrder.orderItems === 'string' 
-    ? cleanOrder.orderItems 
-    : JSON.stringify(itemsArray);
-
-  const customerInfoString = typeof cleanOrder.customerInfo === 'string'
-    ? cleanOrder.customerInfo
+  // 🚀 Guarantee single JSON stringification for DB
+  const itemsString = JSON.stringify(itemsArray);
+  
+  const customerInfoString = typeof cleanOrder.customerInfo === 'string' 
+    ? cleanOrder.customerInfo 
     : JSON.stringify(cleanOrder.customerInfo || {});
 
   const paymentDetailsString = typeof cleanOrder.paymentDetails === 'string'
@@ -363,20 +373,29 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
     orderId: String(cleanOrder.orderId || targetId),
     customerInfo: customerInfoString,
     paymentDetails: paymentDetailsString,
-    orderItems: orderItemsString,
+    orderItems: itemsString,
     orderSummary: orderSummaryString,
-    items: Number(itemsArray.length || cleanOrder.items || 1),
+    items: itemsArray.length || 1,
     itemsCount: Number(cleanOrder.itemsCount || itemsArray.length || 1)
   };
 
+  // Local storage optimistic write
   try {
     const existing = JSON.parse(localStorage.getItem('mo_fashion_orders') || '[]');
     const filtered = Array.isArray(existing) ? existing.filter((o: any) => String(o.id || o.orderId || o._id) !== targetId) : [];
-    localStorage.setItem('mo_fashion_orders', JSON.stringify([{ ...payload, _id: targetId, orderItems: itemsArray }, ...filtered]));
+    const localRecord = { 
+      ...payload, 
+      _id: targetId, 
+      orderItems: itemsArray,
+      customerInfo: safeJsonParse(customerInfoString),
+      orderSummary: safeJsonParse(orderSummaryString)
+    };
+    localStorage.setItem('mo_fashion_orders', JSON.stringify([localRecord, ...filtered]));
     window.dispatchEvent(new Event('storage'));
     window.dispatchEvent(new Event('orderUpdated'));
   } catch (e) {}
 
+  // Direct Supabase Cloud Write
   try {
     const { data, error } = await supabase
       .from('orders')
@@ -396,7 +415,7 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
         total: Number(cleanOrder.total || 0),
         status: String(cleanOrder.status || 'Pending'),
         paymentMethod: String(cleanOrder.paymentMethod || 'Cash on Delivery'),
-        orderItems: orderItemsString
+        orderItems: itemsString
       };
       await supabase.from('orders').upsert([simplePayload], { onConflict: 'id' });
     }
