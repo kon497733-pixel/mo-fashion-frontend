@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   ShoppingBag, Search, Menu, X, Home, Grid, Info, User, 
-  ShieldCheck, ChevronDown, Package, Folder, ArrowRight, LogIn
+  ShieldCheck, ChevronDown, Package, Folder, ArrowRight
 } from 'lucide-react';
 import { useCartStore } from '../../store/useCartStore';
 import { 
@@ -81,7 +81,7 @@ export default function Navbar() {
 
     // 🚀 ALL-DEVICE REALTIME LISTENERS
     const channel = supabase
-      .channel('public:navbar:live:sync:v110')
+      .channel('public:navbar:live:sync:v120')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'settings' },
@@ -126,7 +126,7 @@ export default function Navbar() {
     };
   }, []);
 
-  // 🚀 ১টি অক্ষর (1st Letter) টাইপ করা মাত্রই [Product] ও [Category] সার্চ ফলাফল
+  // 🚀 ১ম অক্ষর (1st Letter) টাইপ করা মাত্রই [Product] ও [Category] লাইভ সার্চ
   const searchResults = (() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return [];
@@ -185,7 +185,7 @@ export default function Navbar() {
     { name: 'Categories', path: '/categories', icon: Grid },
     { name: 'Cart', path: '/cart', icon: ShoppingBag, badge: totalCartCount },
     { name: 'About', path: '/about', icon: Info },
-    { name: isCustomerLoggedIn ? 'Profile' : 'Sign In', path: customerProfilePath, icon: isCustomerLoggedIn ? User : LogIn },
+    { name: isCustomerLoggedIn ? 'Profile' : 'Sign In', path: customerProfilePath, icon: User },
   ];
 
   const storeLogoImage = settings?.logoUrl || settings?.logo || settings?.storeLogo || '';
@@ -400,7 +400,7 @@ export default function Navbar() {
               )}
             </Link>
 
-            {/* 🚀 CUSTOMER SIGN IN / SIGN UP / PROFILE BUTTON (FIXED: NO MORE ADMIN LINK) */}
+            {/* 🚀 CLASSIC USER PROFILE ICON (FIXED: ALWAYS USER ICON FOR CUSTOMERS) */}
             <Link
               to={customerProfilePath}
               className={`hidden sm:flex p-2.5 rounded-xl border transition-all duration-300 active:scale-95 shadow-md ${
@@ -410,7 +410,7 @@ export default function Navbar() {
               }`}
               title={isCustomerLoggedIn ? "Customer Profile" : "Customer Sign In / Sign Up"}
             >
-              {isCustomerLoggedIn ? <User size={20} /> : <LogIn size={20} />}
+              <User size={20} />
             </Link>
           </div>
         </div>
@@ -465,7 +465,7 @@ export default function Navbar() {
                 </Link>
                 <Link to={customerProfilePath} onClick={() => setMobileMenuOpen(false)} className="text-sm font-bold tracking-wider py-2.5 px-4 rounded-xl text-[#D4AF37] bg-[#D4AF37]/10 border border-[#D4AF37]/30 flex items-center justify-between">
                   <span>{isCustomerLoggedIn ? 'CUSTOMER PROFILE' : 'CUSTOMER SIGN IN / SIGN UP'}</span>
-                  {isCustomerLoggedIn ? <User size={16} /> : <LogIn size={16} />}
+                  <User size={16} />
                 </Link>
               </div>
             </div>

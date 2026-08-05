@@ -3,16 +3,17 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { 
   Mail, Lock, Eye, EyeOff, X, ShieldCheck, KeyRound, Shield, 
-  RefreshCw, CheckCircle2, Clock, Sparkles, Save, User as UserIcon,
+  RefreshCw, CheckCircle2, Clock, Save, User as UserIcon,
   ChevronRight
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/useAuthStore'; 
+import { getSupabaseSettings } from '../../lib/supabase';
 
 // 🚀 আপনার নিবন্ধিত আসল গুগল ক্লায়েন্ট আইডি
 const REAL_GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '776693644497-e526s9vns775flb0dp8gl157c0rbvpeh.apps.googleusercontent.com';
 
-// 🚀 গুগল JWT টোকেন থেকে অরিজিনাল প্রোফাইল ডাটা ডিকোড করার হেল্পার (জিরো ফিক্সড/ডামি ডাটা)
+// 🚀 গুগল JWT টোকেন থেকে অরিজিনাল প্রোফাইল ডাটা ডিকোড করার হেল্পার
 const parseGoogleJwt = (token: string) => {
   try {
     const base64Url = token.split('.')[1];
@@ -40,17 +41,22 @@ export default function LoginPage() {
     password: ''
   });
 
+  // 🚀 ওয়েবসাইটের ডায়নামিক স্টোর লোগো ও সেটিংস স্টেট
+  const [settings, setSettings] = useState<any>({
+    storeName: 'MO FASHION',
+    logoUrl: ''
+  });
+
   // 🚀 সোশ্যাল সাইন-ইন মোডাল স্টেট (Facebook & Apple)
   const [socialModal, setSocialModal] = useState<'Facebook' | 'Apple' | null>(null);
   const [socialEmail, setSocialEmail] = useState('');
   const [socialPassword, setSocialPassword] = useState('');
   const [showSocialPassword, setShowSocialPassword] = useState(false);
 
-  // 🚀 অরিজিনাল গুগল পপ-আপ ফ্লো স্টেট (১, ২, ৩/৪ ধাপের জন্য)
+  // 🚀 অরিজিনাল গুগল পপ-আপ ফ্লো স্টেট
   const [isGooglePopupOpen, setIsGooglePopupOpen] = useState(false);
   const [googleStep, setGoogleStep] = useState<1 | 2 | 3>(1);
 
-  // ডাইনামিক কাস্টমার গুগল ডাটা (১০০% ডামি / ডিফল্ট বিহীন)
   const [googleUser, setGoogleUser] = useState<{
     name: string;
     email: string;
@@ -69,6 +75,22 @@ export default function LoginPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSendingCode, setIsSendingCode] = useState(false);
+
+  // 🚀 স্টোর সেটিংস লোড করা (আসল লোগো আনার জন্য)
+  useEffect(() => {
+    const loadSettings = async () => {
+      const cached = localStorage.getItem('mo_fashion_settings');
+      if (cached) {
+        try { setSettings(JSON.parse(cached)); } catch (e) {}
+      }
+      try {
+        const cloudSet = await getSupabaseSettings();
+        if (cloudSet) setSettings(cloudSet);
+      } catch (e) {}
+    };
+
+    loadSettings();
+  }, []);
 
   // 🚀 গুগলের অরিজিনাল Identity Services SDK রিয়েল-টাইম ইনিশিয়ালাইজেশন
   useEffect(() => {
@@ -96,7 +118,6 @@ export default function LoginPage() {
           }
         });
 
-        // দারাজের মতো ডানপাশের ওপরে অরিজিনাল Google One Tap প্রম্পট অটো-এক্টিভেট
         (window as any).google.accounts.id.prompt();
       } catch (e) {
         console.warn("Google Identity Services script initializing...");
@@ -147,6 +168,7 @@ export default function LoginPage() {
         if (typeof setUser === 'function') setUser(loggedUser as any);
         localStorage.setItem('currentUser', JSON.stringify(loggedUser));
         localStorage.setItem('user', JSON.stringify(loggedUser));
+        localStorage.setItem('mo_fashion_customer_user', JSON.stringify(loggedUser));
 
         toast.success(`Welcome back, ${loggedUser.name}!`, { id: toastId });
 
@@ -211,6 +233,7 @@ export default function LoginPage() {
       if (typeof setUser === 'function') setUser(loggedUser as any);
       localStorage.setItem('currentUser', JSON.stringify(loggedUser));
       localStorage.setItem('user', JSON.stringify(loggedUser));
+      localStorage.setItem('mo_fashion_customer_user', JSON.stringify(loggedUser));
 
       toast.success(`Welcome back, ${loggedUser.name}!`, { id: toastId });
 
@@ -223,9 +246,8 @@ export default function LoginPage() {
     }
   };
 
-  // 🚀 ২. কাস্টমারের জিমেইল ও প্রোফাইল ছবি টাইপিং ছাড়াই ১০০% অটো-ডিটেকশন (Zero Typing)
+  // 🚀 ২. কাস্টমারের জিমেইল ও প্রোফাইল ছবি অটো-ডিটেকশন
   const handleOpenGoogleAuth = () => {
-    // ১. কাস্টমার ফর্মে যেই ইমেইল ইনপুট দিয়েছে তা চেক করা
     const typedEmail = formData.email.trim().toLowerCase();
 
     if (typedEmail) {
@@ -242,19 +264,16 @@ export default function LoginPage() {
       return;
     }
 
-    // ২. ফর্মে ইমেইল না থাকলেও গুগলের অফিশিয়াল প্রম্পট দিয়ে অটো-ডিটেক্ট করা (Zero Typing / Zero Input Forms)
     if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
       try {
         (window as any).google.accounts.id.prompt();
       } catch (e) {}
     }
 
-    // ৩. রিয়েল গুগল সেশন রেসপন্সের জন্য পপ-আপ ওপেন করা (কোনো ম্যানুয়াল ফর্ম নেই)
     setGoogleStep(1);
     setIsGooglePopupOpen(true);
   };
 
-  // গুগল পপ-আপ থেকে সাইন-ইন সম্পূর্ণ করা (কাস্টমারের আসল প্রোফাইল ছবি ও ডাটা সেভ হবে)
   const handleCompleteGoogleLogin = () => {
     const finalEmail = googleUser.email;
     const finalName = googleUser.name || finalEmail.split('@')[0];
@@ -282,13 +301,14 @@ export default function LoginPage() {
     if (typeof setUser === 'function') setUser(loggedUser as any);
     localStorage.setItem('currentUser', JSON.stringify(loggedUser));
     localStorage.setItem('user', JSON.stringify(loggedUser));
+    localStorage.setItem('mo_fashion_customer_user', JSON.stringify(loggedUser));
 
     setIsGooglePopupOpen(false);
     toast.success(`Signed in successfully as ${loggedUser.name}!`);
     navigate('/profile');
   };
 
-  // 🚀 ৩. যেকোনো কাস্টমার ইমেইলে OTP পাঠানোর সার্ভিস
+  // 🚀 ৩. কাস্টমার ইমেইলে OTP দিয়ে পাসওয়ার্ড রিসেট
   const handleSendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
@@ -327,7 +347,6 @@ export default function LoginPage() {
     }
   };
 
-  // OTP ভেরিফাই করা
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputOtp.trim()) {
@@ -359,7 +378,6 @@ export default function LoginPage() {
     }
   };
 
-  // নতুন কাস্টমার পাসওয়ার্ড সেভ করা
   const handleSaveNewPassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword.length < 6) {
@@ -393,7 +411,6 @@ export default function LoginPage() {
     setConfirmPassword('');
   };
 
-  // সোশ্যাল সাইন-ইন মোডাল হ্যান্ডলারস (Facebook / Apple)
   const handleSocialClick = (providerType: 'Facebook' | 'Apple') => {
     setSocialEmail('');
     setSocialPassword('');
@@ -432,31 +449,44 @@ export default function LoginPage() {
     if (typeof setUser === 'function') setUser(loggedUser as any);
     localStorage.setItem('currentUser', JSON.stringify(loggedUser));
     localStorage.setItem('user', JSON.stringify(loggedUser));
+    localStorage.setItem('mo_fashion_customer_user', JSON.stringify(loggedUser));
 
     setSocialModal(null);
     toast.success(`Welcome back, ${loggedUser.name}!`);
     navigate('/profile');
   };
 
-  const storeHost = 'MO FASHION';
+  const storeLogoImage = settings?.logoUrl || settings?.logo || settings?.storeLogo || '';
+  const storeBrandTitle = settings?.storeName || 'MO FASHION';
 
   return (
     <main className="min-h-[85vh] flex items-center justify-center py-12 px-4 bg-[#111111] text-white relative overflow-hidden select-none">
       <Helmet>
-        <title>Login | MO FASHION</title>
+        <title>Login | {storeBrandTitle}</title>
       </Helmet>
 
-      {/* লাক্সারি ডাইনামিক ব্যাকগ্রাউন্ড গ্লো অ্যানিমেশন */}
+      {/* লাক্সারি ব্যাকগ্রাউন্ড গ্লো */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#D4AF37]/10 rounded-full blur-[140px] animate-pulse"></div>
       </div>
 
       {/* গ্লাসফর্মিজম লাক্সারি লগইন কার্ড */}
       <div className="w-full max-w-md bg-[#1A1A1A]/95 backdrop-blur-xl border border-[#D4AF37]/30 rounded-3xl p-8 shadow-[0_0_50px_rgba(0,0,0,0.8)] relative z-10 animate-in fade-in zoom-in-95 duration-500">
+        
+        {/* Header & Website Store Logo */}
         <div className="text-center mb-8">
-          <div className="w-14 h-14 bg-[#D4AF37]/10 border border-[#D4AF37] rounded-2xl flex items-center justify-center mx-auto mb-4 text-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.2)] animate-pulse">
-            <Sparkles size={28} />
+          
+          {/* 🚀 DYNAMIC STORE LOGO (NO SPARKLES ICON) */}
+          <div className="w-16 h-16 bg-[#111111] border border-[#D4AF37] rounded-2xl flex items-center justify-center mx-auto mb-4 text-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.3)] overflow-hidden">
+            {storeLogoImage ? (
+              <img src={storeLogoImage} alt={storeBrandTitle} className="w-full h-full object-cover" />
+            ) : (
+              <span className="font-serif font-bold text-[#D4AF37] text-xl tracking-widest">
+                {storeBrandTitle.slice(0, 2).toUpperCase()}
+              </span>
+            )}
           </div>
+
           <h1 className="text-3xl font-serif font-bold text-[#D4AF37] mb-2 tracking-wider uppercase">
             Welcome Back
           </h1>
@@ -544,10 +574,8 @@ export default function LoginPage() {
           <div className="h-px bg-gray-800 flex-1"></div>
         </div>
 
-        {/* 🚀 ৪টি ছবির ডিজাইনের সাথে মিলিয়ে গুগল, ফেসবুক ও অ্যাপল বাটনসমূহ */}
+        {/* গুগল, ফেসবুক ও অ্যাপল বাটনসমূহ */}
         <div className="space-y-3 mb-6">
-          
-          {/* Sign in with Google (ক্রোম অরিজিনাল কাস্টমার একাউন্ট অটো-ডিটেক্ট করবে) */}
           <button
             type="button"
             onClick={handleOpenGoogleAuth}
@@ -562,7 +590,6 @@ export default function LoginPage() {
             <span className="group-hover:text-[#D4AF37] transition-colors">Sign in with Google</span>
           </button>
 
-          {/* Sign in with Facebook */}
           <button
             type="button"
             onClick={() => handleSocialClick('Facebook')}
@@ -574,7 +601,6 @@ export default function LoginPage() {
             <span className="group-hover:text-[#D4AF37] transition-colors">Sign in with Facebook</span>
           </button>
 
-          {/* Sign in with Apple */}
           <button
             type="button"
             onClick={() => handleSocialClick('Apple')}
@@ -585,7 +611,6 @@ export default function LoginPage() {
             </svg>
             <span className="group-hover:text-[#D4AF37] transition-colors">Sign in with Apple</span>
           </button>
-
         </div>
 
         {/* Sign Up Link */}
@@ -597,14 +622,11 @@ export default function LoginPage() {
         </p>
       </div>
 
-      {/* 🎬 🚀 ৪টি ছবির অরিজিনাল গুগল সাইন-ইন পপ-আপ মোডাল (জিরো টাইপিং ইনপুট ফর্ম / ১০০% অটো-ডিটেক্টেড) */}
+      {/* 🎬 গুগল সাইন-ইন পপ-আপ মোডাল */}
       {isGooglePopupOpen && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-          
-          {/* গুগল হোয়াইট কার্ড */}
           <div className="bg-white text-[#1f1f1f] rounded-3xl w-full max-w-md p-6 sm:p-8 shadow-2xl relative text-left font-sans animate-in zoom-in-95 duration-200 border border-gray-200">
             
-            {/* ১ ও ২ নম্বর ছবির গুগল লোগো ব্যাজ সেকশন */}
             <div className="text-center mb-6">
               <div className="inline-flex items-center justify-center p-3 rounded-full bg-[#f0f4f9] mb-3 shadow-inner relative">
                 <svg className="w-10 h-10" viewBox="0 0 24 24">
@@ -616,18 +638,15 @@ export default function LoginPage() {
               </div>
 
               <h2 className="text-lg sm:text-xl font-medium text-gray-900 leading-snug">
-                Sign in to <span className="font-bold text-gray-900">{storeHost}</span> with google.com
+                Sign in to <span className="font-bold text-gray-900">{storeBrandTitle}</span> with google.com
               </h2>
               {googleStep === 1 && (
                 <p className="text-xs text-gray-500 mt-1">Choose an account to continue</p>
               )}
             </div>
 
-            {/* 📸 🚀 ছবি ১: একাউন্ট সিলেক্ট করার ধাপ (Step 1 - 100% Zero Typing Input Form) */}
             {googleStep === 1 && (
               <div className="space-y-6">
-                
-                {/* কাস্টমারের রিয়েল ডিটেক্টেড একাউন্ট ও অরিজিনাল প্রোফাইল পিকচার */}
                 <div 
                   onClick={() => setGoogleStep(2)}
                   className="flex items-center justify-between p-3.5 rounded-2xl border border-pink-200 bg-pink-50/20 hover:bg-pink-50/60 cursor-pointer transition-all shadow-sm"
@@ -646,7 +665,6 @@ export default function LoginPage() {
                   <ChevronRight size={18} className="text-gray-600" />
                 </div>
 
-                {/* ১ নম্বর ছবির নিচের বাটনসমূহ */}
                 <div className="flex items-center justify-between pt-2">
                   <button 
                     type="button"
@@ -668,15 +686,11 @@ export default function LoginPage() {
                     Cancel
                   </button>
                 </div>
-
               </div>
             )}
 
-            {/* 📸 🚀 ছবি ২: একাউন্ট ডাটা শেয়ার করার সম্মতি ধাপ (Step 2) */}
             {googleStep === 2 && (
               <div className="space-y-6">
-                
-                {/* সিলেক্ট করা কাস্টমার একাউন্ট ও অরিজিনাল প্রোফাইল পিকচার ডিসপ্লে */}
                 <div className="flex items-center space-x-3.5 p-2 border-b border-gray-100 pb-4">
                   <img 
                     src={googleUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(googleUser.name || 'User')}&background=5c3e34&color=fff&size=128&bold=true`} 
@@ -693,12 +707,10 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                {/* ২ নম্বর ছবির হুবহু টেক্সট */}
                 <p className="text-xs text-gray-600 text-left leading-relaxed">
                   To continue, google.com will share your name, email address and profile picture with this site.
                 </p>
 
-                {/* ২ নম্বর ছবির নিচের ৩টি বাটন (Back, Cancel, Continue) */}
                 <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                   <button 
                     type="button"
@@ -726,17 +738,14 @@ export default function LoginPage() {
                     </button>
                   </div>
                 </div>
-
               </div>
             )}
 
-            {/* 📸 🚀 ছবি ৩ ও ৪: অরিজিনাল গুগল পারমিশন ও সাইন-ইন কনফার্মেশন ধাপ (Step 3) */}
             {googleStep === 3 && (
               <div className="space-y-5 text-left max-h-[75vh] overflow-y-auto pr-1">
-                
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 leading-snug">
-                    Sign in to {storeHost}
+                    Sign in to {storeBrandTitle}
                   </h3>
                   
                   <div className="flex items-center space-x-2.5 mt-3 p-2 bg-gray-50 rounded-xl">
@@ -751,10 +760,9 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                {/* ৩ ও ৪ নম্বর ছবির ইনফরমেশন সেকশন */}
                 <div className="space-y-4 pt-2">
                   <p className="text-xs font-medium text-gray-800 leading-normal">
-                    Google will allow {storeHost} to access this info about you:
+                    Google will allow {storeBrandTitle} to access this info about you:
                   </p>
 
                   <div className="space-y-3 pl-1">
@@ -780,20 +788,15 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                {/* ৪ নম্বর ছবির অরিজিনাল পলিসি ও ডিসক্লেমার টেক্সট */}
                 <div className="pt-3 border-t border-gray-200 text-[11px] text-gray-600 space-y-2 leading-relaxed">
                   <p>
-                    Review {storeHost}'s Privacy Policy and Terms of Service to understand how {storeHost} will process and protect your data.
+                    Review {storeBrandTitle}'s Privacy Policy and Terms of Service to understand how {storeBrandTitle} will process and protect your data.
                   </p>
                   <p>
                     To make changes at any time, go to your <a href="https://myaccount.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 font-medium hover:underline">Google Account</a>.
                   </p>
-                  <p>
-                    Learn more about <a href="https://support.google.com/accounts/answer/112802" target="_blank" rel="noopener noreferrer" className="text-blue-600 font-medium hover:underline">Sign in with Google</a>.
-                  </p>
                 </div>
 
-                {/* ৪ নম্বর ছবির একদম নিচের Cancel ও Continue বাটন */}
                 <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
                   <button 
                     type="button"
@@ -811,7 +814,6 @@ export default function LoginPage() {
                     Continue
                   </button>
                 </div>
-
               </div>
             )}
 
@@ -819,7 +821,7 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* 🚀 যেকোনো কাস্টমার ইমেইলে OTP পাসওয়ার্ড রিসেট মোডাল */}
+      {/* 🚀 ইমেইল OTP পাসওয়ার্ড রিসেট মোডাল */}
       {showForgotModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
           <div className="bg-[#1A1A1A] text-white rounded-3xl w-full max-w-md p-6 sm:p-8 border border-[#D4AF37]/40 shadow-2xl relative text-left">
@@ -840,7 +842,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Step 1: Input Customer Email */}
             {forgotStep === 'email_input' && (
               <form onSubmit={handleSendOtp} className="space-y-5">
                 <p className="text-xs text-gray-300 leading-relaxed">
@@ -874,7 +875,6 @@ export default function LoginPage() {
               </form>
             )}
 
-            {/* Step 2: Enter OTP Code */}
             {forgotStep === 'otp' && (
               <form onSubmit={handleVerifyOtp} className="space-y-5">
                 <div className="flex items-center space-x-2 text-xs text-yellow-500 bg-yellow-500/10 p-3 rounded-lg border border-yellow-500/20">
@@ -909,7 +909,6 @@ export default function LoginPage() {
               </form>
             )}
 
-            {/* Step 3: Set New Password */}
             {forgotStep === 'new_password' && (
               <form onSubmit={handleSaveNewPassword} className="space-y-4">
                 <p className="text-xs text-gray-300">
@@ -1019,7 +1018,7 @@ export default function LoginPage() {
                     required
                     placeholder="Enter password"
                     value={socialPassword}
-                    onChange={(e) => setSocialPassword(e.target.value)}
+                    onChange={(e) => setShowSocialPassword(!showSocialPassword)}
                     className="w-full bg-[#111111] border border-gray-700 rounded-lg pl-10 pr-10 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
                   />
                   <button
