@@ -23,7 +23,7 @@ function ProductCardImageSlider({ images, name }: { images: string[]; name: stri
     if (!Array.isArray(images) || images.length <= 1) return;
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % images.length);
-    }, 3200); // 3.2 Seconds Smooth Transition
+    }, 3200);
     return () => clearInterval(interval);
   }, [images]);
 
@@ -217,10 +217,9 @@ export default function Home() {
     return { rating: avg, count: prodReviews.length };
   };
 
-  // Filter 100% REAL Products by active category AND search query
+  // Filter 100% REAL Products
   const filteredProducts = products.filter(p => {
     const matchesCat = activeCategory === 'All' || String(p.category || '').toLowerCase() === activeCategory.toLowerCase();
-    
     const searchQ = sectionSearchQuery.trim().toLowerCase();
     const matchesSearch = !searchQ || 
       String(p.name || '').toLowerCase().includes(searchQ) || 
@@ -261,7 +260,6 @@ export default function Home() {
         >
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             
-            {/* Left Column: 3D Typography */}
             <div className="space-y-6 text-center lg:text-left [transform:translateZ(30px)]">
               
               <div className="inline-flex items-center space-x-2 bg-[#1A1A1A]/90 border border-[#D4AF37]/40 px-4 py-2 rounded-full backdrop-blur-md shadow-[0_0_20px_rgba(212,175,55,0.25)]">
@@ -299,7 +297,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Right Column: Pure CSS 3D Floating Card */}
             <div className="relative flex justify-center items-center [transform-style:preserve-3d]">
               <div className="relative w-72 h-72 sm:w-96 sm:h-96 rounded-3xl bg-gradient-to-tr from-[#1A1A1A] via-[#111111] to-[#1A1A1A] border border-[#D4AF37]/40 shadow-[0_25px_60px_rgba(0,0,0,0.9),0_0_40px_rgba(212,175,55,0.2)] p-6 flex flex-col justify-between overflow-hidden group [transform:translateZ(40px)]">
                 
@@ -384,7 +381,7 @@ export default function Home() {
       <section className="py-16 px-4 bg-[#111111] relative">
         <div className="container mx-auto max-w-7xl space-y-8">
           
-          {/* 🚀 NEW: PRODUCT & CATEGORY SEARCH BAR DIRECTLY ABOVE NEW ARRIVALS */}
+          {/* 🚀 PRODUCT & CATEGORY SEARCH BAR DIRECTLY ABOVE NEW ARRIVALS */}
           <div className="bg-[#1A1A1A]/90 border border-[#D4AF37]/30 rounded-2xl p-4 shadow-xl backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="relative w-full sm:w-96">
               <input
@@ -469,7 +466,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* 🚀 SMOOTH HORIZONTAL 3D PRODUCT SLIDER / CAROUSEL WITH AUTO SLIDESHOW & EXACT STOCK COUNT */}
+          {/* 🚀 SMOOTH HORIZONTAL 3D PRODUCT SLIDER / CAROUSEL WITH LINKED SOLD & REMAINING STOCK */}
           {filteredProducts.length === 0 ? (
             <div className="text-center py-20 bg-[#1A1A1A]/60 rounded-3xl border border-gray-800 p-8 max-w-xl mx-auto">
               <ShoppingBag size={48} className="mx-auto text-gray-600 mb-4 opacity-50" />
@@ -495,6 +492,7 @@ export default function Home() {
                 const finalPrice = discountPercent > 0 ? origPrice - (origPrice * discountPercent) / 100 : origPrice;
 
                 const stockCount = Number(product.stock) || 0;
+                const soldCount = Number(product.sold) || 0;
                 const isOutOfStock = stockCount <= 0 || product.status === 'Out of Stock';
                 const isLowStock = stockCount > 0 && stockCount <= 3;
 
@@ -523,7 +521,7 @@ export default function Home() {
                           </span>
                         ) : <span />}
 
-                        {/* 🚀 ULTRA-PROMINENT 3D STOCK BADGE (WITH EXACT REMAINING STOCK COUNT) */}
+                        {/* 🚀 ULTRA-PROMINENT 3D STOCK BADGE */}
                         <span className={`font-bold text-[9px] sm:text-[10px] px-2.5 py-1 rounded-full uppercase border backdrop-blur-md shadow-md ${
                           isOutOfStock 
                             ? 'bg-red-500/30 text-red-300 border-red-500 shadow-red-500/30' 
@@ -531,7 +529,7 @@ export default function Home() {
                             ? 'bg-amber-500/30 text-amber-200 border-amber-500 shadow-amber-500/30 animate-pulse'
                             : 'bg-emerald-500/30 text-emerald-200 border-emerald-500 shadow-emerald-500/30'
                         }`}>
-                          {isOutOfStock ? 'OUT OF STOCK' : isLowStock ? `ONLY ${stockCount} LEFT!` : `${stockCount} IN STOCK`}
+                          {isOutOfStock ? 'OUT OF STOCK' : isLowStock ? 'LOW STOCK' : 'IN STOCK'}
                         </span>
                       </div>
 
@@ -577,25 +575,32 @@ export default function Home() {
                         {pName}
                       </h3>
 
-                      {/* Pricing & 3D Sold Badge */}
-                      <div className="flex items-center justify-between pt-1">
-                        <div className="flex items-baseline space-x-1.5">
-                          <span className="font-bold text-sm sm:text-base text-[#D4AF37]">
-                            {settings?.currency || '৳'} {finalPrice.toFixed(2)}
-                          </span>
-                          {discountPercent > 0 && (
-                            <span className="text-[10px] sm:text-xs text-gray-500 line-through">
-                              {settings?.currency || '৳'} {origPrice.toFixed(2)}
+                      {/* Pricing & LINKED SOLD & REMAINING STOCK 3D BADGES */}
+                      <div className="flex flex-col space-y-1.5 pt-1">
+                        <div className="flex items-baseline justify-between">
+                          <div className="flex items-baseline space-x-1.5">
+                            <span className="font-bold text-sm sm:text-base text-[#D4AF37]">
+                              {settings?.currency || '৳'} {finalPrice.toFixed(2)}
                             </span>
-                          )}
-                        </div>
+                            {discountPercent > 0 && (
+                              <span className="text-[10px] sm:text-xs text-gray-500 line-through">
+                                {settings?.currency || '৳'} {origPrice.toFixed(2)}
+                              </span>
+                            )}
+                          </div>
 
-                        {/* 🚀 ULTRA-PROMINENT 3D METALLIC GOLD "SOLD" BADGE */}
-                        {Number(product.sold) > 0 && (
-                          <span className="bg-gradient-to-r from-[#D4AF37] to-[#aa8c2c] text-black border border-[#D4AF37] px-2.5 py-0.5 rounded-lg text-[9px] sm:text-[10px] font-bold shadow-md shadow-[#D4AF37]/20 uppercase">
-                            {product.sold} Sold
-                          </span>
-                        )}
+                          {/* 🚀 LINKED SOLD & REMAINING METALLIC 3D BADGE */}
+                          <div className="flex items-center space-x-1">
+                            {soldCount > 0 && (
+                              <span className="bg-gradient-to-r from-[#D4AF37] to-[#aa8c2c] text-black border border-[#D4AF37] px-2 py-0.5 rounded-lg text-[9px] font-bold shadow-md shadow-[#D4AF37]/20 uppercase">
+                                {soldCount} Sold
+                              </span>
+                            )}
+                            <span className="bg-[#111111] text-[#D4AF37] border border-gray-800 px-2 py-0.5 rounded-lg text-[9px] font-bold">
+                              {isOutOfStock ? '0 Left' : `${stockCount} Left`}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>

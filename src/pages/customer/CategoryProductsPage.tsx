@@ -243,7 +243,7 @@ export default function CategoryProductsPage() {
           {/* Controls: Search Bar & Sort Dropdown */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
             
-            {/* 🚀 IN-CATEGORY SEARCH INPUT */}
+            {/* IN-CATEGORY SEARCH INPUT */}
             <div className="relative w-full sm:w-64">
               <input
                 type="text"
@@ -296,6 +296,7 @@ export default function CategoryProductsPage() {
               const finalPrice = discountPercent > 0 ? origPrice - (origPrice * discountPercent) / 100 : origPrice;
 
               const stockCount = Number(product.stock) || 0;
+              const soldCount = Number(product.sold) || 0;
               const isOutOfStock = stockCount <= 0 || product.status === 'Out of Stock';
               const isLowStock = stockCount > 0 && stockCount <= 3;
 
@@ -324,7 +325,7 @@ export default function CategoryProductsPage() {
                         </span>
                       ) : <span />}
 
-                      {/* 🚀 ULTRA-PROMINENT 3D STOCK BADGE (WITH EXACT REMAINING STOCK COUNT) */}
+                      {/* 🚀 ULTRA-PROMINENT 3D STOCK BADGE */}
                       <span className={`font-bold text-[9px] sm:text-[10px] px-2.5 py-1 rounded-full uppercase border backdrop-blur-md shadow-md ${
                         isOutOfStock 
                           ? 'bg-red-500/30 text-red-300 border-red-500 shadow-red-500/30' 
@@ -332,7 +333,7 @@ export default function CategoryProductsPage() {
                           ? 'bg-amber-500/30 text-amber-200 border-amber-500 shadow-amber-500/30 animate-pulse'
                           : 'bg-emerald-500/30 text-emerald-200 border-emerald-500 shadow-emerald-500/30'
                       }`}>
-                        {isOutOfStock ? 'OUT OF STOCK' : isLowStock ? `ONLY ${stockCount} LEFT!` : `${stockCount} IN STOCK`}
+                        {isOutOfStock ? 'OUT OF STOCK' : isLowStock ? 'LOW STOCK' : 'IN STOCK'}
                       </span>
                     </div>
 
@@ -377,25 +378,32 @@ export default function CategoryProductsPage() {
                       {pName}
                     </h3>
 
-                    {/* Pricing & 3D Sold Badge */}
-                    <div className="flex items-center justify-between pt-1">
-                      <div className="flex items-baseline space-x-1.5">
-                        <span className="font-bold text-sm sm:text-base text-[#D4AF37]">
-                          {settings?.currency || '৳'} {finalPrice.toFixed(2)}
-                        </span>
-                        {discountPercent > 0 && (
-                          <span className="text-[10px] sm:text-xs text-gray-500 line-through">
-                            {settings?.currency || '৳'} {origPrice.toFixed(2)}
+                    {/* Pricing & LINKED SOLD & REMAINING STOCK 3D BADGES */}
+                    <div className="flex flex-col space-y-1.5 pt-1">
+                      <div className="flex items-baseline justify-between">
+                        <div className="flex items-baseline space-x-1.5">
+                          <span className="font-bold text-sm sm:text-base text-[#D4AF37]">
+                            {settings?.currency || '৳'} {finalPrice.toFixed(2)}
                           </span>
-                        )}
-                      </div>
+                          {discountPercent > 0 && (
+                            <span className="text-[10px] sm:text-xs text-gray-500 line-through">
+                              {settings?.currency || '৳'} {origPrice.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
 
-                      {/* 🚀 ULTRA-PROMINENT 3D METALLIC GOLD "SOLD" BADGE */}
-                      {Number(product.sold) > 0 && (
-                        <span className="bg-gradient-to-r from-[#D4AF37] to-[#aa8c2c] text-black border border-[#D4AF37] px-2.5 py-0.5 rounded-lg text-[9px] sm:text-[10px] font-bold shadow-md shadow-[#D4AF37]/20 uppercase">
-                          {product.sold} Sold
-                        </span>
-                      )}
+                        {/* 🚀 LINKED SOLD & REMAINING METALLIC 3D BADGE */}
+                        <div className="flex items-center space-x-1">
+                          {soldCount > 0 && (
+                            <span className="bg-gradient-to-r from-[#D4AF37] to-[#aa8c2c] text-black border border-[#D4AF37] px-2 py-0.5 rounded-lg text-[9px] font-bold shadow-md shadow-[#D4AF37]/20 uppercase">
+                              {soldCount} Sold
+                            </span>
+                          )}
+                          <span className="bg-[#111111] text-[#D4AF37] border border-gray-800 px-2 py-0.5 rounded-lg text-[9px] font-bold">
+                            {isOutOfStock ? '0 Left' : `${stockCount} Left`}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

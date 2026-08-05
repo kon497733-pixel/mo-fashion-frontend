@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Grid, ArrowRight, ShoppingBag, Folder, Search, Filter 
+  Grid, ArrowRight, ShoppingBag, Folder, Search 
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 

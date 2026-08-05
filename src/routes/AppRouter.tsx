@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
 import AdminLayout from '../layouts/AdminLayout';
 
@@ -25,7 +25,7 @@ import Coupons from '../pages/admin/Coupons';
 import Settings from '../pages/admin/Settings';
 import CategoryManagement from '../pages/admin/CategoryManagement';
 import RecycleBin from '../pages/admin/RecycleBin';
-import Security from '../pages/admin/Security'; // 🚀 নতুন সিকিউরিটি পেজ ইমপোর্ট করা হলো
+import Security from '../pages/admin/Security';
 
 export default function AppRouter() {
   return (
@@ -34,7 +34,12 @@ export default function AppRouter() {
       <Route path="/" element={<MainLayout />}>
         <Route index element={<Home />} />
         <Route path="categories" element={<CategoriesPage />} />
+        
+        {/* 🚀 UNIVERSAL CATEGORY & PRODUCTS ROUTING (NO MORE BLACK SCREEN) */}
+        <Route path="products" element={<CategoryProductsPage />} />
+        <Route path="category/:categoryName" element={<CategoryProductsPage />} />
         <Route path="category/:id" element={<CategoryProductsPage />} />
+        
         <Route path="about" element={<AboutPage />} />
         <Route path="cart" element={<CartPage />} />
         <Route path="checkout" element={<CheckoutPage />} />
@@ -48,6 +53,9 @@ export default function AppRouter() {
         <Route path="shipping" element={<PolicyPage />} />
         <Route path="privacy" element={<PolicyPage />} />
         <Route path="terms" element={<PolicyPage />} />
+
+        {/* 🚀 Catch-all Wildcard (কোনো ভুল লিংক হলেও ব্ল্যাক স্ক্রিন না এসে হোমপেজে রিডাইরেক্ট হবে) */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
 
       {/* Admin Routes (অ্যাডমিন প্যানেল) */}
@@ -57,7 +65,7 @@ export default function AppRouter() {
         <Route path="orders" element={<Orders />} />
         <Route path="customers" element={<Customers />} />
         <Route path="coupons" element={<Coupons />} />
-        <Route path="security" element={<Security />} /> {/* 🚀 নতুন সিকিউরিটি রাউট */}
+        <Route path="security" element={<Security />} />
         <Route path="settings" element={<Settings />} />
         <Route path="category-management" element={<CategoryManagement />} />
         <Route path="recycle-bin" element={<RecycleBin />} />
