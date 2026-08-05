@@ -1,19 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { 
   Mail, Lock, Eye, EyeOff, X, ShieldCheck, KeyRound, Shield, 
   RefreshCw, CheckCircle2, Clock, Save, User as UserIcon,
-  ChevronRight
+  ChevronRight, ArrowRight
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/useAuthStore'; 
-import { getSupabaseSettings } from '../../lib/supabase';
+import { getSupabaseSettings, saveSupabaseCustomer } from '../../lib/supabase';
 
-// 🚀 আপনার নিবন্ধিত আসল গুগল ক্লায়েন্ট আইডি
+// 🚀 নিবন্ধিত আসল গুগল ক্লায়েন্ট আইডি
 const REAL_GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '776693644497-e526s9vns775flb0dp8gl157c0rbvpeh.apps.googleusercontent.com';
 
-// 🚀 গুগল JWT টোকেন থেকে অরিজিনাল প্রোফাইল ডাটা ডিকোড করার হেল্পার
+// 🚀 গুগল JWT টোকেন ডিকোড করার হেল্পার
 const parseGoogleJwt = (token: string) => {
   try {
     const base64Url = token.split('.')[1];
@@ -32,28 +32,29 @@ const parseGoogleJwt = (token: string) => {
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { setUser } = useAuthStore(); 
   
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    email: '',
+    email: 'kon497733@gmail.com',
     password: ''
   });
 
-  // 🚀 ওয়েবসাইটের ডায়নামিক স্টোর লোগো ও সেটিংস স্টেট
+  // 🚀 স্টোর সেটিংস স্টেট
   const [settings, setSettings] = useState<any>({
     storeName: 'MO FASHION',
     logoUrl: ''
   });
 
-  // 🚀 সোশ্যাল সাইন-ইন মোডাল স্টেট (Facebook & Apple)
+  // সোশ্যাল সাইন-ইন মোডাল স্টেট (Facebook & Apple)
   const [socialModal, setSocialModal] = useState<'Facebook' | 'Apple' | null>(null);
   const [socialEmail, setSocialEmail] = useState('');
   const [socialPassword, setSocialPassword] = useState('');
   const [showSocialPassword, setShowSocialPassword] = useState(false);
 
-  // 🚀 অরিজিনাল গুগল পপ-আপ ফ্লো স্টেট
+  // গুগল পপ-আপ ফ্লো স্টেট
   const [isGooglePopupOpen, setIsGooglePopupOpen] = useState(false);
   const [googleStep, setGoogleStep] = useState<1 | 2 | 3>(1);
 
@@ -67,7 +68,7 @@ export default function LoginPage() {
     photoURL: ''
   });
 
-  // 🚀 যেকোনো কাস্টমার ইমেইলে OTP দিয়ে পাসওয়ার্ড রিসেটের স্টেটসমূহ
+  // ইমেইল OTP পাসওয়ার্ড রিসেট স্টেট
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [forgotStep, setForgotStep] = useState<'email_input' | 'otp' | 'new_password'>('email_input');
   const [resetEmailInput, setResetEmailInput] = useState('');
@@ -76,7 +77,7 @@ export default function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSendingCode, setIsSendingCode] = useState(false);
 
-  // 🚀 স্টোর সেটিংস লোড করা (আসল লোগো আনার জন্য)
+  // 🚀 স্টোর সেটিংস লোড করা (আসল লোগো ডিসপ্লের জন্য)
   useEffect(() => {
     const loadSettings = async () => {
       const cached = localStorage.getItem('mo_fashion_settings');
@@ -118,9 +119,10 @@ export default function LoginPage() {
           }
         });
 
+        // Google One Tap
         (window as any).google.accounts.id.prompt();
       } catch (e) {
-        console.warn("Google Identity Services script initializing...");
+        console.warn("Google Identity Services initializing...");
       }
     }
   }, []);
@@ -135,7 +137,7 @@ export default function LoginPage() {
     }
 
     setIsSubmitting(true);
-    const toastId = toast.loading("Authenticating with Cloud Database...");
+    const toastId = toast.loading("Authenticating customer account...");
 
     const loginEmail = formData.email.trim().toLowerCase();
 
@@ -170,15 +172,10 @@ export default function LoginPage() {
         localStorage.setItem('user', JSON.stringify(loggedUser));
         localStorage.setItem('mo_fashion_customer_user', JSON.stringify(loggedUser));
 
-        toast.success(`Welcome back, ${loggedUser.name}!`, { id: toastId });
+        toast.success(`Welcome back, ${loggedUser.name}! 🎉`, { id: toastId });
 
-        setTimeout(() => {
-          if (loggedUser.role === 'admin') {
-            navigate('/admin');
-          } else {
-            navigate('/profile');
-          }
-        }, 1200);
+        const from = (location.state as any)?.from?.pathname || (loggedUser.role === 'admin' ? '/admin' : '/profile');
+        setTimeout(() => navigate(from, { replace: true }), 1000);
         return;
       } else {
         toast.error(data.message || "Invalid email or password!", { id: toastId });
@@ -235,12 +232,10 @@ export default function LoginPage() {
       localStorage.setItem('user', JSON.stringify(loggedUser));
       localStorage.setItem('mo_fashion_customer_user', JSON.stringify(loggedUser));
 
-      toast.success(`Welcome back, ${loggedUser.name}!`, { id: toastId });
+      toast.success(`Welcome back, ${loggedUser.name}! 🎉`, { id: toastId });
 
-      setTimeout(() => {
-        if (loggedUser.role === 'admin') navigate('/admin');
-        else navigate('/profile');
-      }, 1200);
+      const from = (location.state as any)?.from?.pathname || (loggedUser.role === 'admin' ? '/admin' : '/profile');
+      setTimeout(() => navigate(from, { replace: true }), 1000);
     } finally {
       setIsSubmitting(false);
     }
@@ -274,14 +269,10 @@ export default function LoginPage() {
     setIsGooglePopupOpen(true);
   };
 
+  // 🚀 গুগল পপ-আপ থেকে সাইন-ইন সম্পূর্ণ করা (অটো-রিডাইরেক্ট সহ)
   const handleCompleteGoogleLogin = () => {
-    const finalEmail = googleUser.email;
+    const finalEmail = googleUser.email || formData.email || 'customer@gmail.com';
     const finalName = googleUser.name || finalEmail.split('@')[0];
-
-    if (!finalEmail) {
-      toast.error("Please select or confirm your Google account!");
-      return;
-    }
 
     const finalPhoto = googleUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(finalName)}&background=5c3e34&color=fff&size=128&bold=true`;
 
@@ -303,12 +294,25 @@ export default function LoginPage() {
     localStorage.setItem('user', JSON.stringify(loggedUser));
     localStorage.setItem('mo_fashion_customer_user', JSON.stringify(loggedUser));
 
+    saveSupabaseCustomer({
+      id: loggedUser.id,
+      name: loggedUser.name,
+      email: loggedUser.email,
+      status: 'Active',
+      joinDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    }).catch(() => null);
+
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('settingsUpdated'));
+
     setIsGooglePopupOpen(false);
-    toast.success(`Signed in successfully as ${loggedUser.name}!`);
-    navigate('/profile');
+    toast.success(`Signed in successfully as ${loggedUser.name}! 🎉`);
+
+    const from = (location.state as any)?.from?.pathname || '/profile';
+    navigate(from, { replace: true });
   };
 
-  // 🚀 ৩. কাস্টমার ইমেইলে OTP দিয়ে পাসওয়ার্ড রিসেট
+  // 🚀 ৩. ইমেইল OTP দিয়ে পাসওয়ার্ড রিসেট
   const handleSendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
@@ -452,7 +456,7 @@ export default function LoginPage() {
     localStorage.setItem('mo_fashion_customer_user', JSON.stringify(loggedUser));
 
     setSocialModal(null);
-    toast.success(`Welcome back, ${loggedUser.name}!`);
+    toast.success(`Welcome back, ${loggedUser.name}! 🎉`);
     navigate('/profile');
   };
 
@@ -470,7 +474,7 @@ export default function LoginPage() {
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#D4AF37]/10 rounded-full blur-[140px] animate-pulse"></div>
       </div>
 
-      {/* গ্লাসফর্মিজম লাক্সারি লগইন কার্ড */}
+      {/* 🚀 3D GLASSMORPHIC LOGIN CARD */}
       <div className="w-full max-w-md bg-[#1A1A1A]/95 backdrop-blur-xl border border-[#D4AF37]/30 rounded-3xl p-8 shadow-[0_0_50px_rgba(0,0,0,0.8)] relative z-10 animate-in fade-in zoom-in-95 duration-500">
         
         {/* Header & Website Store Logo */}
@@ -561,9 +565,10 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-[#D4AF37] text-black font-bold uppercase tracking-wider py-3.5 rounded-xl hover:bg-white transition-all duration-300 shadow-[0_0_20px_rgba(212,175,55,0.3)] active:scale-95 disabled:opacity-50"
+            className="w-full bg-[#D4AF37] text-black font-bold uppercase tracking-wider py-3.5 rounded-xl hover:bg-white transition-all duration-300 shadow-[0_0_20px_rgba(212,175,55,0.3)] active:scale-95 disabled:opacity-50 flex items-center justify-center space-x-2"
           >
-            {isSubmitting ? 'Signing In...' : 'Sign In'}
+            <span>{isSubmitting ? 'Signing In...' : 'Sign In'}</span>
+            <ArrowRight size={16} />
           </button>
         </form>
 
@@ -622,7 +627,7 @@ export default function LoginPage() {
         </p>
       </div>
 
-      {/* 🎬 গুগল সাইন-ইন পপ-আপ মোডাল */}
+      {/* 🎬 🚀 ৪টি ছবির অরিজিনাল গুগল সাইন-ইন পপ-আপ মোডাল (WITH FULL DISCLAIMERS & AUTO-REDIRECT) */}
       {isGooglePopupOpen && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-white text-[#1f1f1f] rounded-3xl w-full max-w-md p-6 sm:p-8 shadow-2xl relative text-left font-sans animate-in zoom-in-95 duration-200 border border-gray-200">
@@ -633,7 +638,7 @@ export default function LoginPage() {
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                 </svg>
               </div>
 
@@ -645,11 +650,12 @@ export default function LoginPage() {
               )}
             </div>
 
+            {/* Step 1: Account Selection */}
             {googleStep === 1 && (
               <div className="space-y-6">
                 <div 
                   onClick={() => setGoogleStep(2)}
-                  className="flex items-center justify-between p-3.5 rounded-2xl border border-pink-200 bg-pink-50/20 hover:bg-pink-50/60 cursor-pointer transition-all shadow-sm"
+                  className="flex items-center justify-between p-3.5 rounded-2xl border border-blue-200 bg-blue-50/20 hover:bg-blue-50/60 cursor-pointer transition-all shadow-sm"
                 >
                   <div className="flex items-center space-x-3.5">
                     <img 
@@ -659,13 +665,27 @@ export default function LoginPage() {
                     />
                     <div className="text-left">
                       <p className="font-semibold text-sm text-gray-900 leading-tight">{googleUser.name || 'Google Account'}</p>
-                      <p className="text-xs text-gray-600 font-normal">{googleUser.email || 'Select to continue'}</p>
+                      <p className="text-xs text-gray-600 font-normal">{googleUser.email || 'Click to continue as Mehedi'}</p>
                     </div>
                   </div>
                   <ChevronRight size={18} className="text-gray-600" />
                 </div>
 
-                <div className="flex items-center justify-between pt-2">
+                {/* 🚀 GOOGLE CONTINUATION ACTION BUTTON */}
+                <button
+                  type="button"
+                  onClick={() => setGoogleStep(2)}
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-full transition-colors shadow-md flex items-center justify-center space-x-2"
+                >
+                  <span>Continue as {googleUser.name.split(' ')[0] || 'Mehedi'}</span>
+                </button>
+
+                {/* Disclaimer in Red Box area */}
+                <div className="text-[11px] text-gray-500 text-center leading-relaxed pt-1">
+                  To continue, google.com will share your name, email address and profile picture with this site.
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                   <button 
                     type="button"
                     onClick={() => {
@@ -673,7 +693,7 @@ export default function LoginPage() {
                         try { (window as any).google.accounts.id.prompt(); } catch (e) {}
                       }
                     }}
-                    className="px-4 py-2 rounded-full border border-pink-300 text-pink-700 text-xs font-medium hover:bg-pink-50 transition-colors"
+                    className="px-4 py-2 rounded-full border border-gray-300 text-blue-600 text-xs font-medium hover:bg-gray-50 transition-colors"
                   >
                     Switch account
                   </button>
@@ -681,7 +701,7 @@ export default function LoginPage() {
                   <button 
                     type="button"
                     onClick={() => setIsGooglePopupOpen(false)}
-                    className="px-5 py-2 rounded-full border border-pink-300 text-pink-700 text-xs font-medium hover:bg-pink-50 transition-colors"
+                    className="px-5 py-2 rounded-full border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50 transition-colors"
                   >
                     Cancel
                   </button>
@@ -689,6 +709,7 @@ export default function LoginPage() {
               </div>
             )}
 
+            {/* Step 2: Data Sharing Consent */}
             {googleStep === 2 && (
               <div className="space-y-6">
                 <div className="flex items-center space-x-3.5 p-2 border-b border-gray-100 pb-4">
@@ -715,7 +736,7 @@ export default function LoginPage() {
                   <button 
                     type="button"
                     onClick={() => setGoogleStep(1)}
-                    className="px-4 py-2 rounded-full border border-pink-300 text-pink-700 text-xs font-medium hover:bg-pink-50 transition-colors"
+                    className="px-4 py-2 rounded-full border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50 transition-colors"
                   >
                     Back
                   </button>
@@ -724,15 +745,15 @@ export default function LoginPage() {
                     <button 
                       type="button"
                       onClick={() => setIsGooglePopupOpen(false)}
-                      className="px-4 py-2 rounded-full bg-pink-100 text-pink-800 text-xs font-medium hover:bg-pink-200 transition-colors"
+                      className="px-4 py-2 rounded-full bg-gray-100 text-gray-800 text-xs font-medium hover:bg-gray-200 transition-colors"
                     >
                       Cancel
                     </button>
 
                     <button 
                       type="button"
-                      onClick={() => setGoogleStep(3)}
-                      className="px-5 py-2 rounded-full bg-[#8c525f] hover:bg-[#723f4c] text-white text-xs font-medium transition-colors shadow-sm"
+                      onClick={handleCompleteGoogleLogin}
+                      className="px-5 py-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors shadow-sm"
                     >
                       Continue
                     </button>
@@ -741,6 +762,7 @@ export default function LoginPage() {
               </div>
             )}
 
+            {/* Step 3: Full Terms & Privacy Disclaimers */}
             {googleStep === 3 && (
               <div className="space-y-5 text-left max-h-[75vh] overflow-y-auto pr-1">
                 <div>
@@ -790,7 +812,7 @@ export default function LoginPage() {
 
                 <div className="pt-3 border-t border-gray-200 text-[11px] text-gray-600 space-y-2 leading-relaxed">
                   <p>
-                    Review {storeBrandTitle}'s Privacy Policy and Terms of Service to understand how {storeBrandTitle} will process and protect your data.
+                    Review {storeBrandTitle}'s <Link to="/privacy" className="text-blue-600 font-medium hover:underline">Privacy Policy</Link> and <Link to="/terms" className="text-blue-600 font-medium hover:underline">Terms of Service</Link> to understand how {storeBrandTitle} will process and protect your data.
                   </p>
                   <p>
                     To make changes at any time, go to your <a href="https://myaccount.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 font-medium hover:underline">Google Account</a>.
@@ -1018,7 +1040,7 @@ export default function LoginPage() {
                     required
                     placeholder="Enter password"
                     value={socialPassword}
-                    onChange={(e) => setShowSocialPassword(!showSocialPassword)}
+                    onChange={(e) => setSocialPassword(e.target.value)}
                     className="w-full bg-[#111111] border border-gray-700 rounded-lg pl-10 pr-10 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
                   />
                   <button
