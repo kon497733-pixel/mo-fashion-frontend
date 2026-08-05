@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   ShoppingBag, Search, Menu, X, Home, Grid, Info, User, 
-  ShieldCheck, ChevronDown, Package, Folder, ArrowRight
+  ShieldCheck, ChevronDown, Package, Folder, ArrowRight, LogIn
 } from 'lucide-react';
 import { useCartStore } from '../../store/useCartStore';
 import { 
@@ -25,6 +25,16 @@ export default function Navbar() {
   const [isCategoriesHovered, setIsCategoriesHovered] = useState(false);
   const [logoTilt, setLogoTilt] = useState({ x: 0, y: 0 });
 
+  // 🚀 কাস্টমার লগইন স্ট্যাটাস চেক (Customer Auth Check)
+  const [isCustomerLoggedIn, setIsCustomerLoggedIn] = useState<boolean>(() => {
+    try {
+      const user = localStorage.getItem('mo_fashion_customer_user') || localStorage.getItem('mo_fashion_user');
+      return !!user;
+    } catch (e) {
+      return false;
+    }
+  });
+
   const [categoriesList, setCategoriesList] = useState<any[]>([]);
   const [productsList, setProductsList] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>({
@@ -39,6 +49,12 @@ export default function Navbar() {
   // 🚀 অল-ডিভাইস রিয়েল-টাইম সেটিংস সিঙ্ক (Supabase Realtime Channel)
   useEffect(() => {
     const loadNavbarData = async () => {
+      // Check customer user auth
+      try {
+        const user = localStorage.getItem('mo_fashion_customer_user') || localStorage.getItem('mo_fashion_user');
+        setIsCustomerLoggedIn(!!user);
+      } catch (e) {}
+
       const cachedSet = localStorage.getItem('mo_fashion_settings');
       if (cachedSet) { try { setSettings(JSON.parse(cachedSet)); } catch (e) {} }
 
@@ -63,9 +79,9 @@ export default function Navbar() {
 
     loadNavbarData();
 
-    // 🚀 ALL-DEVICE REALTIME LISTENERS (SETTINGS, CATEGORIES, PRODUCTS)
+    // 🚀 ALL-DEVICE REALTIME LISTENERS
     const channel = supabase
-      .channel('public:navbar:live:sync:v100')
+      .channel('public:navbar:live:sync:v110')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'settings' },
@@ -161,12 +177,15 @@ export default function Navbar() {
     setSearchQueryOpen(false);
   };
 
+  // 🚀 কাস্টমারদের জন্য সাইন-ইন/প্রোফাইল নেভিগেশন লিংক
+  const customerProfilePath = isCustomerLoggedIn ? '/profile' : '/login';
+
   const bottomNavItems = [
     { name: 'Home', path: '/', icon: Home },
     { name: 'Categories', path: '/categories', icon: Grid },
     { name: 'Cart', path: '/cart', icon: ShoppingBag, badge: totalCartCount },
     { name: 'About', path: '/about', icon: Info },
-    { name: 'Profile', path: '/admin', icon: User },
+    { name: isCustomerLoggedIn ? 'Profile' : 'Sign In', path: customerProfilePath, icon: isCustomerLoggedIn ? User : LogIn },
   ];
 
   const storeLogoImage = settings?.logoUrl || settings?.logo || settings?.storeLogo || '';
@@ -228,7 +247,7 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* 🚀 DESKTOP NAV LINKS (WITH CATEGORIES HOVER DROPDOWN BOX) */}
+          {/* 🚀 DESKTOP NAV LINKS */}
           <nav className="hidden lg:flex items-center space-x-8">
             <Link
               to="/"
@@ -242,7 +261,7 @@ export default function Navbar() {
               }`} />
             </Link>
 
-            {/* 🚀 CATEGORIES WITH MOUSE HOVER DROPDOWN BOX */}
+            {/* CATEGORIES WITH MOUSE HOVER DROPDOWN BOX */}
             <div 
               className="relative py-2"
               onMouseEnter={() => setIsCategoriesHovered(true)}
@@ -297,7 +316,7 @@ export default function Navbar() {
             </Link>
           </nav>
 
-          {/* 🚀 SEARCH & ACTIONS (WITH 1st LETTER AUTOCOMPLETE DROPDOWN) */}
+          {/* 🚀 SEARCH & ACTIONS */}
           <div className="flex items-center space-x-3 sm:space-x-4">
             
             {/* SEARCH INPUT BAR WITH LIVE AUTOCOMPLETE DROPDOWN */}
@@ -319,7 +338,7 @@ export default function Navbar() {
                 <Search className="absolute left-3 top-2.5 text-gray-400" size={14} />
               </div>
 
-              {/* 🚀 LIVE INSTANT SEARCH AUTOCOMPLETE DROPDOWN BOX ([Product] & [Category] TAGS) */}
+              {/* LIVE SEARCH AUTOCOMPLETE DROPDOWN BOX */}
               {searchDropdownOpen && searchResults.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-[#1A1A1A]/95 border border-[#D4AF37]/40 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.95)] p-2 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-200 z-[100] max-h-80 overflow-y-auto custom-scrollbar">
                   <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 py-1 border-b border-gray-800 mb-1 flex justify-between items-center">
@@ -349,7 +368,6 @@ export default function Navbar() {
                           </span>
                         </div>
 
-                        {/* 🚀 CLEAR [Product] OR [Category] BADGE */}
                         <div className="shrink-0 pl-2">
                           {result.type === 'Product' ? (
                             <span className="bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 text-[9px] font-extrabold px-2 py-0.5 rounded-full">
@@ -382,13 +400,17 @@ export default function Navbar() {
               )}
             </Link>
 
-            {/* Admin Profile Button */}
+            {/* 🚀 CUSTOMER SIGN IN / SIGN UP / PROFILE BUTTON (FIXED: NO MORE ADMIN LINK) */}
             <Link
-              to="/admin"
-              className="hidden sm:flex p-2.5 bg-[#1A1A1A]/90 hover:bg-[#D4AF37]/20 text-gray-300 hover:text-[#D4AF37] border border-gray-800 hover:border-[#D4AF37]/40 rounded-xl transition-all duration-300 active:scale-95 shadow-md"
-              title="Admin Panel"
+              to={customerProfilePath}
+              className={`hidden sm:flex p-2.5 rounded-xl border transition-all duration-300 active:scale-95 shadow-md ${
+                isCustomerLoggedIn 
+                  ? 'bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/40 hover:bg-[#D4AF37] hover:text-black' 
+                  : 'bg-[#1A1A1A]/90 text-gray-300 hover:text-[#D4AF37] border-gray-800 hover:border-[#D4AF37]/40'
+              }`}
+              title={isCustomerLoggedIn ? "Customer Profile" : "Customer Sign In / Sign Up"}
             >
-              <User size={20} />
+              {isCustomerLoggedIn ? <User size={20} /> : <LogIn size={20} />}
             </Link>
           </div>
         </div>
@@ -410,7 +432,6 @@ export default function Navbar() {
                 />
                 <Search className="absolute left-3.5 top-3.5 text-gray-400" size={18} />
 
-                {/* Mobile Search Results */}
                 {searchQuery.trim() && searchResults.length > 0 && (
                   <div className="mt-2 bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-xl p-2 space-y-1">
                     {searchResults.map((res: any, i: number) => (
@@ -441,6 +462,10 @@ export default function Navbar() {
                 </Link>
                 <Link to="/about" onClick={() => setMobileMenuOpen(false)} className="text-sm font-bold tracking-wider py-2.5 px-4 rounded-xl text-gray-300 hover:bg-gray-800">
                   ABOUT
+                </Link>
+                <Link to={customerProfilePath} onClick={() => setMobileMenuOpen(false)} className="text-sm font-bold tracking-wider py-2.5 px-4 rounded-xl text-[#D4AF37] bg-[#D4AF37]/10 border border-[#D4AF37]/30 flex items-center justify-between">
+                  <span>{isCustomerLoggedIn ? 'CUSTOMER PROFILE' : 'CUSTOMER SIGN IN / SIGN UP'}</span>
+                  {isCustomerLoggedIn ? <User size={16} /> : <LogIn size={16} />}
                 </Link>
               </div>
             </div>
