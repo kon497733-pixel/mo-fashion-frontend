@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { 
   ShoppingBag, Eye, Star, ArrowLeft,
   Filter, RefreshCw, Search 
@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import { useCartStore } from '../../store/useCartStore';
 import { 
   getSupabaseProducts, 
+  getSupabaseCategories,
   getSupabaseSettings,
   getSupabaseReviews 
 } from '../../lib/supabase';
@@ -67,10 +68,12 @@ function ProductCardImageSlider({ images, name }: { images: string[]; name: stri
 
 export default function CategoryProductsPage() {
   const { categoryName } = useParams<{ categoryName: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const cartStore = useCartStore();
 
   const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [settings, setSettings] = useState<any>({
@@ -81,7 +84,16 @@ export default function CategoryProductsPage() {
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('newest');
 
-  const decodedCategoryName = decodeURIComponent(categoryName || 'Collection');
+  // URL Parameter OR Query Parameter
+  const queryCategory = searchParams.get('category');
+  const activeCategoryParam = queryCategory || categoryName || '';
+  const decodedCategoryName = decodeURIComponent(activeCategoryParam).trim();
+
+  // Check if viewing all products or specific category
+  const isAllProductsView = !decodedCategoryName || 
+                            decodedCategoryName.toLowerCase() === 'collection' || 
+                            decodedCategoryName.toLowerCase() === 'all' || 
+                            decodedCategoryName.toLowerCase() === 'products';
 
   useEffect(() => {
     const loadCategoryProducts = async () => {
@@ -90,6 +102,9 @@ export default function CategoryProductsPage() {
       const cachedProducts = localStorage.getItem('mo_fashion_products');
       if (cachedProducts) { try { setProducts(JSON.parse(cachedProducts)); } catch (e) {} }
 
+      const cachedCategories = localStorage.getItem('mo_fashion_categories');
+      if (cachedCategories) { try { setCategories(JSON.parse(cachedCategories)); } catch (e) {} }
+
       const cachedSettings = localStorage.getItem('mo_fashion_settings');
       if (cachedSettings) { try { setSettings(JSON.parse(cachedSettings)); } catch (e) {} }
 
@@ -97,13 +112,15 @@ export default function CategoryProductsPage() {
       if (cachedReviews) { try { setReviews(JSON.parse(cachedReviews)); } catch (e) {} }
 
       try {
-        const [cloudProds, cloudSet, cloudRevs] = await Promise.all([
+        const [cloudProds, cloudCats, cloudSet, cloudRevs] = await Promise.all([
           getSupabaseProducts().catch(() => []),
+          getSupabaseCategories().catch(() => []),
           getSupabaseSettings().catch(() => null),
           getSupabaseReviews().catch(() => [])
         ]);
 
         if (Array.isArray(cloudProds) && cloudProds.length > 0) setProducts(cloudProds);
+        if (Array.isArray(cloudCats) && cloudCats.length > 0) setCategories(cloudCats);
         if (cloudSet) setSettings((prev: any) => ({ ...prev, ...cloudSet }));
         if (Array.isArray(cloudRevs) && cloudRevs.length > 0) setReviews(cloudRevs);
       } catch (err) {
@@ -118,16 +135,18 @@ export default function CategoryProductsPage() {
     const handleStorageUpdate = () => loadCategoryProducts();
     window.addEventListener('storage', handleStorageUpdate);
     window.addEventListener('productUpdated', handleStorageUpdate);
+    window.addEventListener('categoryUpdated', handleStorageUpdate);
     window.addEventListener('reviewUpdated', handleStorageUpdate);
 
     return () => {
       window.removeEventListener('storage', handleStorageUpdate);
       window.removeEventListener('productUpdated', handleStorageUpdate);
+      window.removeEventListener('categoryUpdated', handleStorageUpdate);
       window.removeEventListener('reviewUpdated', handleStorageUpdate);
     };
-  }, [categoryName]);
+  }, [categoryName, queryCategory]);
 
-  // 🚀 Quick Add to Cart Handler (Safe Universal Call)
+  // 🚀 Quick Add to Cart Handler
   const handleQuickAddToCart = (e: React.MouseEvent, product: any) => {
     e.stopPropagation();
     
@@ -181,7 +200,7 @@ export default function CategoryProductsPage() {
     return { rating: avg, count: prodReviews.length };
   };
 
-  // 🚀 SMART FUZZY CATEGORY MATCHING (একবচন/বহুবচন বা ১ অক্ষরের ফারাক থাকলেও ১০০% ম্যাচ করবে)
+  // 🚀 SMART FUZZY CATEGORY MATCHING
   const isCategoryMatch = (prodCategory: string, targetCatName: string) => {
     if (!prodCategory || !targetCatName) return false;
     
@@ -194,9 +213,9 @@ export default function CategoryProductsPage() {
     return false;
   };
 
-  // 🚀 Filter products by smart category matcher & in-page search
+  // 🚀 Filter products by smart category matcher OR show all if "Collection" / "All"
   let categoryProducts = products.filter(p => {
-    const matchesCat = isCategoryMatch(p.category, decodedCategoryName);
+    const matchesCat = isAllProductsView ? true : isCategoryMatch(p.category, decodedCategoryName);
 
     const q = searchQuery.trim().toLowerCase();
     const matchesSearch = !q || String(p.name || '').toLowerCase().includes(q);
@@ -213,13 +232,22 @@ export default function CategoryProductsPage() {
     categoryProducts.sort((a, b) => (Number(b.discount) || 0) - (Number(a.discount) || 0));
   }
 
+  // Find category description from DB categories if available
+  const currentCategoryObj = categories.find(c => String(c.name || '').toLowerCase().trim() === decodedCategoryName.toLowerCase().trim());
+  const categoryDescription = currentCategoryObj?.description || (
+    isAllProductsView 
+      ? 'Explore our complete range of authentic handcrafted luxury fashion, apparel, and accessories.' 
+      : `Discover curated premium items in our ${decodedCategoryName} collection.`
+  );
+
+  const displayTitle = isAllProductsView ? 'ALL LUXURY COLLECTIONS' : decodedCategoryName;
   const storeLogoImage = settings?.logoUrl || settings?.logo || settings?.storeLogo || '';
   const storeBrandTitle = settings?.storeName || 'MO FASHION';
 
   return (
     <main className="min-h-screen pt-24 pb-16 text-white bg-[#111111] transition-all duration-300">
       <Helmet>
-        <title>{decodedCategoryName} | {storeBrandTitle}</title>
+        <title>{displayTitle} | {storeBrandTitle}</title>
       </Helmet>
 
       <div className="container mx-auto px-4 max-w-7xl">
@@ -233,20 +261,27 @@ export default function CategoryProductsPage() {
           <span>BACK TO ALL CATEGORIES</span>
         </Link>
 
-        {/* Header */}
+        {/* 🚀 DYNAMIC CATEGORY HEADER WITH DYNAMIC TITLE & DESCRIPTION */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 pb-6 border-b border-[#D4AF37]/20 gap-4">
-          <div>
+          <div className="max-w-2xl">
             <div className="inline-flex items-center space-x-2 bg-[#1A1A1A] border border-[#D4AF37]/30 px-3.5 py-1.5 rounded-full text-xs font-bold text-[#D4AF37] uppercase mb-3">
               {storeLogoImage ? (
                 <img src={storeLogoImage} alt="" className="w-4 h-4 object-cover rounded-full" />
               ) : null}
-              <span>CATEGORY COLLECTION</span>
+              <span>{isAllProductsView ? 'GLOBAL COLLECTION' : 'CATEGORY COLLECTION'}</span>
             </div>
+
+            {/* 🚀 DYNAMIC CATEGORY TITLE */}
             <h1 className="text-3xl md:text-5xl font-serif font-bold text-white uppercase tracking-wider">
-              {decodedCategoryName}
+              {displayTitle}
             </h1>
-            <p className="text-xs sm:text-sm text-gray-400 mt-2 flex items-center">
-              Showing {categoryProducts.length} authentic items in this category
+
+            {/* 🚀 DYNAMIC CATEGORY DESCRIPTION */}
+            <p className="text-xs sm:text-sm text-gray-400 mt-2 leading-relaxed font-light">
+              {categoryDescription}
+            </p>
+            <p className="text-[11px] text-[#D4AF37] font-bold mt-1 flex items-center">
+              Showing {categoryProducts.length} authentic items
               {loading && <RefreshCw size={12} className="ml-2 animate-spin text-[#D4AF37]" />}
             </p>
           </div>
@@ -258,7 +293,7 @@ export default function CategoryProductsPage() {
             <div className="relative w-full sm:w-64">
               <input
                 type="text"
-                placeholder={`Search in ${decodedCategoryName}...`}
+                placeholder={`Search in ${displayTitle}...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-[#1A1A1A] border border-gray-800 focus:border-[#D4AF37] rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none transition-all"
@@ -288,7 +323,7 @@ export default function CategoryProductsPage() {
         {categoryProducts.length === 0 && !loading ? (
           <div className="text-center py-20 bg-[#1A1A1A]/60 rounded-3xl border border-gray-800 p-8 max-w-xl mx-auto">
             <ShoppingBag size={48} className="mx-auto text-gray-600 mb-4 opacity-50" />
-            <h3 className="text-lg font-serif font-bold text-white mb-2">No products found in "{decodedCategoryName}"!</h3>
+            <h3 className="text-lg font-serif font-bold text-white mb-2">No products found in "{displayTitle}"!</h3>
             <p className="text-xs text-gray-400 mb-6">Try searching for a different keyword or reset filters.</p>
             <button
               onClick={() => { setSearchQuery(''); navigate('/products'); }}
@@ -375,7 +410,7 @@ export default function CategoryProductsPage() {
                   <div className="p-3.5 sm:p-5 space-y-2">
                     <div className="flex items-center justify-between text-[10px] sm:text-xs text-gray-400">
                       <span className="uppercase tracking-wider font-semibold text-[#D4AF37]">
-                        {product.category || decodedCategoryName}
+                        {product.category || displayTitle}
                       </span>
                       
                       {/* 🚀 REAL-TIME STAR RATING (NO DEFAULT 5.0!) */}
