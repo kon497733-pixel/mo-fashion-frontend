@@ -1,390 +1,341 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link, useLocation } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async';
-import { ChevronLeft, ShoppingBag, Image as ImageIcon, Tag, Search, RefreshCw, Layers, Sparkles } from 'lucide-react';
-import toast from 'react-hot-toast';
-import { useCartStore } from '../../store/useCartStore';
-import { useSettingsStore } from '../../store/useSettingsStore';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
-  supabase, 
+  ShoppingBag, Eye, Star, ArrowLeft,
+  Filter, RefreshCw 
+} from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
+import toast from 'react-hot-toast';
+
+import { useCartStore } from '../../store/useCartStore';
+import { 
   getSupabaseProducts, 
-  getSupabaseCategories 
+  getSupabaseSettings,
+  getSupabaseReviews 
 } from '../../lib/supabase';
 
 export default function CategoryProductsPage() {
-  const params = useParams<any>();
-  const location = useLocation();
+  const { categoryName } = useParams<{ categoryName: string }>();
+  const navigate = useNavigate();
+  const cartStore = useCartStore();
 
-  // 🚀 ১. ট্রিপল-লেভেল পারফেক্ট ক্যাটাগরি নাম এক্সট্রাকটর (কখনো খালি/উধাও হবে না)
-  const extractCategoryName = (): string => {
-    let raw = params.categoryName || params.category || params.name || params.id;
-    
-    // যদি রাউটার প্যারামিটারে না পাওয়া যায় তবে ব্রাউজার ইউআরএল থেকে এক্সট্রাক্ট করবে
-    if (!raw && location.pathname.includes('/category/')) {
-      const parts = location.pathname.split('/category/');
-      if (parts[1]) {
-        raw = parts[1].split('/')[0];
-      }
-    }
-    
-    return decodeURIComponent(raw || '').trim();
-  };
-
-  const decodedCategoryName = extractCategoryName();
-
-  const addToCart = useCartStore((state) => state.addToCart);
-  const { settings } = useSettingsStore();
-  const safeSettings = settings as any;
-
-  const [products, setProducts] = useState<any[]>(() => {
-    try {
-      const savedProds = localStorage.getItem('mo_fashion_products');
-      if (savedProds) {
-        const parsed = JSON.parse(savedProds);
-        const targetCatLower = decodedCategoryName.toLowerCase().trim();
-        return parsed.filter((p: any) => {
-          if (!p || !p.category) return false;
-          const pCatLower = String(p.category).toLowerCase().trim();
-          return pCatLower === targetCatLower || pCatLower.includes(targetCatLower) || targetCatLower.includes(pCatLower);
-        });
-      }
-    } catch (e) {}
-    return [];
+  const [products, setProducts] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [settings, setSettings] = useState<any>({
+    storeName: 'MO FASHION',
+    currency: '৳',
+    logoUrl: ''
   });
+  const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState('newest');
 
-  const [categoryInfo, setCategoryInfo] = useState<any>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [imageIndex, setImageIndex] = useState(0);
-
-  // স্লাইডার টাইমার (২ সেকেন্ড পর পর ছবি স্লাইড হবে)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setImageIndex((prev) => prev + 1);
-    }, 2000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // 🚀 ২. সরাসরি Supabase ক্লাউড ডাটাবেস থেকে ১০০% লাইভ ডাটা ফেচিং (All Devices Sync)
-  const fetchCategoryProductsLive = async (isSilent = false) => {
-    if (!decodedCategoryName) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      if (!isSilent && products.length === 0) setLoading(true);
-
-      // ১. সরাসরি ক্লাউড ডাটাবেস থেকে সব প্রোডাক্ট ফেচ
-      const { data: cloudProducts, error: prodErr } = await supabase
-        .from('products')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (!prodErr && Array.isArray(cloudProducts)) {
-        // 🚀 Smart Matching Logic (কোনো অবস্থায় Product Not Found বলবে না)
-        const targetCatLower = decodedCategoryName.toLowerCase().trim();
-        
-        const matchedProducts = cloudProducts.filter((p: any) => {
-          if (!p || !p.category) return false;
-          const pCatLower = String(p.category).toLowerCase().trim();
-          return pCatLower === targetCatLower || pCatLower.includes(targetCatLower) || targetCatLower.includes(pCatLower);
-        });
-
-        setProducts(matchedProducts);
-        localStorage.setItem('mo_fashion_products', JSON.stringify(cloudProducts));
-      } else {
-        // ফলব্যাক লোকালস্টোরেজ
-        const localProds = JSON.parse(localStorage.getItem('mo_fashion_products') || '[]');
-        const targetCatLower = decodedCategoryName.toLowerCase().trim();
-        const matchedLocal = localProds.filter((p: any) => {
-          if (!p || !p.category) return false;
-          const pCatLower = String(p.category).toLowerCase().trim();
-          return pCatLower === targetCatLower || pCatLower.includes(targetCatLower);
-        });
-        setProducts(matchedLocal);
-      }
-
-      // ২. সরাসরি ক্লাউড ডাটাবেস থেকে ক্যাটাগরি ইনফো ফেচ (লাইভ ডিসক্রিপশন সহ)
-      const { data: cloudCategories } = await supabase
-        .from('categories')
-        .select('*');
-
-      if (Array.isArray(cloudCategories)) {
-        const targetCatLower = decodedCategoryName.toLowerCase().trim();
-        const matchedCat = cloudCategories.find((c: any) => 
-          c.name && String(c.name).toLowerCase().trim() === targetCatLower
-        );
-        if (matchedCat) setCategoryInfo(matchedCat);
-        localStorage.setItem('mo_fashion_categories', JSON.stringify(cloudCategories));
-      }
-
-    } catch (error) {
-      console.warn("Category Products live fetch warning:", error);
-    } finally {
-      if (!isSilent) setLoading(false);
-    }
-  };
+  const decodedCategoryName = decodeURIComponent(categoryName || 'Collection');
 
   useEffect(() => {
-    fetchCategoryProductsLive();
+    const loadCategoryProducts = async () => {
+      setLoading(true);
 
-    // 🚀 ৩. Supabase WebSocket Realtime Channel (এডমিন থেকে যে ডিভাইসেই প্রোডাক্ট বা ডিসক্রিপশন এড/এডিট হোক, ১ সেকেন্ডে সিঙ্ক হবে)
-    const channel = supabase
-      .channel(`public:category:live:${decodedCategoryName}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
-        fetchCategoryProductsLive(true);
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
-        fetchCategoryProductsLive(true);
-      })
-      .subscribe();
+      // Instant sync load from local storage
+      const cachedProducts = localStorage.getItem('mo_fashion_products');
+      if (cachedProducts) { try { setProducts(JSON.parse(cachedProducts)); } catch (e) {} }
 
-    const handleStorageChange = () => fetchCategoryProductsLive(true);
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('productUpdated', handleStorageChange);
-    window.addEventListener('categoryUpdated', handleStorageChange);
+      const cachedSettings = localStorage.getItem('mo_fashion_settings');
+      if (cachedSettings) { try { setSettings(JSON.parse(cachedSettings)); } catch (e) {} }
+
+      const cachedReviews = localStorage.getItem('mo_fashion_reviews');
+      if (cachedReviews) { try { setReviews(JSON.parse(cachedReviews)); } catch (e) {} }
+
+      try {
+        const [cloudProds, cloudSet, cloudRevs] = await Promise.all([
+          getSupabaseProducts().catch(() => []),
+          getSupabaseSettings().catch(() => null),
+          getSupabaseReviews().catch(() => [])
+        ]);
+
+        if (Array.isArray(cloudProds) && cloudProds.length > 0) setProducts(cloudProds);
+        if (cloudSet) setSettings((prev: any) => ({ ...prev, ...cloudSet }));
+        if (Array.isArray(cloudRevs) && cloudRevs.length > 0) setReviews(cloudRevs);
+      } catch (err) {
+        console.warn('Cloud fetch fallback engaged.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCategoryProducts();
+
+    const handleStorageUpdate = () => loadCategoryProducts();
+    window.addEventListener('storage', handleStorageUpdate);
+    window.addEventListener('productUpdated', handleStorageUpdate);
+    window.addEventListener('reviewUpdated', handleStorageUpdate);
 
     return () => {
-      supabase.removeChannel(channel);
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('productUpdated', handleStorageChange);
-      window.removeEventListener('categoryUpdated', handleStorageChange);
+      window.removeEventListener('storage', handleStorageUpdate);
+      window.removeEventListener('productUpdated', handleStorageUpdate);
+      window.removeEventListener('reviewUpdated', handleStorageUpdate);
     };
-  }, [decodedCategoryName, location.pathname]);
+  }, [categoryName]);
 
-  // ডাইনামিক ফিল্টারড সার্চ
-  const filteredProducts = products.filter(p => 
-    (p.name || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // 🚀 Add to Cart Handler
-  const handleAddToCart = (product: any, e: React.MouseEvent) => {
-    e.preventDefault();
+  // 🚀 Quick Add to Cart Handler (Safe Universal Call)
+  const handleQuickAddToCart = (e: React.MouseEvent, product: any) => {
     e.stopPropagation();
+    
+    let prodImage = '';
+    if (product.images && product.images[0]) prodImage = product.images[0];
+    else if (product.imageUrl) prodImage = product.imageUrl;
+    else if (product.image) prodImage = product.image;
 
     const origPrice = Number(product.price) || 0;
-    const discPercent = Number(product.discount) || 0;
-    const sellingPrice = discPercent > 0 ? origPrice - (origPrice * discPercent / 100) : origPrice;
+    const discountPercent = Number(product.discount) || 0;
+    const finalPrice = discountPercent > 0 ? origPrice - (origPrice * discountPercent) / 100 : origPrice;
 
-    let productImage = 'No Image';
-    if (product.images && product.images.length > 0 && !product.images[0].includes('No+Image')) {
-      productImage = product.images[0];
-    } else if (product.imageUrl) {
-      productImage = product.imageUrl;
-    }
-
-    const cartItem = {
-      id: String(product._id || product.id),
-      name: String(product.name || 'Unnamed Product'),
-      price: Number(sellingPrice.toFixed(2)),
+    const cartPayload = {
+      id: String(product.id || product._id),
+      name: product.name,
+      price: finalPrice,
+      originalPrice: origPrice,
+      discount: discountPercent,
+      image: prodImage,
       quantity: 1,
-      size: 'M',
-      color: 'Black',
-      image: productImage,
-      stock: Number(product.stock) || 0
+      size: Array.isArray(product.sizes) && product.sizes[0] ? product.sizes[0] : '',
+      color: Array.isArray(product.colors) && product.colors[0] ? product.colors[0] : ''
     };
 
-    addToCart(cartItem as any);
+    if (typeof (cartStore as any).addToCart === 'function') {
+      (cartStore as any).addToCart(cartPayload);
+    } else if (typeof (cartStore as any).addItem === 'function') {
+      (cartStore as any).addItem(cartPayload);
+    } else {
+      useCartStore.setState((state: any) => {
+        const existingItem = state.items.find((i: any) => String(i.id) === cartPayload.id);
+        if (existingItem) {
+          return {
+            items: state.items.map((i: any) => String(i.id) === cartPayload.id ? { ...i, quantity: i.quantity + 1 } : i)
+          };
+        }
+        return { items: [...state.items, cartPayload] };
+      });
+    }
+
     toast.success(`${product.name} added to cart! 🛒`);
   };
 
+  // 🚀 REAL-TIME AVERAGE STAR RATING CALCULATOR (NO DEFAULT 5.0!)
+  const getProductRatingStats = (productId: string) => {
+    const prodReviews = reviews.filter(r => String(r.productId || r.product_id) === String(productId));
+    if (prodReviews.length === 0) return { rating: '0.0', count: 0 };
+    
+    const sum = prodReviews.reduce((acc, r) => acc + (Number(r.rating) || 5), 0);
+    const avg = (sum / prodReviews.length).toFixed(1);
+    return { rating: avg, count: prodReviews.length };
+  };
+
+  // 🚀 Filter products strictly by category
+  let categoryProducts = products.filter(p => {
+    const prodCat = String(p.category || '').trim().toLowerCase();
+    const targetCat = decodedCategoryName.trim().toLowerCase();
+    return prodCat === targetCat;
+  });
+
+  // Sort logic
+  if (sortBy === 'price-low') {
+    categoryProducts.sort((a, b) => Number(a.price) - Number(b.price));
+  } else if (sortBy === 'price-high') {
+    categoryProducts.sort((a, b) => Number(b.price) - Number(a.price));
+  } else if (sortBy === 'discount') {
+    categoryProducts.sort((a, b) => (Number(b.discount) || 0) - (Number(a.discount) || 0));
+  }
+
+  const storeLogoImage = settings?.logoUrl || settings?.logo || settings?.storeLogo || '';
+  const storeBrandTitle = settings?.storeName || 'MO FASHION';
+
   return (
-    <main className="min-h-screen py-10 bg-[#111111] text-white transition-all duration-300">
+    <main className="min-h-screen pt-24 pb-16 text-white bg-[#111111] transition-all duration-300">
       <Helmet>
-        <title>{decodedCategoryName || 'Collection'} | {safeSettings?.storeName || 'MO FASHION'}</title>
+        <title>{decodedCategoryName} | {storeBrandTitle}</title>
       </Helmet>
 
       <div className="container mx-auto px-4 max-w-7xl">
         
         {/* Back Link */}
-        <Link to="/categories" className="inline-flex items-center text-gray-400 hover:text-[#D4AF37] transition-all duration-200 mb-8 hover:-translate-x-1 font-medium text-sm">
-          <ChevronLeft size={20} className="mr-1" />
-          <span>Back to Collections</span>
+        <Link 
+          to="/categories" 
+          className="inline-flex items-center text-xs font-bold text-gray-400 hover:text-[#D4AF37] transition-all duration-200 mb-6 hover:-translate-x-1"
+        >
+          <ArrowLeft size={16} className="mr-1.5" />
+          <span>BACK TO ALL CATEGORIES</span>
         </Link>
 
-        {/* 🚀 Category Header Banner (Live Description & Name Sync) */}
-        <div className="bg-[#1A1A1A] border border-[#D4AF37]/20 rounded-3xl p-6 sm:p-8 mb-10 shadow-2xl backdrop-blur-md relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/5 rounded-full blur-3xl pointer-events-none"></div>
-
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
-            <div>
-              <div className="flex items-center space-x-3 mb-2">
-                <span className="p-2 bg-[#D4AF37]/10 text-[#D4AF37] rounded-xl border border-[#D4AF37]/30">
-                  <Layers size={22} />
-                </span>
-                <span className="text-xs font-bold uppercase tracking-widest text-[#D4AF37] bg-[#D4AF37]/10 px-3 py-1 rounded-full border border-[#D4AF37]/20 flex items-center">
-                  <Sparkles size={12} className="mr-1.5 animate-pulse text-[#D4AF37]" /> Live Collection Showcase
-                </span>
-              </div>
-
-              {/* 🚀 ক্যাটাগরি নাম (এডমিন প্যানেল থেকে এডিট করলে সাথে সাথে চেঞ্জ হবে) */}
-              <h1 className="text-3xl md:text-5xl font-serif font-bold text-white uppercase tracking-wider mb-3">
-                {categoryInfo?.name || decodedCategoryName || 'All Products'}
-              </h1>
-
-              {/* 🚀 ক্যাটাগরি বিবরণ/ডিসক্রিপশন (এডমিন প্যানেল থেকে এডিট করলে সাথে সাথে চেঞ্জ হবে) */}
-              <p className="text-gray-400 text-sm max-w-xl leading-relaxed font-medium">
-                {categoryInfo?.description || `Explore our handpicked selection of items in ${decodedCategoryName || 'this collection'}.`}
-              </p>
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 pb-6 border-b border-[#D4AF37]/20 gap-4">
+          <div>
+            <div className="inline-flex items-center space-x-2 bg-[#1A1A1A] border border-[#D4AF37]/30 px-3.5 py-1.5 rounded-full text-xs font-bold text-[#D4AF37] uppercase mb-3">
+              {storeLogoImage ? (
+                <img src={storeLogoImage} alt="" className="w-4 h-4 object-cover rounded-full" />
+              ) : null}
+              <span>CATEGORY COLLECTION</span>
             </div>
+            <h1 className="text-3xl md:text-5xl font-serif font-bold text-white uppercase tracking-wider">
+              {decodedCategoryName}
+            </h1>
+            <p className="text-xs sm:text-sm text-gray-400 mt-2 flex items-center">
+              Showing {categoryProducts.length} authentic items in this category
+              {loading && <RefreshCw size={12} className="ml-2 animate-spin text-[#D4AF37]" />}
+            </p>
+          </div>
 
-            <div className="bg-[#111111] px-6 py-4 rounded-2xl border border-[#D4AF37]/30 text-center shadow-inner shrink-0">
-              <span className="text-xs text-gray-400 block uppercase font-semibold">Available Stock</span>
-              <span className="text-3xl font-bold text-[#D4AF37]">{products.length}</span>
-              <span className="text-xs text-gray-500 block mt-0.5">{products.length === 1 ? 'Product' : 'Products'}</span>
-            </div>
+          {/* Sort Filter Dropdown */}
+          <div className="flex items-center space-x-2 bg-[#1A1A1A] border border-gray-800 rounded-xl px-3 py-2">
+            <Filter size={14} className="text-[#D4AF37]" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="bg-transparent text-xs text-white font-bold focus:outline-none cursor-pointer"
+            >
+              <option value="newest" className="bg-[#111111]">Sort by: Newest</option>
+              <option value="price-low" className="bg-[#111111]">Price: Low to High</option>
+              <option value="price-high" className="bg-[#111111]">Price: High to Low</option>
+              <option value="discount" className="bg-[#111111]">Biggest Discount</option>
+            </select>
           </div>
         </div>
 
-        {/* 🔎 Search Filter Bar */}
-        {products.length > 0 && (
-          <div className="max-w-xl mx-auto mb-10 relative group">
-            <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-              <Search className="text-gray-500 group-focus-within:text-[#D4AF37] transition-colors" size={18} />
-            </div>
-            <input 
-              type="text" 
-              placeholder={`Search in ${decodedCategoryName}...`} 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#1A1A1A] border border-gray-800 rounded-full pl-12 pr-6 py-3.5 text-white text-sm focus:outline-none focus:border-[#D4AF37] transition-all duration-300 shadow-xl"
-            />
-          </div>
-        )}
-
-        {/* 📦 Products Grid */}
-        {loading && products.length === 0 ? (
-          <div className="text-center py-20 text-[#D4AF37] animate-pulse flex flex-col items-center justify-center space-y-3">
-            <RefreshCw size={36} className="animate-spin text-[#D4AF37]" />
-            <p className="font-medium text-lg">Fetching live items in {decodedCategoryName}...</p>
-          </div>
-        ) : filteredProducts.length === 0 ? (
-          <div className="text-center py-20 bg-[#1A1A1A] rounded-3xl border border-dashed border-gray-800 max-w-2xl mx-auto shadow-2xl p-8 animate-in fade-in zoom-in-95 duration-200">
-            <ShoppingBag size={64} className="mx-auto text-gray-600 mb-6 opacity-40 animate-bounce" />
-            <h2 className="text-2xl font-serif font-bold text-white mb-3">No Products Found</h2>
-            <p className="text-gray-400 mb-8 text-sm leading-relaxed">
-              {searchQuery 
-                ? `No products match "${searchQuery}" in ${decodedCategoryName}.` 
-                : `No products are currently assigned to "${decodedCategoryName}". Add products from Admin Panel to show them here.`}
-            </p>
-            <Link to="/categories" className="inline-block bg-[#D4AF37] text-black px-8 py-3 rounded-xl font-bold uppercase tracking-wider hover:bg-white transition-all duration-300 active:scale-95 text-xs shadow-lg shadow-[#D4AF37]/20">
-              Explore All Collections
-            </Link>
+        {/* 🚀 2 COLUMNS ON MOBILE GRID (`grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4`) */}
+        {categoryProducts.length === 0 && !loading ? (
+          <div className="text-center py-20 bg-[#1A1A1A]/60 rounded-3xl border border-gray-800 p-8 max-w-xl mx-auto">
+            <ShoppingBag size={48} className="mx-auto text-gray-600 mb-4 opacity-50" />
+            <h3 className="text-lg font-serif font-bold text-white mb-2">No products in "{decodedCategoryName}" category yet!</h3>
+            <p className="text-xs text-gray-400 mb-6">Admin can add products to this category from the Admin Panel.</p>
+            <button
+              onClick={() => navigate('/products')}
+              className="px-6 py-2.5 bg-[#D4AF37] text-black font-bold text-xs uppercase rounded-xl hover:scale-105 transition-all"
+            >
+              Browse All Products
+            </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {filteredProducts.map((product) => {
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+            {categoryProducts.map((product: any) => {
+              const pId = String(product.id || product._id);
+              const pName = product.name || 'Luxury Fashion Item';
               const origPrice = Number(product.price) || 0;
-              const discPercent = Number(product.discount) || 0;
-              const sellingPrice = discPercent > 0 ? origPrice - (origPrice * discPercent / 100) : origPrice;
-              const stockVal = Number(product.stock) || 0;
-              const soldVal = Number(product.sold) || 0;
-              
-              const productImages = (product.images && product.images.length > 0 && !product.images[0].includes('No+Image')) 
-                ? product.images 
-                : (product.imageUrl ? [product.imageUrl] : []);
+              const discountPercent = Number(product.discount) || 0;
+              const finalPrice = discountPercent > 0 ? origPrice - (origPrice * discountPercent) / 100 : origPrice;
+
+              let pImg = '';
+              if (product.images && product.images[0]) pImg = product.images[0];
+              else if (product.imageUrl) pImg = product.imageUrl;
+              else if (product.image) pImg = product.image;
+
+              const stockCount = Number(product.stock) || 0;
+              const isOutOfStock = stockCount <= 0 || product.status === 'Out of Stock';
+              const isLowStock = stockCount > 0 && stockCount <= 3;
+
+              // 🚀 REAL-TIME RATING CALCULATOR
+              const ratingStats = getProductRatingStats(pId);
 
               return (
-                <div 
-                  key={product._id || product.id} 
-                  className="group bg-[#1A1A1A] border border-[#D4AF37]/20 rounded-3xl p-4 text-center hover:border-[#D4AF37] hover:shadow-[0_10px_30px_rgba(212,175,55,0.25)] hover:-translate-y-2 transition-all duration-500 flex flex-col relative overflow-hidden"
+                <div
+                  key={pId}
+                  onClick={() => navigate(`/product/${pId}`)}
+                  className="group relative bg-[#1A1A1A] border border-gray-800 hover:border-[#D4AF37]/60 rounded-2xl overflow-hidden cursor-pointer shadow-xl transition-all duration-500 hover:-translate-y-2 [perspective:1000px] [transform-style:preserve-3d]"
                 >
-                  {/* Image Box with Auto-Slider */}
-                  <Link to={`/product/${product._id || product.id}`} className="block relative overflow-hidden rounded-2xl mb-4 bg-[#111111] aspect-[4/5]">
-                    {productImages.length > 0 ? (
-                      productImages.map((img: string, idx: number) => (
-                        <img 
-                          key={idx}
-                          src={img} 
-                          alt={product.name} 
-                          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${
-                            idx === (imageIndex % productImages.length) ? 'opacity-100 group-hover:scale-110 transition-transform duration-700' : 'opacity-0'
-                          }`} 
-                        />
-                      ))
+                  {/* 3D Image Container */}
+                  <div className="relative aspect-square w-full bg-[#111111] overflow-hidden">
+                    {pImg ? (
+                      <img 
+                        src={pImg} 
+                        alt={pName} 
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" 
+                      />
                     ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center">
-                        <ImageIcon size={40} className="mb-2 opacity-30 text-gray-400" />
-                        <span className="text-xs uppercase tracking-widest text-gray-500">No Image</span>
+                      <div className="w-full h-full flex items-center justify-center text-xs text-gray-600 uppercase font-bold">
+                        No Image
                       </div>
                     )}
 
-                    {/* Discount Badge */}
-                    {discPercent > 0 && (
-                      <div className="absolute top-3 left-3 bg-gradient-to-r from-orange-500 to-red-600 text-white text-[11px] font-extrabold px-3 py-1.5 rounded-lg shadow-lg z-10 flex items-center">
-                        <Tag size={12} className="mr-1" />
-                        -{discPercent}% OFF
-                      </div>
-                    )}
+                    {/* 3D Floating Badges */}
+                    <div className="absolute top-2.5 left-2.5 right-2.5 flex justify-between items-start z-10">
+                      {discountPercent > 0 ? (
+                        <span className="bg-gradient-to-r from-red-600 via-orange-500 to-[#D4AF37] text-white font-bold text-[10px] sm:text-xs px-2.5 py-1 rounded-lg shadow-[0_4px_12px_rgba(220,38,38,0.4)] border border-red-400/40">
+                          -{discountPercent}% OFF
+                        </span>
+                      ) : <span />}
 
-                    {/* Stock Status Badge */}
-                    {stockVal <= 0 || product.status === 'Out of Stock' ? (
-                      <span className="absolute top-3 right-3 bg-rose-950/90 text-rose-400 border border-rose-500/40 text-[10px] font-bold px-2.5 py-1 rounded-lg backdrop-blur-md z-10 uppercase tracking-wider shadow-lg">
-                        SOLD OUT
+                      {/* 🚀 ULTRA-PROMINENT 3D STOCK BADGE */}
+                      <span className={`font-bold text-[9px] sm:text-[10px] px-2.5 py-1 rounded-full uppercase border backdrop-blur-md shadow-md ${
+                        isOutOfStock 
+                          ? 'bg-red-500/30 text-red-300 border-red-500 shadow-red-500/30' 
+                          : isLowStock
+                          ? 'bg-amber-500/30 text-amber-200 border-amber-500 shadow-amber-500/30 animate-pulse'
+                          : 'bg-emerald-500/30 text-emerald-200 border-emerald-500 shadow-emerald-500/30'
+                      }`}>
+                        {isOutOfStock ? 'OUT OF STOCK' : isLowStock ? 'LOW STOCK' : 'IN STOCK'}
                       </span>
-                    ) : stockVal <= 10 ? (
-                      <span className="absolute top-3 right-3 bg-amber-950/90 text-amber-300 border border-amber-500/40 text-[10px] font-bold px-2.5 py-1 rounded-lg backdrop-blur-md z-10 uppercase tracking-wider shadow-lg flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span>
-                        LOW STOCK
-                      </span>
-                    ) : (
-                      <span className="absolute top-3 right-3 bg-emerald-950/90 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2.5 py-1 rounded-lg backdrop-blur-md z-10 uppercase tracking-wider shadow-lg flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                        IN STOCK
-                      </span>
-                    )}
-                  </Link>
+                    </div>
 
-                  {/* Title */}
-                  <Link to={`/product/${product._id || product.id}`}>
-                    <h3 className="font-bold text-white mb-1 group-hover:text-[#D4AF37] transition-colors line-clamp-2 px-2 uppercase tracking-tight text-sm">
-                      {product.name}
+                    {/* Quick Hover Overlay Actions */}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center space-x-3 p-4">
+                      <button
+                        onClick={(e) => handleQuickAddToCart(e, product)}
+                        disabled={isOutOfStock}
+                        className="p-3 bg-[#D4AF37] text-black rounded-xl hover:scale-110 transition-transform shadow-lg disabled:opacity-50 font-bold"
+                        title="Quick Add to Cart"
+                      >
+                        <ShoppingBag size={18} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/product/${pId}`);
+                        }}
+                        className="p-3 bg-[#111111]/80 text-white hover:text-[#D4AF37] border border-gray-700 rounded-xl hover:scale-110 transition-transform shadow-lg"
+                        title="View Product Details"
+                      >
+                        <Eye size={18} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Product Details Content */}
+                  <div className="p-3.5 sm:p-5 space-y-2">
+                    <div className="flex items-center justify-between text-[10px] sm:text-xs text-gray-400">
+                      <span className="uppercase tracking-wider font-semibold text-[#D4AF37]">
+                        {product.category || decodedCategoryName}
+                      </span>
+                      
+                      {/* 🚀 REAL-TIME STAR RATING (NO DEFAULT 5.0!) */}
+                      <span className="flex items-center text-yellow-400 font-bold bg-[#111111] px-2 py-0.5 rounded-full border border-gray-800">
+                        <Star size={12} className="fill-yellow-400 mr-1" />
+                        {ratingStats.rating > '0.0' ? `${ratingStats.rating} (${ratingStats.count})` : 'New'}
+                      </span>
+                    </div>
+
+                    <h3 className="font-serif font-bold text-xs sm:text-sm text-white line-clamp-1 group-hover:text-[#D4AF37] transition-colors uppercase tracking-wide">
+                      {pName}
                     </h3>
-                  </Link>
 
-                  {/* Rating & Real Sold Count */}
-                  <div className="flex items-center justify-center space-x-2 text-xs mb-2">
-                    <span className="text-[#D4AF37] font-bold">★ {Number(product.rating || 5).toFixed(1)}</span>
-                    <span className="text-gray-600">|</span>
-                    <span className="text-gray-300 font-medium">{soldVal} Sold</span>
-                  </div>
+                    {/* Pricing & 3D Sold Badge */}
+                    <div className="flex items-center justify-between pt-1">
+                      <div className="flex items-baseline space-x-1.5">
+                        <span className="font-bold text-sm sm:text-base text-[#D4AF37]">
+                          {settings?.currency || '৳'} {finalPrice.toFixed(2)}
+                        </span>
+                        {discountPercent > 0 && (
+                          <span className="text-[10px] sm:text-xs text-gray-500 line-through">
+                            {settings?.currency || '৳'} {origPrice.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
 
-                  {/* Stock Box */}
-                  <div className="bg-[#111111] border border-[#D4AF37]/30 rounded-xl px-3 py-1.5 mb-3 mx-auto w-max shadow-inner">
-                    <p className="text-[11px] text-gray-300 font-medium">
-                      {stockVal > 0 ? (
-                        <>
-                          <span className="text-[#D4AF37] font-black text-sm mr-1">{stockVal}</span> 
-                          items remaining
-                        </>
-                      ) : (
-                        <span className="text-red-400 font-bold">Currently unavailable</span>
+                      {/* 🚀 ULTRA-PROMINENT 3D METALLIC GOLD "SOLD" BADGE */}
+                      {Number(product.sold) > 0 && (
+                        <span className="bg-gradient-to-r from-[#D4AF37] to-[#aa8c2c] text-black border border-[#D4AF37] px-2.5 py-0.5 rounded-lg text-[9px] sm:text-[10px] font-bold shadow-md shadow-[#D4AF37]/20 uppercase">
+                          {product.sold} Sold
+                        </span>
                       )}
-                    </p>
+                    </div>
                   </div>
-
-                  {/* Price */}
-                  <div className="mb-5 flex items-center justify-center space-x-2 mt-auto">
-                    <span className="text-[#D4AF37] font-bold text-xl">{safeSettings?.currency || '৳'} {sellingPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    {discPercent > 0 && (
-                      <span className="text-gray-500 line-through text-xs">{safeSettings?.currency || '৳'} {origPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    )}
-                  </div>
-
-                  {/* Add To Cart */}
-                  <button 
-                    onClick={(e) => handleAddToCart(product, e)}
-                    disabled={stockVal <= 0 || product.status === 'Out of Stock'}
-                    className={`w-full flex items-center justify-center space-x-2 border py-3.5 rounded-xl font-bold uppercase tracking-wider text-xs transition-all duration-300 active:scale-95 ${
-                      stockVal <= 0 || product.status === 'Out of Stock'
-                      ? 'bg-[#111111] text-gray-500 border-gray-800 cursor-not-allowed' 
-                      : 'border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37] hover:text-black shadow-lg shadow-[#D4AF37]/10'
-                    }`}
-                  >
-                    <ShoppingBag size={16} />
-                    <span>{stockVal <= 0 || product.status === 'Out of Stock' ? 'OUT OF STOCK' : 'ADD TO CART'}</span>
-                  </button>
                 </div>
               );
             })}

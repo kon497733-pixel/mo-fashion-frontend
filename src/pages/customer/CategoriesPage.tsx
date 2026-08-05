@@ -1,249 +1,221 @@
 import { useState, useEffect } from 'react';
-import { Helmet } from 'react-helmet-async';
-import { Link } from 'react-router-dom';
-import { ArrowRight, Layers, ShoppingBag, Search, Sparkles } from 'lucide-react';
-import { useSettingsStore } from '../../store/useSettingsStore';
+import { useNavigate } from 'react-router-dom';
 import { 
-  supabase, 
+  Grid, Sparkles, ArrowRight, ShoppingBag, Folder
+} from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
+
+import { 
   getSupabaseCategories, 
-  getSupabaseProducts 
+  getSupabaseProducts, 
+  getSupabaseSettings 
 } from '../../lib/supabase';
 
 export default function CategoriesPage() {
-  const { settings } = useSettingsStore();
-  const safeSettings = settings as any;
+  const navigate = useNavigate();
 
-  // 🚀 ১. পুরনো স্যাম্পল/ডামি ক্যাটাগরি ফিল্টার করার স্মাট ফাংশন
-  const sanitizeCategories = (catList: any[]) => {
-    if (!Array.isArray(catList)) return [];
-    return catList.filter((cat: any) => {
-      if (!cat || !cat.name) return false;
-      const nameLower = String(cat.name).toLowerCase().trim();
-      const isOldDummy = nameLower.includes('sample category') || 
-                         nameLower.includes('dummy category');
-      return !isOldDummy;
-    });
-  };
-
-  // 🚀 ২. ইনস্ট্যান্ট ০-মিলিমিটার ক্যাস লোডিং (ক্লিক করার সাথে সাথে লোড হয়ে যাবে)
-  const [categories, setCategories] = useState<any[]>(() => {
-    try {
-      const cachedCat = localStorage.getItem('mo_fashion_categories');
-      const cachedProd = localStorage.getItem('mo_fashion_products');
-      if (cachedCat) {
-        const parsedCat = sanitizeCategories(JSON.parse(cachedCat));
-        const parsedProd = cachedProd ? JSON.parse(cachedProd) : [];
-        return parsedCat.map((cat: any) => {
-          const count = Array.isArray(parsedProd) 
-            ? parsedProd.filter((p: any) => {
-                if (!p || !p.category || !cat.name) return false;
-                return String(p.category).trim().toLowerCase() === String(cat.name).trim().toLowerCase();
-              }).length 
-            : 0;
-          
-          let imagesArray: string[] = [];
-          if (Array.isArray(cat.images) && cat.images.length > 0) {
-            imagesArray = cat.images.filter((url: string) => url && url.trim() !== '');
-          }
-
-          return { ...cat, count, imagesArray };
-        });
-      }
-    } catch (e) {}
-    return [];
+  const [categories, setCategories] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [settings, setSettings] = useState<any>({
+    storeName: 'MO FASHION',
+    currency: '৳'
   });
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState<boolean>(() => {
-    return !localStorage.getItem('mo_fashion_categories');
-  });
-
-  // 🚀 ছবিগুলো অটোমেটিক স্লাইড হওয়ার টাইমার (২.৫ সেকেন্ড পর পর)
-  const [imageIndex, setImageIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setImageIndex((prev) => prev + 1);
-    }, 2500);
-    return () => clearInterval(interval);
-  }, []);
+    const loadCategoriesData = async () => {
+      setLoading(true);
 
-  // 🚀 ৩. Supabase ক্লাউড ডাটাবেস থেকে রিয়েল-টাইম ক্যাটাগরি ও প্রোডাক্ট ফেচিং
-  const fetchLiveCategoriesAndProducts = async (isSilent = false) => {
-    try {
-      if (!isSilent && categories.length === 0) setLoading(true);
-
-      const [fetchedCategories, fetchedProducts] = await Promise.all([
-        getSupabaseCategories().catch(() => []),
-        getSupabaseProducts().catch(() => [])
-      ]);
-
-      if (Array.isArray(fetchedCategories)) {
-        const cleanCategories = sanitizeCategories(fetchedCategories);
-        const cleanProducts = Array.isArray(fetchedProducts) ? fetchedProducts : [];
-
-        const enrichedCategories = cleanCategories.map((cat: any) => {
-          // Smart Case-Insensitive Matching
-          const count = cleanProducts.filter((p: any) => {
-            if (!p || !p.category || !cat.name) return false;
-            return String(p.category).trim().toLowerCase() === String(cat.name).trim().toLowerCase();
-          }).length;
-          
-          let imagesArray: string[] = [];
-          if (Array.isArray(cat.images) && cat.images.length > 0) {
-            imagesArray = cat.images.filter((url: string) => url && url.trim() !== '');
-          }
-
-          return {
-            ...cat,
-            count,
-            imagesArray
-          };
-        });
-
-        setCategories(enrichedCategories);
-        localStorage.setItem('mo_fashion_categories', JSON.stringify(cleanCategories));
-        localStorage.setItem('mo_fashion_products', JSON.stringify(cleanProducts));
+      // Cached load
+      const cachedCats = localStorage.getItem('mo_fashion_categories');
+      if (cachedCats) {
+        try { setCategories(JSON.parse(cachedCats)); } catch (e) {}
       }
-    } catch (error) {
-      console.error("Error fetching live collections:", error);
-    } finally {
-      if (!isSilent) setLoading(false);
-    }
-  };
+      const cachedProds = localStorage.getItem('mo_fashion_products');
+      if (cachedProds) {
+        try { setProducts(JSON.parse(cachedProds)); } catch (e) {}
+      }
+      const cachedSet = localStorage.getItem('mo_fashion_settings');
+      if (cachedSet) {
+        try { setSettings(JSON.parse(cachedSet)); } catch (e) {}
+      }
 
-  useEffect(() => {
-    fetchLiveCategoriesAndProducts();
+      // Live fetch
+      try {
+        const [cloudCats, cloudProds, cloudSet] = await Promise.all([
+          getSupabaseCategories().catch(() => []),
+          getSupabaseProducts().catch(() => []),
+          getSupabaseSettings().catch(() => null)
+        ]);
 
-    // 🚀 ৪. Supabase WebSocket Realtime Listener (সব ডিভাইসে রিয়েল-টাইম ব্রডকাস্ট)
-    const catChannel = supabase
-      .channel('public:categories:page:5g')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
-        fetchLiveCategoriesAndProducts(true);
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
-        fetchLiveCategoriesAndProducts(true);
-      })
-      .subscribe();
+        if (Array.isArray(cloudCats) && cloudCats.length > 0) {
+          setCategories(cloudCats);
+        }
+        if (Array.isArray(cloudProds) && cloudProds.length > 0) {
+          setProducts(cloudProds);
+        }
+        if (cloudSet) {
+          setSettings(cloudSet);
+        }
+      } catch (e) {
+        console.warn('Backend API fallback.');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    const handleStorageChange = () => fetchLiveCategoriesAndProducts(true);
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('categoryUpdated', handleStorageChange);
+    loadCategoriesData();
+
+    const handleStorageUpdate = () => loadCategoriesData();
+    window.addEventListener('storage', handleStorageUpdate);
+    window.addEventListener('categoryUpdated', handleStorageUpdate);
+    window.addEventListener('productUpdated', handleStorageUpdate);
 
     return () => {
-      supabase.removeChannel(catChannel);
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('categoryUpdated', handleStorageChange);
+      window.removeEventListener('storage', handleStorageUpdate);
+      window.removeEventListener('categoryUpdated', handleStorageUpdate);
+      window.removeEventListener('productUpdated', handleStorageUpdate);
     };
   }, []);
 
-  const filteredCategories = categories.filter(cat => 
-    (cat.name || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // 🚀 CLEAN & DUPLICATE-FREE REAL CATEGORIES COMPILER
+  const cleanRealCategories = () => {
+    const map = new Map<string, any>();
+
+    // 1. Process DB Categories
+    categories.forEach((cat: any) => {
+      const name = String(cat.name || cat.title || '').trim();
+      if (name && name !== 'undefined' && name !== 'null') {
+        const key = name.toLowerCase();
+        if (!map.has(key)) {
+          map.set(key, {
+            id: String(cat.id || cat._id || `CAT-${Date.now()}`),
+            name: name,
+            image: cat.image || cat.imageUrl || '',
+            description: cat.description || 'Exclusive luxury fashion category'
+          });
+        }
+      }
+    });
+
+    // 2. Process Categories derived from Products
+    products.forEach((prod: any) => {
+      const catName = String(prod.category || '').trim();
+      if (catName && catName !== 'undefined' && catName !== 'null') {
+        const key = catName.toLowerCase();
+        let prodImg = '';
+        if (prod.images && prod.images[0]) prodImg = prod.images[0];
+        else if (prod.imageUrl) prodImg = prod.imageUrl;
+        else if (prod.image) prodImg = prod.image;
+
+        if (!map.has(key)) {
+          map.set(key, {
+            id: `PROD-CAT-${key}`,
+            name: catName,
+            image: prodImg,
+            description: 'Curated luxury products'
+          });
+        } else {
+          const existing = map.get(key);
+          if (!existing.image && prodImg) {
+            map.set(key, { ...existing, image: prodImg });
+          }
+        }
+      }
+    });
+
+    return Array.from(map.values());
+  };
+
+  const realCategories = cleanRealCategories();
+
+  // Helper to count real items per category
+  const getProductCountForCategory = (catName: string) => {
+    return products.filter(p => String(p.category || '').toLowerCase() === catName.toLowerCase()).length;
+  };
 
   return (
-    <main className="min-h-screen py-12 bg-[#111111] text-white border-t border-[#D4AF37]/10 transition-all duration-300">
+    <main className="min-h-screen pt-24 pb-16 text-white bg-[#111111] transition-all duration-300">
       <Helmet>
-        <title>Collections | {safeSettings?.storeName || 'MO FASHION'}</title>
+        <title>Categories | {settings?.storeName || 'MO FASHION'}</title>
       </Helmet>
 
       <div className="container mx-auto px-4 max-w-7xl">
         
-        {/* Page Header */}
-        <div className="text-center mb-10 mt-8">
-          <h1 className="text-4xl md:text-5xl font-serif font-bold text-[#D4AF37] mb-4 tracking-wider uppercase flex items-center justify-center">
-            <Layers className="mr-4 text-[#D4AF37] animate-pulse" size={40} />
-            Our Collections
-          </h1>
-          <p className="text-gray-400 max-w-2xl mx-auto text-base sm:text-lg leading-relaxed">
-            Browse through our wide range of premium fashion collections curated specially for you.
-          </p>
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 pb-6 border-b border-[#D4AF37]/20 gap-4">
+          <div>
+            <div className="inline-flex items-center space-x-2 bg-[#1A1A1A] border border-[#D4AF37]/30 px-3.5 py-1.5 rounded-full text-xs font-bold text-[#D4AF37] uppercase mb-3">
+              <Sparkles size={14} className="animate-pulse" />
+              <span>LUXURY SELECTIONS</span>
+            </div>
+            <h1 className="text-3xl md:text-5xl font-serif font-bold text-[#D4AF37] uppercase tracking-wider flex items-center">
+              <Grid className="mr-3 text-[#D4AF37]" size={36} />
+              CATEGORIES
+            </h1>
+            <p className="text-xs sm:text-sm text-gray-400 mt-2">
+              Browse through {realCategories.length} authentic luxury collections
+            </p>
+          </div>
         </div>
 
-        {/* Category Search Bar */}
-        {categories.length > 0 && (
-          <div className="max-w-xl mx-auto mb-16 relative group">
-            <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-              <Search className="text-gray-500 group-focus-within:text-[#D4AF37] transition-colors" size={20} />
-            </div>
-            <input 
-              type="text" 
-              placeholder="Search collections..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#1A1A1A] border border-gray-800 rounded-full pl-14 pr-6 py-4 text-white focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]/30 transition-all duration-300 shadow-xl text-sm sm:text-base"
-            />
-          </div>
-        )}
-
-        {loading && categories.length === 0 ? (
-          <div className="text-center py-20 text-[#D4AF37] animate-pulse font-medium text-xl font-serif flex flex-col items-center justify-center space-y-3">
-            <Sparkles size={36} className="animate-spin text-[#D4AF37]" />
-            <span>Syncing live collections from database...</span>
-          </div>
-        ) : filteredCategories.length === 0 ? (
-          <div className="text-center py-16 bg-[#1A1A1A] rounded-3xl border border-dashed border-gray-800 max-w-2xl mx-auto shadow-2xl p-8 animate-in fade-in zoom-in-95 duration-200">
-            <ShoppingBag size={64} className="mx-auto text-gray-600 mb-6 opacity-40 animate-bounce" />
-            <h2 className="text-2xl font-serif font-bold text-white mb-3">No Collections Found</h2>
-            <p className="text-gray-400 mb-8 text-sm">
-              {searchQuery 
-                ? `We couldn't find any collection matching "${searchQuery}".` 
-                : "There are currently no collections available. Please create them from the Admin Panel."}
-            </p>
-            <Link to="/" className="inline-block bg-[#D4AF37] text-black px-8 py-3 rounded-xl font-bold uppercase tracking-wider hover:bg-white transition-all duration-300 active:scale-95 shadow-lg shadow-[#D4AF37]/20 text-xs">
-              Return to Home
-            </Link>
+        {/* 🚀 2 COLUMNS ON MOBILE GRID (`grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4`) */}
+        {realCategories.length === 0 && !loading ? (
+          <div className="text-center py-20 bg-[#1A1A1A]/60 rounded-3xl border border-gray-800 p-8 max-w-xl mx-auto">
+            <Folder size={48} className="mx-auto text-gray-600 mb-4 opacity-50" />
+            <h3 className="text-lg font-serif font-bold text-white mb-2">No categories found!</h3>
+            <p className="text-xs text-gray-400">Admin can add categories from the Admin Panel.</p>
           </div>
         ) : (
-          /* Categories Grid with Top-Notch Animations */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
-            {filteredCategories.map((category, index) => (
-              <Link to={`/category/${encodeURIComponent(category.name)}`} key={category._id || index} className="group">
-                <div className="relative h-[400px] rounded-3xl overflow-hidden border border-[#D4AF37]/20 group-hover:border-[#D4AF37] transition-all duration-500 shadow-xl group-hover:shadow-[0_10px_30px_rgba(212,175,55,0.2)] bg-[#151515] group-hover:-translate-y-1.5">
-                  
-                  {/* Background Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/30 group-hover:via-black/30 transition-all duration-500 z-10"></div>
-                  
-                  {/* 🚀 Multiple Images Slideshow */}
-                  {category.imagesArray && category.imagesArray.length > 0 ? (
-                    category.imagesArray.map((img: string, idx: number) => (
-                      <img 
-                        key={idx}
-                        src={img} 
-                        alt={category.name} 
-                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${
-                          idx === (imageIndex % category.imagesArray.length) ? 'opacity-100 group-hover:scale-110 transition-transform duration-700' : 'opacity-0'
-                        }`}
-                      />
-                    ))
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+            {realCategories.map((cat: any) => {
+              const count = getProductCountForCategory(cat.name);
+
+              return (
+                <div
+                  key={cat.id}
+                  onClick={() => navigate(`/products?category=${encodeURIComponent(cat.name)}`)}
+                  className="group relative h-48 sm:h-64 rounded-2xl bg-[#1A1A1A] border border-gray-800 hover:border-[#D4AF37]/80 overflow-hidden cursor-pointer shadow-xl transition-all duration-500 hover:-translate-y-2 [perspective:1000px] [transform-style:preserve-3d]"
+                >
+                  {/* Background Category Image */}
+                  {cat.image ? (
+                    <img 
+                      src={cat.image} 
+                      alt={cat.name} 
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-60 group-hover:opacity-85" 
+                    />
                   ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-gray-600 uppercase tracking-widest text-xs font-bold">
-                      No Custom Image Uploaded
+                    <div className="w-full h-full bg-gradient-to-br from-[#1A1A1A] via-[#111111] to-[#1A1A1A] flex items-center justify-center">
+                      <ShoppingBag size={32} className="text-[#D4AF37]/30" />
                     </div>
                   )}
-                  
-                  {/* Category Content */}
-                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center p-6">
-                    <h2 className="text-3xl font-bold text-white mb-3 font-serif drop-shadow-xl group-hover:text-[#D4AF37] transition-colors duration-300">
-                      {category.name}
-                    </h2>
+
+                  {/* Gradient Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent p-4 sm:p-6 flex flex-col justify-end">
                     
-                    {/* Items Counter Badge */}
-                    <span className="inline-block px-5 py-1.5 bg-black/80 backdrop-blur-md border border-[#D4AF37]/50 rounded-full text-[#D4AF37] text-xs font-bold tracking-wider mb-6 group-hover:bg-[#D4AF37] group-hover:text-black transition-all duration-300 shadow-md">
-                      {category.count} {category.count === 1 ? 'Item' : 'Items'}
-                    </span>
-                    
-                    <span className="flex items-center text-white opacity-0 transform translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 font-bold uppercase tracking-widest text-xs border-b border-white pb-1">
-                      Explore Collection <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" />
+                    {/* Item Count Badge */}
+                    <div className="mb-2">
+                      <span className="bg-[#111111]/80 text-[#D4AF37] border border-[#D4AF37]/40 text-[9px] sm:text-xs font-bold px-2.5 py-1 rounded-full backdrop-blur-md">
+                        {count} {count === 1 ? 'Item' : 'Items'}
+                      </span>
+                    </div>
+
+                    {/* Category Title */}
+                    <h3 className="font-serif font-bold text-sm sm:text-lg text-white group-hover:text-[#D4AF37] transition-colors line-clamp-1">
+                      {cat.name}
+                    </h3>
+
+                    <span className="text-[10px] sm:text-xs text-gray-400 flex items-center mt-1 font-semibold group-hover:text-white transition-colors">
+                      Explore Collection 
+                      <ArrowRight size={12} className="ml-1 group-hover:translate-x-1.5 transition-transform text-[#D4AF37]" />
                     </span>
                   </div>
-
                 </div>
-              </Link>
-            ))}
+              );
+            })}
           </div>
         )}
-        
+
       </div>
     </main>
   );

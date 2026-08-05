@@ -14,6 +14,58 @@ import {
   getSupabaseProducts 
 } from '../../lib/supabase';
 
+// 🚀 ৩ সেকেন্ড পর পর স্বয়ংক্রিয় ছবি স্লাইড হওয়ার স্মুথ কম্পোনেন্ট (Automatic Slideshow Component)
+function CategoryImageSlider({ images, name }: { images: string[]; name: string }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    if (!Array.isArray(images) || images.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % images.length);
+    }, 3000); // 3 Seconds Smooth Transition
+    return () => clearInterval(interval);
+  }, [images]);
+
+  const validImages = Array.isArray(images) ? images.filter(img => img && img.trim() !== '' && !img.includes('No+Image')) : [];
+
+  if (validImages.length === 0) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center text-gray-600 bg-[#111111]">
+        <Folder size={36} className="opacity-30 mb-1" />
+        <span className="text-[10px] uppercase font-bold text-gray-500">No Image</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-full h-full overflow-hidden bg-[#111111]">
+      {validImages.map((img, idx) => (
+        <img
+          key={idx}
+          src={img}
+          alt={`${name} slide ${idx + 1}`}
+          className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ease-in-out ${
+            idx === currentIndex ? 'opacity-100 scale-105' : 'opacity-0 scale-100 pointer-events-none'
+          }`}
+        />
+      ))}
+
+      {validImages.length > 1 && (
+        <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex space-x-1.5 z-10 bg-black/60 px-2 py-1 rounded-full backdrop-blur-md border border-white/10">
+          {validImages.map((_, i) => (
+            <div
+              key={i}
+              className={`h-1.5 rounded-full transition-all duration-500 ${
+                i === currentIndex ? 'bg-[#D4AF37] w-3.5 shadow-[0_0_8px_#D4AF37]' : 'bg-white/40 w-1.5'
+              }`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CategoryManagement() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadIndex, setUploadIndex] = useState<number | null>(null);
@@ -119,7 +171,7 @@ export default function CategoryManagement() {
 
     // 🚀 ৩. Supabase Realtime WebSocket Listener (সব ডিভাইসে স্বয়ংক্রিয় সিঙ্ক)
     const channel = supabase
-      .channel('public:categories:management')
+      .channel('public:categories:management:live:v50')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'categories' },
@@ -188,7 +240,7 @@ export default function CategoryManagement() {
       id: targetId,
       name: category.name || '',
       description: category.description || '',
-      images: category.images && category.images.length > 0 ? [...category.images] : ['']
+      images: category.images && category.images.length > 0 ? [...category.images] : (category.image ? [category.image] : [''])
     });
     setIsModalOpen(true);
   };
@@ -246,10 +298,10 @@ export default function CategoryManagement() {
       _id: targetId,
       name: formData.name.trim(),
       description: formData.description?.trim() || '',
-      images: validImages.length > 0 ? validImages : ['https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=600&auto=format&fit=crop']
+      images: validImages.length > 0 ? validImages : ['https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=600&auto=format&fit=crop'],
+      image: validImages[0] || ''
     };
 
-    // ১. লোকাল স্টোরেজে ইন্সট্যান্ট সেভ (যাতে রিফ্রেশ দিলে গায়েব না হয়)
     const currentLocal = sanitizeCategories(JSON.parse(localStorage.getItem('mo_fashion_categories') || '[]'));
     let updatedList = [];
     
@@ -263,14 +315,12 @@ export default function CategoryManagement() {
     setCategories(cleanList);
     localStorage.setItem('mo_fashion_categories', JSON.stringify(cleanList));
 
-    // উইন্ডো ইভেন্ট ট্রিগার
     window.dispatchEvent(new Event('storage'));
     window.dispatchEvent(new Event('categoryUpdated'));
 
     setIsModalOpen(false);
     const toastId = toast.loading("Saving category LIVE to Supabase Cloud Database...");
 
-    // ২. ক্লাউড ডাটাবেসে সেভ (Supabase Cloud Upsert)
     try {
       await saveSupabaseCategory(catPayload);
       toast.success(`Category saved LIVE on Cloud Database! 🎉`, { id: toastId });
@@ -295,7 +345,7 @@ export default function CategoryManagement() {
               Total: {categories.length} Categories
             </span>
           </div>
-          <p className="text-sm text-gray-400 mt-1">Manage live categories and background slideshow images (Supabase Cloud Sync)</p>
+          <p className="text-sm text-gray-400 mt-1">Manage live categories and auto-sliding slideshow images (Supabase Cloud Sync)</p>
         </div>
 
         <div className="flex items-center space-x-3">
@@ -332,10 +382,13 @@ export default function CategoryManagement() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {categories.map((cat: any) => {
-              // 🚀 Smart Case-Insensitive Product Count (০ হলে ০টি আইটেম সুন্দরভাবে দেখাবে)
               const catProducts = products.filter(p => 
                 String(p.category || '').trim().toLowerCase() === String(cat.name || '').trim().toLowerCase()
               );
+
+              const catImagesList = Array.isArray(cat.images) && cat.images.length > 0 
+                ? cat.images 
+                : (cat.image ? [cat.image] : []);
 
               return (
                 <div 
@@ -343,20 +396,14 @@ export default function CategoryManagement() {
                   className="group bg-[#111111] p-4 rounded-2xl border border-gray-800 hover:border-[#D4AF37]/40 space-y-3 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden"
                 >
                   <div className="space-y-3">
+                    
+                    {/* 🚀 AUTOMATIC SLIDESHOW CONTAINER (৩ সেকেন্ড পর পর ছবি স্লাইড হবে) */}
                     <div className="h-44 bg-[#1A1A1A] rounded-xl overflow-hidden relative border border-gray-800/80">
-                      {cat.images && cat.images[0] ? (
-                        <img 
-                          src={cat.images[0]} 
-                          alt={cat.name} 
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-                        />
-                      ) : (
-                        <Folder className="w-full h-full p-10 text-gray-600 group-hover:scale-110 transition-transform duration-300" />
-                      )}
+                      <CategoryImageSlider images={catImagesList} name={cat.name} />
                       
-                      {cat.images && cat.images.length > 1 && (
-                        <span className="absolute top-3 right-3 bg-black/80 text-[#D4AF37] text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-md border border-[#D4AF37]/30 shadow-md animate-pulse">
-                          {cat.images.length} Slideshow Images
+                      {catImagesList.length > 1 && (
+                        <span className="absolute top-3 right-3 bg-black/80 text-[#D4AF37] text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-md border border-[#D4AF37]/30 shadow-md">
+                          {catImagesList.length} Slideshow Images
                         </span>
                       )}
                     </div>
@@ -401,7 +448,7 @@ export default function CategoryManagement() {
         )}
       </div>
 
-      {/* 🚀 ক্যাটাগরির প্রোডাক্ট দেখার মোডাল (View Category Products Modal) */}
+      {/* 🚀 ক্যাটাগরির প্রোডাক্ট দেখার মোডাল */}
       {isViewModalOpen && selectedCategoryForView && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md transition-opacity duration-300">
           <div className="bg-[#1A1A1A] border border-[#D4AF37]/30 rounded-2xl w-full max-w-3xl p-6 space-y-4 shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">

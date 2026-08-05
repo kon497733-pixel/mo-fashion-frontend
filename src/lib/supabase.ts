@@ -59,7 +59,7 @@ const mergeAndStore = (cloudData: any[], localKey: string) => {
 };
 
 // =========================================================
-// 📦 1. SETTINGS SERVICES
+// 📦 1. SETTINGS SERVICES (DYNAMIC STORE LOGO & TEXTS)
 // =========================================================
 
 export const getSupabaseSettings = async () => {
@@ -232,7 +232,7 @@ export const deleteSupabaseCoupon = async (id: string) => {
 };
 
 // =========================================================
-// 📦 5. ORDERS SERVICES (UNSTOPPABLE SILENT FALLBACK)
+// 📦 5. ORDERS SERVICES
 // =========================================================
 
 export const getSupabaseOrders = async () => {
@@ -289,11 +289,10 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
     ? cleanOrder.paymentDetails
     : JSON.stringify(cleanOrder.paymentDetails || {});
 
-  const orderSummaryString = typeof cleanOrder.orderSummary === 'string'
-    ? cleanOrder.orderSummary
+  const orderSummaryString = typeof cleanOrder.orderSummary === 'string' 
+    ? cleanOrder.orderSummary 
     : JSON.stringify(cleanOrder.orderSummary || {});
 
-  // 1. Full Payload (All possible columns)
   const fullPayload: Record<string, any> = {
     id: targetId,
     orderId: String(cleanOrder.orderId || targetId),
@@ -317,7 +316,6 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
     itemsCount: Number(cleanOrder.itemsCount || itemsArray.length || 1)
   };
 
-  // Local storage optimistic save
   try {
     const existing = JSON.parse(localStorage.getItem('mo_fashion_orders') || '[]');
     const filtered = Array.isArray(existing) ? existing.filter((o: any) => String(o.id || o.orderId || o._id) !== targetId) : [];
@@ -333,7 +331,6 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
     window.dispatchEvent(new Event('orderUpdated'));
   } catch (e) {}
 
-  // Check existing row
   const { data: existingData } = await supabase.from('orders').select('id').eq('id', targetId).single();
 
   let finalData = null;
@@ -349,9 +346,8 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
     primaryError = error;
   }
 
-  // 🚀 SILENT FALLBACK: If columns like itemsCount/discount/subtotal are missing, use Universal Core Columns ONLY!
   if (primaryError) {
-    console.warn('Primary Payload Error, executing Silent Core Fallback:', primaryError.message);
+    console.warn('Primary Order Payload Warning, executing Core Fallback:', primaryError.message);
     const corePayload = {
       id: targetId,
       orderId: String(cleanOrder.orderId || targetId),
@@ -435,7 +431,86 @@ export const saveSupabaseCustomer = async (customerData: Record<string, any>) =>
 };
 
 // =========================================================
-// 📦 7. UNIVERSAL RECYCLE BIN SERVICES
+// 📦 7. REAL-TIME REVIEWS & RATINGS SERVICES (WITH PHOTO)
+// =========================================================
+
+export const getSupabaseReviews = async (productId?: string) => {
+  try {
+    const { data, error } = await supabase.from('reviews').select('*');
+    if (!error && Array.isArray(data)) {
+      const merged = mergeAndStore(data, 'mo_fashion_reviews');
+      if (productId) {
+        return merged.filter((r: any) => String(r.productId || r.product_id) === String(productId));
+      }
+      return merged;
+    }
+  } catch (err) {}
+
+  const cached = localStorage.getItem('mo_fashion_reviews');
+  const allReviews = cached ? JSON.parse(cached) : [];
+  if (productId) {
+    return allReviews.filter((r: any) => String(r.productId || r.product_id) === String(productId));
+  }
+  return allReviews;
+};
+
+export const saveSupabaseReview = async (reviewData: Record<string, any>) => {
+  const targetId = String(reviewData.id || `REV-${Date.now()}`);
+  const payload = {
+    id: targetId,
+    productId: String(reviewData.productId || reviewData.product_id || ''),
+    userName: String(reviewData.userName || reviewData.user_name || 'Valued Customer'),
+    userEmail: String(reviewData.userEmail || reviewData.user_email || ''),
+    rating: Number(reviewData.rating || 5),
+    comment: String(reviewData.comment || ''),
+    photoUrl: String(reviewData.photoUrl || reviewData.photo_url || reviewData.image || ''),
+    likes: Number(reviewData.likes || 0),
+    date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  };
+
+  try {
+    const existing = JSON.parse(localStorage.getItem('mo_fashion_reviews') || '[]');
+    const filtered = existing.filter((r: any) => String(r.id) !== targetId);
+    localStorage.setItem('mo_fashion_reviews', JSON.stringify([payload, ...filtered]));
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('reviewUpdated'));
+  } catch (e) {}
+
+  try {
+    const { data } = await supabase.from('reviews').insert([payload]).select();
+    if (data && data.length > 0) return data[0];
+  } catch (err) {}
+
+  return payload;
+};
+
+export const deleteSupabaseReview = async (id: string) => {
+  try {
+    await supabase.from('reviews').delete().eq('id', String(id));
+    const existing = JSON.parse(localStorage.getItem('mo_fashion_reviews') || '[]');
+    localStorage.setItem('mo_fashion_reviews', JSON.stringify(existing.filter((r: any) => String(r.id) !== String(id))));
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('reviewUpdated'));
+    return true;
+  } catch (err) { return true; }
+};
+
+export const likeSupabaseReview = async (id: string, currentLikes: number) => {
+  const newLikes = currentLikes + 1;
+  try {
+    const existing = JSON.parse(localStorage.getItem('mo_fashion_reviews') || '[]');
+    const updated = existing.map((r: any) => String(r.id) === String(id) ? { ...r, likes: newLikes } : r);
+    localStorage.setItem('mo_fashion_reviews', JSON.stringify(updated));
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('reviewUpdated'));
+
+    await supabase.from('reviews').update({ likes: newLikes }).eq('id', String(id));
+  } catch (e) {}
+  return newLikes;
+};
+
+// =========================================================
+// 📦 8. UNIVERSAL RECYCLE BIN SERVICES
 // =========================================================
 
 export const getSupabaseRecycleBin = async () => {
@@ -506,7 +581,7 @@ export const restoreFromRecycleBin = async (trashRecord: Record<string, any>) =>
     const cleanActive = activeItems.filter((i: any) => String(i.id || i._id) !== targetId);
     localStorage.setItem(activeKey, JSON.stringify([originalData, ...cleanActive]));
 
-    const binKey = originalTable === 'categories' ? 'mo_fashion_recycle_bin_categories' : 'mo_fashion_recycle_bin_products';
+    const binKey = originalTable === 'categories' ? 'mo_fashion_categories' : 'mo_fashion_recycle_bin_products';
     const existingBin = JSON.parse(localStorage.getItem(binKey) || '[]');
     localStorage.setItem(binKey, JSON.stringify(existingBin.filter((i: any) => String(i.id || i._id) !== targetId)));
 

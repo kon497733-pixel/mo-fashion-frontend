@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import {
   Save, Store, Mail, Phone, Globe,
   MapPin, Percent, Truck, 
-  Settings as SettingsIcon, CreditCard, HelpCircle, Plus, Trash2, Image as ImageIcon, Upload, Type, RefreshCw, Sparkles
+  Settings as SettingsIcon, CreditCard, HelpCircle, Plus, Trash2, Image as ImageIcon, Upload, Type, RefreshCw, Sparkles, Layout
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSettingsStore } from '../../store/useSettingsStore';
@@ -14,12 +14,21 @@ export default function Settings() {
 
   const { settings, fetchSettings, updateSettings } = useSettingsStore();
 
-  // 🚀 জিরো ডিফল্ট স্ট্রাকচার (কোডের ভেতর কোনো ফিক্সড ডামি ডাটা রাখা হয়নি)
+  // 🚀 জিরো ডিফল্ট স্ট্রাকচার (সব ফিল্ড পারফেক্টলি যুক্ত করা হয়েছে)
   const emptySettings = {
     storeName: '',
     logoUrl: '', 
     aboutImageUrl: '', 
     tagline: '',
+    heroBadge: 'EXCLUSIVE LUXURY COLLECTION',
+    heroTitle: 'ELEVATE YOUR SIGNATURE STYLE',
+    heroDescription: 'Discover handcrafted luxury apparel and accessories designed to redefine modern elegance. Premium quality tailored for perfection.',
+    heroCardTitle: '100% AUTHENTIC',
+    heroCardSubtitle: 'PREMIUM FASHION GUARANTEED',
+    heroCardEst: 'EST. 2026',
+    offerBadge: 'LIMITED TIME OFFER',
+    offerTitle: 'SPECIAL LUXURY DISCOUNT UP TO 30% OFF',
+    offerDescription: 'Upgrade your wardrobe today with our exclusive premium collection. Fast nationwide delivery available.',
     contactEmail: '',
     phoneNumber: '',
     address: '',
@@ -66,7 +75,7 @@ export default function Settings() {
     }
   }, [settings]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setLocalSettings((prev: any) => ({ ...prev, [name]: value }));
   };
@@ -80,7 +89,7 @@ export default function Settings() {
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 200; 
+          const MAX_WIDTH = 300; 
           const scaleFactor = Math.min(1, MAX_WIDTH / img.width);
           canvas.width = img.width * scaleFactor;
           canvas.height = img.height * scaleFactor;
@@ -162,10 +171,11 @@ export default function Settings() {
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const toastId = toast.loading("Saving settings LIVE to MongoDB Cloud Database...");
+    const toastId = toast.loading("Saving settings LIVE to Cloud Database...");
 
     try {
       await updateSettings(localSettings);
+      window.dispatchEvent(new Event('settingsUpdated'));
       toast.success('Settings saved LIVE in Cloud Database! 🎉', { id: toastId });
     } catch (err) {
       console.error("Cloud Sync Error:", err);
@@ -175,6 +185,7 @@ export default function Settings() {
 
   const menuItems = [
     { name: 'General', icon: Store },
+    { name: 'Homepage 3D', icon: Layout },
     { name: 'Operations', icon: Truck },
     { name: 'Payment', icon: CreditCard },
     { name: 'Social Links', icon: Globe },
@@ -185,25 +196,25 @@ export default function Settings() {
     <div className="text-white pb-10 transition-all duration-300">
       <Helmet><title>Admin - Advanced Settings | MO FASHION</title></Helmet>
 
-      {/* 🚀 Top-Notch Animated Glassmorphic Header */}
+      {/* Top-Notch Animated Glassmorphic Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-2xl border border-[#D4AF37]/20 backdrop-blur-md shadow-xl transition-all duration-300 hover:border-[#D4AF37]/40">
         <div>
           <div className="flex items-center space-x-3">
             <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase flex items-center">
-              <SettingsIcon className="mr-3 text-[#D4AF37] animate-spin-slow" size={28} />
+              <SettingsIcon className="mr-3 text-[#D4AF37]" size={28} />
               Advanced Store Settings
             </h1>
             <span className="bg-[#D4AF37]/10 text-[#D4AF37] text-xs font-bold px-3 py-1 rounded-full border border-[#D4AF37]/30 flex items-center">
               Global Cloud Hub
             </span>
           </div>
-          <p className="text-sm text-gray-400 mt-1">Manage global store settings, logo, tagline, and live cloud database</p>
+          <p className="text-sm text-gray-400 mt-1">Manage global store settings, logo, tagline, hero text, and live cloud database</p>
         </div>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
         
-        {/* Left Sidebar Menu with Hover Scale */}
+        {/* Left Sidebar Menu */}
         <div className="lg:w-1/4">
           <div className="bg-[#1A1A1A] rounded-2xl border border-[#D4AF37]/20 p-4 sticky top-24 shadow-xl backdrop-blur-md">
             <nav className="space-y-2">
@@ -230,7 +241,7 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Right Content Area with Smooth Tab Animations */}
+        {/* Right Content Area */}
         <div className="lg:w-3/4">
           {loading ? (
             <div className="bg-[#1A1A1A] p-16 rounded-2xl text-center text-[#D4AF37] border border-[#D4AF37]/20 flex flex-col items-center justify-center space-y-3 shadow-xl">
@@ -366,7 +377,7 @@ export default function Settings() {
                     </div>
 
                     <div>
-                      <label className="block text-[#D4AF37] font-bold text-xs uppercase tracking-wider mb-2">Homepage Tagline / Description</label>
+                      <label className="block text-[#D4AF37] font-bold text-xs uppercase tracking-wider mb-2">Navbar Tagline</label>
                       <div className="relative">
                         <Type size={18} className="absolute left-3.5 top-3 text-[#D4AF37]" />
                         <input 
@@ -374,7 +385,7 @@ export default function Settings() {
                           name="tagline" 
                           value={localSettings.tagline || ''} 
                           onChange={handleChange} 
-                          placeholder="e.g. Premium E-Commerce Experience" 
+                          placeholder="e.g. LUXURY COLLECTION" 
                           className="w-full bg-[#111111] border border-[#D4AF37]/50 rounded-xl pl-10 pr-4 py-2.5 text-white font-medium text-sm focus:outline-none focus:border-[#D4AF37] transition-colors" 
                         />
                       </div>
@@ -404,6 +415,130 @@ export default function Settings() {
                       </div>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* 🚀 NEW: Homepage & Special Offer 3D Banner Controls */}
+              {activeTab === 'Homepage 3D' && (
+                <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
+                  <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center">
+                    <Layout size={20} className="mr-2 text-[#D4AF37]" /> Dynamic Homepage & Offer Banner Controls
+                  </h2>
+
+                  {/* Hero Section Banner */}
+                  <div className="bg-[#111111] p-5 rounded-2xl border border-[#D4AF37]/20 space-y-4">
+                    <h3 className="text-sm font-bold text-[#D4AF37] uppercase tracking-wider border-b border-gray-800 pb-2">
+                      1. Hero Banner Section Controls
+                    </h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-gray-400 text-xs font-bold uppercase mb-1.5">Hero Badge Text</label>
+                        <input
+                          type="text"
+                          name="heroBadge"
+                          value={localSettings.heroBadge || ''}
+                          onChange={handleChange}
+                          placeholder="e.g. EXCLUSIVE LUXURY COLLECTION"
+                          className="w-full bg-[#1A1A1A] border border-gray-700 rounded-xl px-4 py-2.5 text-white text-xs focus:border-[#D4AF37] focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-gray-400 text-xs font-bold uppercase mb-1.5">Hero Main Title</label>
+                        <input
+                          type="text"
+                          name="heroTitle"
+                          value={localSettings.heroTitle || ''}
+                          onChange={handleChange}
+                          placeholder="e.g. ELEVATE YOUR SIGNATURE STYLE"
+                          className="w-full bg-[#1A1A1A] border border-gray-700 rounded-xl px-4 py-2.5 text-white text-xs focus:border-[#D4AF37] focus:outline-none font-bold"
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-gray-400 text-xs font-bold uppercase mb-1.5">Hero Description Paragraph</label>
+                        <textarea
+                          rows={2}
+                          name="heroDescription"
+                          value={localSettings.heroDescription || ''}
+                          onChange={handleChange}
+                          placeholder="e.g. Discover handcrafted luxury apparel and accessories..."
+                          className="w-full bg-[#1A1A1A] border border-gray-700 rounded-xl p-3 text-white text-xs focus:border-[#D4AF37] focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-gray-400 text-xs font-bold uppercase mb-1.5">Right 3D Card Main Title</label>
+                        <input
+                          type="text"
+                          name="heroCardTitle"
+                          value={localSettings.heroCardTitle || ''}
+                          onChange={handleChange}
+                          placeholder="e.g. 100% AUTHENTIC"
+                          className="w-full bg-[#1A1A1A] border border-gray-700 rounded-xl px-4 py-2.5 text-white text-xs focus:border-[#D4AF37] focus:outline-none font-bold text-[#D4AF37]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-gray-400 text-xs font-bold uppercase mb-1.5">Right 3D Card Subtitle</label>
+                        <input
+                          type="text"
+                          name="heroCardSubtitle"
+                          value={localSettings.heroCardSubtitle || ''}
+                          onChange={handleChange}
+                          placeholder="e.g. PREMIUM FASHION GUARANTEED"
+                          className="w-full bg-[#1A1A1A] border border-gray-700 rounded-xl px-4 py-2.5 text-white text-xs focus:border-[#D4AF37] focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Special Offer Banner */}
+                  <div className="bg-[#111111] p-5 rounded-2xl border border-[#D4AF37]/20 space-y-4">
+                    <h3 className="text-sm font-bold text-[#D4AF37] uppercase tracking-wider border-b border-gray-800 pb-2">
+                      2. Special Offer Banner Controls
+                    </h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-gray-400 text-xs font-bold uppercase mb-1.5">Offer Badge</label>
+                        <input
+                          type="text"
+                          name="offerBadge"
+                          value={localSettings.offerBadge || ''}
+                          onChange={handleChange}
+                          placeholder="e.g. LIMITED TIME OFFER"
+                          className="w-full bg-[#1A1A1A] border border-gray-700 rounded-xl px-4 py-2.5 text-white text-xs focus:border-[#D4AF37] focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-gray-400 text-xs font-bold uppercase mb-1.5">Offer Title</label>
+                        <input
+                          type="text"
+                          name="offerTitle"
+                          value={localSettings.offerTitle || ''}
+                          onChange={handleChange}
+                          placeholder="e.g. SPECIAL LUXURY DISCOUNT UP TO 30% OFF"
+                          className="w-full bg-[#1A1A1A] border border-gray-700 rounded-xl px-4 py-2.5 text-white text-xs focus:border-[#D4AF37] focus:outline-none font-bold text-[#D4AF37]"
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-gray-400 text-xs font-bold uppercase mb-1.5">Offer Description</label>
+                        <textarea
+                          rows={2}
+                          name="offerDescription"
+                          value={localSettings.offerDescription || ''}
+                          onChange={handleChange}
+                          placeholder="e.g. Upgrade your wardrobe today with our exclusive premium collection..."
+                          className="w-full bg-[#1A1A1A] border border-gray-700 rounded-xl p-3 text-white text-xs focus:border-[#D4AF37] focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
               )}
 
