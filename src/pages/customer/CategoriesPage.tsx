@@ -11,7 +11,7 @@ import {
   getSupabaseSettings 
 } from '../../lib/supabase';
 
-// 🚀 ক্যাটাগরি অটো স্লাইডশো কম্পোনেন্ট
+// 🚀 এডমিন থেকে আপলোড করা একাধিক ক্যাটাগরি ছবির অটো-স্লাইডশো কম্পোনেন্ট
 function CategoryCardImageSlider({ images, name }: { images: string[]; name: string }) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -19,11 +19,13 @@ function CategoryCardImageSlider({ images, name }: { images: string[]; name: str
     if (!Array.isArray(images) || images.length <= 1) return;
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % images.length);
-    }, 3000);
+    }, 3000); // 3 Seconds Smooth Transition
     return () => clearInterval(interval);
   }, [images]);
 
-  const validImages = Array.isArray(images) ? images.filter(img => img && img.trim() !== '' && !img.includes('No+Image')) : [];
+  const validImages = Array.isArray(images) 
+    ? images.filter(img => img && typeof img === 'string' && img.trim() !== '' && !img.includes('No+Image')) 
+    : [];
 
   if (validImages.length === 0) {
     return (
@@ -40,11 +42,24 @@ function CategoryCardImageSlider({ images, name }: { images: string[]; name: str
           key={idx}
           src={img}
           alt={`${name} slide ${idx + 1}`}
-          className={`absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-all duration-1000 ease-out opacity-60 group-hover:opacity-85 ${
-            idx === currentIndex ? 'opacity-70 scale-105' : 'opacity-0 scale-100 pointer-events-none'
+          className={`absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-all duration-1000 ease-out ${
+            idx === currentIndex ? 'opacity-75 scale-105' : 'opacity-0 scale-100 pointer-events-none'
           }`}
         />
       ))}
+
+      {validImages.length > 1 && (
+        <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex space-x-1.5 z-10 bg-black/60 px-2 py-1 rounded-full backdrop-blur-md border border-white/10">
+          {validImages.map((_, i) => (
+            <div
+              key={i}
+              className={`h-1.5 rounded-full transition-all duration-500 ${
+                i === currentIndex ? 'bg-[#D4AF37] w-3.5 shadow-[0_0_8px_#D4AF37]' : 'bg-white/40 w-1.5'
+              }`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -86,7 +101,7 @@ export default function CategoriesPage() {
         if (Array.isArray(cloudProds) && cloudProds.length > 0) setProducts(cloudProds);
         if (cloudSet) setSettings((prev: any) => ({ ...prev, ...cloudSet }));
       } catch (e) {
-        console.warn('Backend API fallback.');
+        console.warn('Backend API fallback engaged.');
       } finally {
         setLoading(false);
       }
@@ -110,13 +125,16 @@ export default function CategoriesPage() {
   const cleanRealCategories = () => {
     const map = new Map<string, any>();
 
-    // 1. Process DB Categories
+    // 1. Process DB Categories (Extract multiple images array)
     categories.forEach((cat: any) => {
       const name = String(cat.name || cat.title || '').trim();
       if (name && name !== 'undefined' && name !== 'null') {
         const key = name.toLowerCase();
         if (!map.has(key)) {
-          const imgList = Array.isArray(cat.images) && cat.images.length > 0 ? cat.images : (cat.image ? [cat.image] : []);
+          const imgList = Array.isArray(cat.images) && cat.images.length > 0 
+            ? cat.images 
+            : (cat.image ? [cat.image] : (cat.imageUrl ? [cat.imageUrl] : []));
+            
           map.set(key, {
             id: String(cat.id || cat._id || `CAT-${Date.now()}`),
             name: name,
