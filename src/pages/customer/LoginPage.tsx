@@ -265,25 +265,7 @@ export default function LoginPage() {
     }
   };
 
-  // 🚀 ২. কাস্টমারের জিমেইল অটো-ডিটেকশন ও গুগল সাইন-ইন মোডাল ওপেন
-  const handleOpenGoogleAuth = () => {
-    const typedEmail = formData.email.trim().toLowerCase();
-
-    const finalEmail = typedEmail || googleUser.email || 'customer@gmail.com';
-    const derivedName = googleUser.name || (finalEmail ? finalEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Google Member');
-    const avatarUrl = googleUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(derivedName)}&background=5c3e34&color=fff&size=128&bold=true`;
-
-    setGoogleUser({
-      name: derivedName,
-      email: finalEmail,
-      photoURL: avatarUrl
-    });
-
-    setGoogleStep(1);
-    setIsGooglePopupOpen(true);
-  };
-
-  // 🚀 গুগল পপ-আপ থেকে সাইন-ইন সম্পূর্ণ করা
+  // গুগল পপ-আপ থেকে সাইন-ইন সম্পূর্ণ করা
   const handleCompleteGoogleLogin = () => {
     const finalEmail = googleUser.email || formData.email || 'customer@gmail.com';
     const finalName = googleUser.name || finalEmail.split('@')[0];
@@ -325,7 +307,7 @@ export default function LoginPage() {
     navigate(from, { replace: true });
   };
 
-  // 🚀 ৩. ইমেইল OTP দিয়ে পাসওয়ার্ড রিসেট
+  // ইমেইল OTP পাসওয়ার্ড রিসেট
   const handleSendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
@@ -493,7 +475,7 @@ export default function LoginPage() {
         {/* Header & Website Store Logo */}
         <div className="text-center mb-8">
           
-          {/* 🚀 DYNAMIC STORE LOGO (NO SPARKLES ICON) */}
+          {/* 🚀 DYNAMIC STORE LOGO */}
           <div className="w-16 h-16 bg-[#111111] border border-[#D4AF37] rounded-2xl flex items-center justify-center mx-auto mb-4 text-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.3)] overflow-hidden">
             {storeLogoImage ? (
               <img src={storeLogoImage} alt={storeBrandTitle} className="w-full h-full object-cover" />
@@ -600,47 +582,34 @@ export default function LoginPage() {
           <div className="h-px bg-gray-800 flex-1"></div>
         </div>
 
-        {/* 🚀 OFFICIAL GOOGLE NATIVE BUTTON CONTAINER & SOCIAL BUTTONS */}
+        {/* 🚀 OFFICIAL GOOGLE NATIVE BUTTON & UNIFORM WHITE SOCIAL BUTTONS */}
         <div className="space-y-3 mb-6">
           
-          {/* Official Google Sign-In Native Button */}
-          <div id="google-native-signin-btn" className="w-full flex justify-center overflow-hidden rounded-full" />
+          {/* Official Google Sign-In Native Button Container */}
+          <div id="google-native-signin-btn" className="w-full flex justify-center overflow-hidden rounded-full shadow-sm" />
 
-          {/* Fallback Custom Google Button */}
-          <button
-            type="button"
-            onClick={handleOpenGoogleAuth}
-            className="w-full flex items-center justify-center bg-[#111111] border border-gray-700 hover:border-[#D4AF37] py-3 px-4 rounded-full text-sm font-semibold text-white transition-all shadow-md active:scale-95 group"
-          >
-            <svg className="w-5 h-5 mr-3 shrink-0" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-            </svg>
-            <span className="group-hover:text-[#D4AF37] transition-colors">Sign in with Google</span>
-          </button>
-
+          {/* Facebook Official Styled Light Button */}
           <button
             type="button"
             onClick={() => handleSocialClick('Facebook')}
-            className="w-full flex items-center justify-center bg-[#111111] border border-gray-700 hover:border-[#D4AF37] py-3 px-4 rounded-full text-sm font-semibold text-white transition-all shadow-md active:scale-95 group"
+            className="w-full flex items-center justify-center bg-white hover:bg-gray-50 border border-gray-300 py-3 px-4 rounded-full text-sm font-semibold text-gray-800 transition-all shadow-sm active:scale-95 group"
           >
             <svg className="w-5 h-5 mr-3 text-[#1877F2] shrink-0" fill="currentColor" viewBox="0 0 24 24">
               <path d="M24 12.073c0-6.627-4.873-12-10.875-12S2.25 5.446 2.25 12.073c0 5.99 4.388 10.954 10.125 11.854v-8.385H9.703v-3.47h2.672V9.413c0-2.637 1.57-4.09 3.97-4.09 1.149 0 2.35.205 2.35.205v2.583h-1.323c-1.307 0-1.714.811-1.714 1.643v1.97h2.912l-.465 3.47h-2.447v8.385C19.612 23.027 24 18.062 24 12.073z"/>
             </svg>
-            <span className="group-hover:text-[#D4AF37] transition-colors">Sign in with Facebook</span>
+            <span className="text-gray-800">Sign in with Facebook</span>
           </button>
 
+          {/* Apple Official Styled Light Button */}
           <button
             type="button"
             onClick={() => handleSocialClick('Apple')}
-            className="w-full flex items-center justify-center bg-[#111111] border border-gray-700 hover:border-[#D4AF37] py-3 px-4 rounded-full text-sm font-semibold text-white transition-all shadow-md active:scale-95 group"
+            className="w-full flex items-center justify-center bg-white hover:bg-gray-50 border border-gray-300 py-3 px-4 rounded-full text-sm font-semibold text-gray-800 transition-all shadow-sm active:scale-95 group"
           >
-            <svg className="w-5 h-5 mr-3 text-white shrink-0" fill="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 mr-3 text-black shrink-0" fill="currentColor" viewBox="0 0 24 24">
               <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87 1.23 0 2.22-.87 3.75-.87 1.48.02 2.83.69 3.69 1.83-3.03 1.8-2.53 6.13.52 7.39-.62 1.34-1.42 2.68-2.36 3.92zM15.97 6.42c.67-1.28 1.12-3.03.88-4.42-1.21.05-2.73.81-3.6 1.82-.76.88-1.42 2.65-1.16 4.01 1.35.1 2.76-.71 3.88-1.41z"/>
             </svg>
-            <span className="group-hover:text-[#D4AF37] transition-colors">Sign in with Apple</span>
+            <span className="text-gray-800">Sign in with Apple</span>
           </button>
         </div>
 
@@ -676,6 +645,7 @@ export default function LoginPage() {
               )}
             </div>
 
+            {/* Step 1: Account Selection */}
             {googleStep === 1 && (
               <div className="space-y-6">
                 <div 
@@ -732,6 +702,7 @@ export default function LoginPage() {
               </div>
             )}
 
+            {/* Step 2: Data Sharing Consent */}
             {googleStep === 2 && (
               <div className="space-y-6">
                 <div className="flex items-center space-x-3.5 p-2 border-b border-gray-100 pb-4">
@@ -784,6 +755,7 @@ export default function LoginPage() {
               </div>
             )}
 
+            {/* Step 3: Full Terms & Privacy Disclaimers */}
             {googleStep === 3 && (
               <div className="space-y-5 text-left max-h-[75vh] overflow-y-auto pr-1">
                 <div>
