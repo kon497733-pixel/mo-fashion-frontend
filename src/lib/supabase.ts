@@ -59,17 +59,24 @@ const mergeAndStore = (cloudData: any[], localKey: string) => {
 };
 
 // =========================================================
-// 📦 1. SETTINGS SERVICES (DYNAMIC STORE LOGO & TEXTS)
+// 📦 1. SETTINGS SERVICES (FRESH CLOUD FETCH & LIVE SYNC)
 // =========================================================
 
 export const getSupabaseSettings = async () => {
   try {
-    const { data, error } = await supabase.from('settings').select('*').limit(1);
+    const { data, error } = await supabase
+      .from('settings')
+      .select('*')
+      .limit(1);
+
     if (!error && data && data.length > 0) {
       localStorage.setItem('mo_fashion_settings', JSON.stringify(data[0]));
       return data[0];
     }
-  } catch (err) {}
+  } catch (err) {
+    console.warn('Supabase Settings Fetch Warning:', err);
+  }
+
   const cached = localStorage.getItem('mo_fashion_settings');
   return cached ? JSON.parse(cached) : null;
 };
@@ -79,13 +86,24 @@ export const updateSupabaseSettings = async (newSettings: Record<string, any>) =
   const targetId = 'STORE_SETTINGS';
 
   try {
-    const payload = { id: targetId, ...cleanPayload };
+    const payload = { id: targetId, ...cleanPayload, updated_at: new Date().toISOString() };
     localStorage.setItem('mo_fashion_settings', JSON.stringify(payload));
+    
+    // উইন্ডো রিয়েল-টাইম ব্রডকাস্ট
     window.dispatchEvent(new Event('settingsUpdated'));
+    window.dispatchEvent(new Event('storage'));
 
-    const { data } = await supabase.from('settings').upsert([payload], { onConflict: 'id' }).select();
+    const { data } = await supabase
+      .from('settings')
+      .upsert([payload], { onConflict: 'id' })
+      .select();
+
     const savedData = (data && data.length > 0) ? data[0] : payload;
     localStorage.setItem('mo_fashion_settings', JSON.stringify(savedData));
+    
+    window.dispatchEvent(new Event('settingsUpdated'));
+    window.dispatchEvent(new Event('storage'));
+
     return savedData;
   } catch (err: any) {
     localStorage.setItem('mo_fashion_settings', JSON.stringify(cleanPayload));
@@ -232,7 +250,7 @@ export const deleteSupabaseCoupon = async (id: string) => {
 };
 
 // =========================================================
-// 📦 5. ORDERS SERVICES
+// 📦 5. ORDERS SERVICES (UNSTOPPABLE SILENT FALLBACK)
 // =========================================================
 
 export const getSupabaseOrders = async () => {
@@ -289,10 +307,11 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
     ? cleanOrder.paymentDetails
     : JSON.stringify(cleanOrder.paymentDetails || {});
 
-  const orderSummaryString = typeof cleanOrder.orderSummary === 'string' 
-    ? cleanOrder.orderSummary 
+  const orderSummaryString = typeof cleanOrder.orderSummary === 'string'
+    ? cleanOrder.orderSummary
     : JSON.stringify(cleanOrder.orderSummary || {});
 
+  // Full Payload
   const fullPayload: Record<string, any> = {
     id: targetId,
     orderId: String(cleanOrder.orderId || targetId),
@@ -316,6 +335,7 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
     itemsCount: Number(cleanOrder.itemsCount || itemsArray.length || 1)
   };
 
+  // Local storage optimistic save
   try {
     const existing = JSON.parse(localStorage.getItem('mo_fashion_orders') || '[]');
     const filtered = Array.isArray(existing) ? existing.filter((o: any) => String(o.id || o.orderId || o._id) !== targetId) : [];
@@ -346,8 +366,9 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
     primaryError = error;
   }
 
+  // SILENT FALLBACK
   if (primaryError) {
-    console.warn('Primary Order Payload Warning, executing Core Fallback:', primaryError.message);
+    console.warn('Primary Payload Error, executing Silent Core Fallback:', primaryError.message);
     const corePayload = {
       id: targetId,
       orderId: String(cleanOrder.orderId || targetId),
@@ -431,7 +452,7 @@ export const saveSupabaseCustomer = async (customerData: Record<string, any>) =>
 };
 
 // =========================================================
-// 📦 7. REAL-TIME REVIEWS & RATINGS SERVICES (WITH PHOTO)
+// 📦 7. REAL-TIME REVIEWS & RATINGS SERVICES
 // =========================================================
 
 export const getSupabaseReviews = async (productId?: string) => {
