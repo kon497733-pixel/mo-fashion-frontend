@@ -357,13 +357,12 @@ export default function CheckoutPage() {
       joinDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
     };
 
-    // 🚀 ১. ক্লাউড ডাটাবেসে অর্ডার সেভ (STRICT CLOUD VALIDATION)
+    // 🚀 ১. ক্লাউড ডাটাবেসে অর্ডার সেভ (STRICT CLOUD ERROR CATCHING)
     try {
       await saveSupabaseOrder(orderPayload);
     } catch (orderErr: any) {
       console.error("Cloud Order Save Error:", orderErr);
       setIsSubmitting(false);
-      // 🚨 EXPOSE EXACT CLOUD ERROR TO SCREEN
       toast.error(orderErr.message || "Failed to save order to Cloud Database!", { id: toastId, duration: 6000 });
       return; 
     }

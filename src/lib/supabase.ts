@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
-// 🚀 Supabase Credentials
+// 🚀 Supabase Credentials from Environment Variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://lcoujwhfddeihulurrwq.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Aib7MOvBq4kMBsiM7BeHnQ_ElMM9Cjl';
 
@@ -307,7 +307,7 @@ export const deleteSupabaseCoupon = async (id: string) => {
 };
 
 // =========================================================
-// 📦 5. ORDERS SERVICES (STRICT ERROR EXPOSURE FIX)
+// 📦 5. ORDERS SERVICES (WHITELISTED DATABASE PAYLOAD FIX)
 // =========================================================
 
 export const getSupabaseOrders = async () => {
@@ -365,11 +365,23 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
     ? cleanOrder.orderSummary
     : JSON.stringify(cleanOrder.orderSummary || {});
 
+  // 🚀 STRICT WHITELISTED PAYLOAD (Only exact database columns included!)
   const payload: Record<string, any> = {
-    ...cleanOrder,
     id: targetId,
     orderId: String(cleanOrder.orderId || targetId),
+    customer: String(cleanOrder.customer || 'Customer'),
     customerInfo: customerInfoString,
+    email: String(cleanOrder.email || ''),
+    phone: String(cleanOrder.phone || ''),
+    address: String(cleanOrder.address || ''),
+    date: String(cleanOrder.date || new Date().toLocaleDateString('en-GB')),
+    subtotal: Number(cleanOrder.subtotal || 0),
+    shipping: Number(cleanOrder.shipping || 0),
+    tax: Number(cleanOrder.tax || 0),
+    discount: Number(cleanOrder.discount || 0),
+    total: Number(cleanOrder.total || 0),
+    status: String(cleanOrder.status || 'Pending'),
+    paymentMethod: String(cleanOrder.paymentMethod || 'Cash on Delivery'),
     paymentDetails: paymentDetailsString,
     orderItems: itemsString,
     orderSummary: orderSummaryString,
@@ -393,41 +405,15 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
     window.dispatchEvent(new Event('orderUpdated'));
   } catch (e) {}
 
-  // 🚀 Direct Supabase Cloud Write with Strict Error Exposure
+  // 🚀 Direct Supabase Cloud Write
   const { data, error } = await supabase
     .from('orders')
     .upsert([payload], { onConflict: 'id' })
     .select();
 
   if (error) {
-    console.error('Supabase Primary Upsert Error:', error);
-
-    // Try simplified payload fallback
-    const simplePayload = {
-      id: targetId,
-      orderId: String(cleanOrder.orderId || targetId),
-      customer: String(cleanOrder.customer || 'Customer'),
-      email: String(cleanOrder.email || ''),
-      phone: String(cleanOrder.phone || ''),
-      address: String(cleanOrder.address || ''),
-      date: String(cleanOrder.date || new Date().toLocaleDateString('en-GB')),
-      total: Number(cleanOrder.total || 0),
-      status: String(cleanOrder.status || 'Pending'),
-      paymentMethod: String(cleanOrder.paymentMethod || 'Cash on Delivery'),
-      orderItems: itemsString
-    };
-
-    const { data: retryData, error: retryError } = await supabase
-      .from('orders')
-      .upsert([simplePayload], { onConflict: 'id' })
-      .select();
-
-    if (retryError) {
-      // 🚨 EXPOSE REAL CLOUD ERROR TO SCREEN
-      throw new Error(`Cloud Database Error: ${retryError.message} (${retryError.code || 'RLS/Schema Block'})`);
-    }
-
-    if (retryData && retryData.length > 0) return retryData[0];
+    console.error('Supabase Order Upsert Error:', error);
+    throw new Error(`Cloud Database Error: ${error.message} (${error.code || 'RLS/Schema Block'})`);
   }
 
   if (data && data.length > 0) return data[0];

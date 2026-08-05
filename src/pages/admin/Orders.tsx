@@ -35,6 +35,26 @@ export default function Orders() {
     return isNaN(num) ? 0 : num;
   };
 
+  // 🛡️ সেফ জেসন পার্সার
+  const safeJsonParse = (input: any): any => {
+    if (!input) return null;
+    if (typeof input === 'object') return input;
+    if (typeof input === 'string') {
+      const trimmed = input.trim();
+      if (!trimmed || trimmed === '[object Object]') return null;
+      try {
+        let parsed = JSON.parse(trimmed);
+        if (typeof parsed === 'string') {
+          try { parsed = JSON.parse(parsed); } catch (e) {}
+        }
+        return parsed;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  };
+
   // 🛡️ কাস্টমার নাম পার্সার
   const getCustomerFullName = (order: any): string => {
     if (!order) return 'Customer';
@@ -43,7 +63,7 @@ export default function Orders() {
     }
     let info = order.customerInfo || order.customer_info;
     if (typeof info === 'string') {
-      try { info = JSON.parse(info); } catch (e) {}
+      info = safeJsonParse(info);
     }
     if (info && typeof info === 'object') {
       const name = `${info.firstName || info.first_name || ''} ${info.lastName || info.last_name || ''}`.trim();
@@ -64,7 +84,7 @@ export default function Orders() {
     let addr = order.address || '';
     let info = order.customerInfo || order.customer_info;
     if (typeof info === 'string') {
-      try { info = JSON.parse(info); } catch(e){}
+      info = safeJsonParse(info);
     }
     if (info && typeof info === 'object') {
       if (info.address || info.city) {
@@ -100,23 +120,11 @@ export default function Orders() {
     for (let raw of candidates) {
       if (!raw) continue;
 
-      // ১. সরাসরি অ্যারাই হলে
       if (Array.isArray(raw) && raw.length > 0) return raw;
 
-      // ২. জেসন স্ট্রিং হলে (ডাবল-পার্সিং সেফটি)
-      if (typeof raw === 'string' && raw.trim() !== '' && raw !== '[object Object]') {
-        try {
-          let parsed = JSON.parse(raw);
-          if (typeof parsed === 'string') {
-            try { parsed = JSON.parse(parsed); } catch (e) {}
-          }
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-          if (parsed && typeof parsed === 'object') return [parsed];
-        } catch (e) {}
-      }
-
-      // ৩. অবজেক্ট হলে
-      if (typeof raw === 'object' && !Array.isArray(raw)) return [raw];
+      const parsed = safeJsonParse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (parsed && typeof parsed === 'object') return [parsed];
     }
 
     return [];
@@ -127,7 +135,7 @@ export default function Orders() {
     if (!order) return { subtotal: 0, shipping: 60, tax: 0, discount: 0, total: 0 };
     let summary = order.orderSummary || order.order_summary;
     if (typeof summary === 'string' && summary !== '[object Object]') {
-      try { summary = JSON.parse(summary); } catch (e) {}
+      summary = safeJsonParse(summary);
     }
     const totalNum = parseSafeNumber(order.total || summary?.total);
     const addrLower = getFullAddress(order).toLowerCase();
@@ -205,7 +213,7 @@ export default function Orders() {
     fetchOrders();
 
     const channel = supabase
-      .channel('public:orders:admin:live:v30')
+      .channel('public:orders:admin:live:v35')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
@@ -561,7 +569,7 @@ export default function Orders() {
         </div>
       </div>
 
-      {/* 🪟 View Full Order Details Modal (A to Z Product Details & Customer Notes) */}
+      {/* 🪟 View Full Order Details Modal */}
       {isModalOpen && selectedOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md transition-opacity duration-300">
           <div className="bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
@@ -639,7 +647,7 @@ export default function Orders() {
                 </div>
               </div>
 
-              {/* 2. Itemized Products List (Real Photo, Name, Size, Color, Material & Custom Options) */}
+              {/* 2. Itemized Products List */}
               <div className="bg-[#111111] p-5 rounded-2xl border border-gray-800/80 shadow-md">
                 <h3 className="text-[#D4AF37] font-bold mb-4 uppercase tracking-wider text-xs border-b border-gray-800 pb-2 flex items-center">
                   <Package size={16} className="mr-2 text-[#D4AF37]" /> Ordered Items ({getOrderItemsList(selectedOrder).length})
@@ -689,7 +697,6 @@ export default function Orders() {
                                   </span>
                                 )}
                                 
-                                {/* Dynamic Variants */}
                                 {Array.isArray(item.selectedVariants) ? (
                                   item.selectedVariants.map((v: any, vIdx: number) => (
                                     <span key={vIdx} className="bg-[#111111] px-2 py-0.5 rounded text-gray-300 border border-gray-700 shadow-sm capitalize">
