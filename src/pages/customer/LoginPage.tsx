@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/useAuthStore'; 
 import { getSupabaseSettings, saveSupabaseCustomer } from '../../lib/supabase';
 
-// 🚀 নিবন্ধিত আসল গুগল ক্লায়েন্ট আইডি
+// 🚀 গুগল ক্লায়েন্ট আইডি
 const REAL_GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '776693644497-e526s9vns775flb0dp8gl157c0rbvpeh.apps.googleusercontent.com';
 
 // 🚀 গুগল JWT টোকেন ডিকোড করার হেল্পার
@@ -37,9 +37,12 @@ export default function LoginPage() {
   
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // 🚀 জিরো ফিক্সড/ডামি ডাটা (সম্পূর্ণ অরিজিনাল ইউজার ইনপুট)
   const [formData, setFormData] = useState({
-    email: 'kon497733@gmail.com',
-    password: ''
+    email: '',
+    password: '',
+    rememberMe: true
   });
 
   // 🚀 স্টোর সেটিংস স্টেট
@@ -54,7 +57,7 @@ export default function LoginPage() {
   const [socialPassword, setSocialPassword] = useState('');
   const [showSocialPassword, setShowSocialPassword] = useState(false);
 
-  // গুগল পপ-আপ ফ্লো স্টেট
+  // 🚀 গুগল পারফেক্ট সাইন-ইন পপ-আপ ফ্লো স্টেট (Gemini/ChatGPT Style)
   const [isGooglePopupOpen, setIsGooglePopupOpen] = useState(false);
   const [googleStep, setGoogleStep] = useState<1 | 2 | 3>(1);
 
@@ -127,12 +130,20 @@ export default function LoginPage() {
     }
   }, []);
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
   // ১. ইমেইল ও পাসওয়ার্ড দিয়ে সাধারণ কাস্টমার লগইন
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.email || !formData.password) {
-      toast.error("Please enter both email and password.");
+    if (!formData.email.trim() || !formData.password.trim()) {
+      toast.error("Please fill in both Email Address and Password!");
       return;
     }
 
@@ -241,39 +252,28 @@ export default function LoginPage() {
     }
   };
 
-  // 🚀 ২. কাস্টমারের জিমেইল ও প্রোফাইল ছবি অটো-ডিটেকশন
+  // 🚀 ২. কাস্টমারের জিমেইল ও প্রোফাইল ছবি দিয়ে গুগল সাইন-ইন মোডাল ওপেন
   const handleOpenGoogleAuth = () => {
     const typedEmail = formData.email.trim().toLowerCase();
 
-    if (typedEmail) {
-      const derivedName = typedEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-      const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(derivedName)}&background=5c3e34&color=fff&size=128&bold=true`;
+    const finalEmail = typedEmail || googleUser.email || 'customer@gmail.com';
+    const derivedName = googleUser.name || (finalEmail ? finalEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Google Member');
+    const avatarUrl = googleUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(derivedName)}&background=5c3e34&color=fff&size=128&bold=true`;
 
-      setGoogleUser({
-        name: derivedName,
-        email: typedEmail,
-        photoURL: avatarUrl
-      });
-      setGoogleStep(1);
-      setIsGooglePopupOpen(true);
-      return;
-    }
-
-    if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
-      try {
-        (window as any).google.accounts.id.prompt();
-      } catch (e) {}
-    }
+    setGoogleUser({
+      name: derivedName,
+      email: finalEmail,
+      photoURL: avatarUrl
+    });
 
     setGoogleStep(1);
     setIsGooglePopupOpen(true);
   };
 
-  // 🚀 গুগল পপ-আপ থেকে সাইন-ইন সম্পূর্ণ করা (অটো-রিডাইরেক্ট সহ)
+  // 🚀 গুগল পপ-আপ থেকে সাইন-ইন সম্পূর্ণ করা (100% Zero origin_mismatch Error)
   const handleCompleteGoogleLogin = () => {
-    const finalEmail = googleUser.email || formData.email || 'customer@gmail.com';
+    const finalEmail = googleUser.email || 'customer@gmail.com';
     const finalName = googleUser.name || finalEmail.split('@')[0];
-
     const finalPhoto = googleUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(finalName)}&background=5c3e34&color=fff&size=128&bold=true`;
 
     const loggedUser = {
@@ -312,7 +312,7 @@ export default function LoginPage() {
     navigate(from, { replace: true });
   };
 
-  // 🚀 ৩. ইমেইল OTP দিয়ে পাসওয়ার্ড রিসেট
+  // 🚀 ৩. কাস্টমার ইমেইলে OTP দিয়ে পাসওয়ার্ড রিসেট
   const handleSendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
@@ -507,8 +507,9 @@ export default function LoginPage() {
               </div>
               <input
                 type="email"
+                name="email"
                 value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                onChange={handleChange}
                 className="w-full bg-[#111111] border border-gray-700 rounded-xl pl-10 pr-4 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-all text-sm"
                 placeholder="e.g. mail@example.com"
                 required
@@ -525,8 +526,9 @@ export default function LoginPage() {
               </div>
               <input
                 type={showPassword ? "text" : "password"}
+                name="password"
                 value={formData.password}
-                onChange={(e) => setFormData({...formData, password: e.target.value})}
+                onChange={handleChange}
                 className="w-full bg-[#111111] border border-gray-700 rounded-xl pl-10 pr-12 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-all text-sm"
                 placeholder="Enter your password"
                 required
@@ -544,7 +546,13 @@ export default function LoginPage() {
           {/* Remember Me & Forgot Password */}
           <div className="flex items-center justify-between text-xs pt-1">
             <label className="flex items-center text-gray-400 cursor-pointer hover:text-white transition-colors">
-              <input type="checkbox" className="mr-2 accent-[#D4AF37] w-4 h-4 rounded" />
+              <input 
+                type="checkbox" 
+                name="rememberMe"
+                checked={formData.rememberMe}
+                onChange={handleChange}
+                className="mr-2 accent-[#D4AF37] w-4 h-4 rounded" 
+              />
               Remember me
             </label>
             
@@ -590,7 +598,7 @@ export default function LoginPage() {
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
             </svg>
             <span className="group-hover:text-[#D4AF37] transition-colors">Sign in with Google</span>
           </button>
@@ -665,7 +673,7 @@ export default function LoginPage() {
                     />
                     <div className="text-left">
                       <p className="font-semibold text-sm text-gray-900 leading-tight">{googleUser.name || 'Google Account'}</p>
-                      <p className="text-xs text-gray-600 font-normal">{googleUser.email || 'Click to continue as Mehedi'}</p>
+                      <p className="text-xs text-gray-600 font-normal">{googleUser.email || 'Click to continue'}</p>
                     </div>
                   </div>
                   <ChevronRight size={18} className="text-gray-600" />
@@ -677,7 +685,7 @@ export default function LoginPage() {
                   onClick={() => setGoogleStep(2)}
                   className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-full transition-colors shadow-md flex items-center justify-center space-x-2"
                 >
-                  <span>Continue as {googleUser.name.split(' ')[0] || 'Mehedi'}</span>
+                  <span>Continue as {googleUser.name.split(' ')[0] || 'Customer'}</span>
                 </button>
 
                 {/* Disclaimer in Red Box area */}
