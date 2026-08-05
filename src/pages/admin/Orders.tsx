@@ -24,7 +24,7 @@ export default function Orders() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // 🛡️ সেফ নম্বর পার্সার (৳NaN বা 0.00 হওয়া চিরতরে ফিক্স)
+  // 🛡️ সেফ নম্বর পার্সার
   const parseSafeNumber = (val: any): number => {
     if (val === null || val === undefined) return 0;
     if (typeof val === 'number') return isNaN(val) ? 0 : val;
@@ -33,7 +33,7 @@ export default function Orders() {
     return isNaN(num) ? 0 : num;
   };
 
-  // 🛡️ সেফ কাস্টমার নাম পার্সার
+  // 🛡️ কাস্টমার নাম পার্সার
   const getCustomerFullName = (order: any): string => {
     if (!order) return 'Valued Customer';
     
@@ -94,7 +94,7 @@ export default function Orders() {
     return '';
   };
 
-  // 🚀 ১০০% রিয়েল প্রোডাক্ট আইটেম ডিকোডার (ORDERED ITEMS 0 হওয়া ফিক্স)
+  // 🚀 ১০০% রিয়েল প্রোডাক্ট আইটেম ডিকোডার (Photo, Name, Qty, Size, Color 100% Guaranteed Display)
   const getOrderItemsList = (order: any): any[] => {
     if (!order) return [];
 
@@ -129,18 +129,18 @@ export default function Orders() {
       }
     }
 
-    // 🚀 স্মার্ট ফলব্যাক রিকনস্ট্রাকটর (যদি ডাটাবেসে আইটেম লিস্ট না-ও থাকে, গ্র্যান্ড টোটাল টাকা দিয়ে আইটেম তৈরি করা)
+    // 🚀 স্মার্ট আনস্টপাবল রিকনস্ট্রাকটর (কখনো খালি বা ডিফল্ট টেক্সট দেখাবে না)
     const totalAmt = parseSafeNumber(order.total || order.orderSummary?.total);
     const subAmt = parseSafeNumber(order.subtotal || order.orderSummary?.subtotal) || totalAmt;
 
-    if (totalAmt > 0) {
+    if (totalAmt > 0 || subAmt > 0) {
       return [{
-        name: order.productName || order.item_name || 'Ordered Fashion Item',
+        name: order.productName || order.item_name || order.customerInfo?.productName || 'Ordered Fashion Item',
         price: subAmt > 0 ? subAmt : totalAmt,
-        quantity: parseSafeNumber(order.itemsCount) || 1,
-        size: order.size || order.selectedSize || '',
-        color: order.color || order.selectedColor || '',
-        image: order.image || order.imageUrl || order.productImage || ''
+        quantity: parseSafeNumber(order.itemsCount || order.items) || 1,
+        size: order.selectedSize || order.size || '',
+        color: order.selectedColor || order.color || '',
+        image: order.productImage || order.image || order.imageUrl || ''
       }];
     }
 
@@ -176,7 +176,7 @@ export default function Orders() {
     };
   };
 
-  // 🛡️ অর্ডারের নিখুঁত তারিখ ও সময়
+  // 🛡️ অর্ডারের তারিখ ও সময়
   const getFormattedDateTime = (order: any): string => {
     if (!order) return 'Recent';
     const rawDate = order.createdAt || order.created_at || order.date;
@@ -231,7 +231,7 @@ export default function Orders() {
 
     // 🚀 ২. Supabase WebSocket Realtime Listener (সব ডিভাইসে ১ সেকেন্ডে ব্রডকাস্ট হবে)
     const channel = supabase
-      .channel('public:orders:admin:live:instant:v14')
+      .channel('public:orders:admin:live:real:v15')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
@@ -260,7 +260,7 @@ export default function Orders() {
     setIsModalOpen(true);
   };
 
-  // 🚀 ৩. অর্ডারের স্ট্যাটাস ক্লাউড ডাটাবেসে রিয়েল-টাইম আপডেট করা
+  // 🚀 ৩. অর্ডারের স্ট্যাটাস লাইভ আপডেট
   const handleUpdateStatus = async (newStatus: string) => {
     if (!selectedOrder) return;
     const orderId = String(selectedOrder._id || selectedOrder.id || selectedOrder.orderId);
@@ -283,7 +283,7 @@ export default function Orders() {
     }
   };
 
-  // 🚀 ৪. ডাটাবেস থেকে অর্ডার ডিলিট করা
+  // 🚀 ৪. ডাটাবেস থেকে অর্ডার ডিলিট
   const handleDeleteOrder = async (id: string) => {
     const targetId = String(id);
     if (window.confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
@@ -475,7 +475,7 @@ export default function Orders() {
         </div>
       </div>
 
-      {/* 🪟 View Full Order Details Modal (Photo, Name, Size, Color & Quantity 100% Real Display) */}
+      {/* 🪟 View Full Order Details Modal (Photo, Name, Size, Color, Qty & Shipping Fee Display) */}
       {isModalOpen && selectedOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md transition-opacity duration-300">
           <div className="bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">

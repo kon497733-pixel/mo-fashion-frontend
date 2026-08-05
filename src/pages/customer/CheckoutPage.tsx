@@ -190,7 +190,7 @@ export default function CheckoutPage() {
     setSelectedThana(thanas[0] || '');
   };
 
-  // 🚀 রিয়েল-টাইম সাবটোটাল ও প্রোডাক্ট আইটেম প্রস্তুতি (০% ডিফল্ট / কাস্টমারের নির্বাচিত সাইজ ও কালারসহ)
+  // 🚀 রিয়েল-টাইম সাবটোটাল ও প্রোডাক্ট আইটেম প্রস্তুতি (ছবি, নাম, সাইজ, কালার সহ)
   let subtotalAfterProductDiscount = 0;
   const formattedOrderItems = items.map((cartItem: any) => {
     const dbProduct = dbProducts.find(p => String(p.id || p._id) === String(cartItem.id));
