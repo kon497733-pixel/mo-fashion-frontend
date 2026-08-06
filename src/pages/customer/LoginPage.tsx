@@ -163,17 +163,61 @@ export default function LoginPage() {
     };
   }, [navigate, location, setUser]);
 
-  // 🚀 আপনার নিজস্ব ফেসবুক অফিশিয়াল অ্যাপ আইডি এখানে যুক্ত করা হয়েছে
+  // 🚀 ফেসবুক অফিশিয়াল SDK এবং নেটিভ বাটন সাবস্ক্রিপশন ইনিশিয়ালাইজেশন
   useEffect(() => {
     if (typeof window !== 'undefined') {
       // @ts-ignore
       window.fbAsyncInit = function() {
         // @ts-ignore
         FB.init({
-          appId: '1828806901586904', // 👈 আপনার নতুন ফেসবুক অ্যাপ আইডি সফলভাবে পরিবর্তন করা হয়েছে
+          appId: '2423416684846659', // আপনার নতুন ব্যক্তিগত অ্যাপ আইডি
           cookie: true,
           xfbml: true,
           version: 'v18.0'
+        });
+
+        // নেটিভ রেন্ডার বাটনের লগইন স্ট্যাটাস মনিটর করার সাবস্ক্রিপশন
+        // @ts-ignore
+        FB.Event.subscribe('auth.statusChange', (response: any) => {
+          if (response.status === 'connected') {
+            // @ts-ignore
+            FB.api('/me', { fields: 'name,email,picture' }, (userInfo: any) => {
+              if (userInfo) {
+                const loggedUser = {
+                  uid: `FB-${userInfo.id || Date.now()}`,
+                  id: `FB-${userInfo.id || Date.now()}`,
+                  _id: `FB-${userInfo.id || Date.now()}`,
+                  displayName: userInfo.name || 'Facebook User',
+                  name: userInfo.name || 'Facebook User',
+                  email: userInfo.email || `${userInfo.id}@facebook.com`,
+                  role: 'customer',
+                  photoURL: userInfo.picture?.data?.url || null,
+                  provider: 'Facebook',
+                  joinedDate: new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+                };
+
+                if (typeof setUser === 'function') setUser(loggedUser as any);
+                localStorage.setItem('currentUser', JSON.stringify(loggedUser));
+                localStorage.setItem('user', JSON.stringify(loggedUser));
+                localStorage.setItem('mo_fashion_customer_user', JSON.stringify(loggedUser));
+
+                saveSupabaseCustomer({
+                  id: loggedUser.id,
+                  name: loggedUser.name,
+                  email: loggedUser.email,
+                  status: 'Active',
+                  joinDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                }).catch(() => null);
+
+                window.dispatchEvent(new Event('storage'));
+                window.dispatchEvent(new Event('settingsUpdated'));
+
+                toast.success(`Signed in successfully with Facebook as ${loggedUser.name}! 🎉`);
+                const from = (location.state as any)?.from?.pathname || '/profile';
+                navigate(from, { replace: true });
+              }
+            });
+          }
         });
       };
 
@@ -188,7 +232,7 @@ export default function LoginPage() {
          }
        })(document, 'script', 'facebook-jssdk');
     }
-  }, []);
+  }, [navigate, location, setUser]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -308,82 +352,6 @@ export default function LoginPage() {
       setTimeout(() => navigate(from, { replace: true }), 1000);
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  // 🚀 ফেসবুক অফিশিয়াল SDK লগইন হ্যান্ডলার
-  const handleOfficialFacebookLogin = () => {
-    // @ts-ignore
-    if (typeof window !== 'undefined' && window.FB) {
-      // @ts-ignore
-      window.FB.login((response: any) => {
-        if (response.authResponse) {
-          // @ts-ignore
-          window.FB.api('/me', { fields: 'name,email,picture' }, (userInfo: any) => {
-            if (userInfo) {
-              const loggedUser = {
-                uid: `FB-${userInfo.id || Date.now()}`,
-                id: `FB-${userInfo.id || Date.now()}`,
-                _id: `FB-${userInfo.id || Date.now()}`,
-                displayName: userInfo.name || 'Facebook User',
-                name: userInfo.name || 'Facebook User',
-                email: userInfo.email || `${userInfo.id}@facebook.com`,
-                role: 'customer',
-                photoURL: userInfo.picture?.data?.url || null,
-                provider: 'Facebook',
-                joinedDate: new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
-              };
-
-              if (typeof setUser === 'function') setUser(loggedUser as any);
-              localStorage.setItem('currentUser', JSON.stringify(loggedUser));
-              localStorage.setItem('user', JSON.stringify(loggedUser));
-              localStorage.setItem('mo_fashion_customer_user', JSON.stringify(loggedUser));
-
-              saveSupabaseCustomer({
-                id: loggedUser.id,
-                name: loggedUser.name,
-                email: loggedUser.email,
-                status: 'Active',
-                joinDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-              }).catch(() => null);
-
-              window.dispatchEvent(new Event('storage'));
-              window.dispatchEvent(new Event('settingsUpdated'));
-
-              toast.success(`Signed in successfully with Facebook as ${loggedUser.name}! 🎉`);
-              const from = (location.state as any)?.from?.pathname || '/profile';
-              navigate(from, { replace: true });
-            }
-          });
-        } else {
-          toast.error("Facebook authentication was cancelled.");
-        }
-      }, { scope: 'email,public_profile' });
-    } else {
-      const fbEmail = prompt("Enter your Facebook Account Email:");
-      if (!fbEmail || !fbEmail.includes('@')) {
-        if (fbEmail !== null) toast.error("Please enter a valid email!");
-        return;
-      }
-      const userName = fbEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-      const loggedUser = {
-        uid: `FB-${Date.now()}`,
-        id: `FB-${Date.now()}`,
-        _id: `FB-${Date.now()}`,
-        displayName: userName,
-        name: userName,
-        email: fbEmail.trim().toLowerCase(),
-        role: 'customer',
-        photoURL: `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=1877F2&color=fff&size=128&bold=true`,
-        provider: 'Facebook',
-        joinedDate: new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
-      };
-      if (typeof setUser === 'function') setUser(loggedUser as any);
-      localStorage.setItem('currentUser', JSON.stringify(loggedUser));
-      localStorage.setItem('user', JSON.stringify(loggedUser));
-      localStorage.setItem('mo_fashion_customer_user', JSON.stringify(loggedUser));
-      toast.success(`Signed in successfully as ${loggedUser.name}! 🎉`);
-      navigate('/profile', { replace: true });
     }
   };
 
@@ -615,25 +583,24 @@ export default function LoginPage() {
           <div className="h-px bg-gray-800 flex-1"></div>
         </div>
 
-        {/* 🚀 OFFICIAL EQUAL SIZED BUTTONS */}
-        <div className="space-y-4 mb-6 w-full mx-auto">
+        {/* 🚀 OFFICIAL NATIVE RENDER BUTTONS ONLY */}
+        <div className="space-y-4 mb-6 w-full max-w-[280px] mx-auto flex flex-col items-center">
           
           {/* 1. Official Google Sign-In Native Render Button Container */}
-          <div id="google-native-signin-btn" className="w-full min-h-[40px] flex justify-center overflow-hidden rounded-full shadow-sm" />
+          <div id="google-native-signin-btn" className="w-full min-h-[40px] flex justify-center overflow-hidden rounded-full shadow-sm bg-white" />
 
-          {/* 2. Official Facebook Sign-In Button */}
-          <button
-            type="button"
-            onClick={handleOfficialFacebookLogin}
-            className="w-full h-[40px] bg-white border border-[#dadce0] rounded-full flex items-center justify-center space-x-2.5 hover:bg-[#f8f9fa] transition-colors active:bg-[#e8eaed] shadow-sm cursor-pointer"
-          >
-            <svg className="w-[18px] h-[18px] text-[#1877F2] shrink-0" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M24 12.073c0-6.627-4.873-12-10.875-12S2.25 5.446 2.25 12.073c0 5.99 4.388 10.954 10.125 11.854v-8.385H9.703v-3.47h2.672V9.413c0-2.637 1.57-4.09 3.97-4.09 1.149 0 2.35.205 2.35.205v2.583h-1.323c-1.307 0-1.714.811-1.714 1.643v1.97h2.912l-.465 3.47h-2.447v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-            </svg>
-            <span className="text-[#3c4043] font-medium text-[14px] tracking-wide" style={{ fontFamily: '"Google Sans", Roboto, Arial, sans-serif' }}>
-              Sign in with Facebook
-            </span>
-          </button>
+          {/* 2. Official Facebook Sign-In Native Render Button Container */}
+          <div className="w-full min-h-[40px] flex justify-center overflow-hidden rounded-full">
+            <div 
+              className="fb-login-button" 
+              data-size="large" 
+              data-button-type="login_with" 
+              data-layout="rounded" 
+              data-auto-logout-link="false" 
+              data-use-continue-as="false"
+              data-width="280"
+            />
+          </div>
 
         </div>
 
