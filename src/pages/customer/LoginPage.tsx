@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/useAuthStore'; 
 import { getSupabaseSettings, saveSupabaseCustomer } from '../../lib/supabase';
 
-// 🚀 আপনার নিজস্ব গুগল ক্লায়েন্ট আইডি
+// 🚀 আপনার নিজস্ব গুগল ক্লায়েন্ট আইডি সরাসরি এখানে বসানো হয়েছে
 const REAL_GOOGLE_CLIENT_ID = '277902353308-thjup151jhqo126u5an7orc2lg4o9b1i.apps.googleusercontent.com';
 
 // 🚀 গুগল JWT টোকেন ডিকোড করার হেল্পার
@@ -161,76 +161,6 @@ export default function LoginPage() {
       window.removeEventListener('resize', initGoogleAuth);
       clearTimeout(timer);
     };
-  }, [navigate, location, setUser]);
-
-  // 🚀 ফেসবুক অফিশিয়াল SDK এবং ডাইনামিক সাবস্ক্রিপশন ইনিশিয়ালাইজেশন
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // @ts-ignore
-      window.fbAsyncInit = function() {
-        // @ts-ignore
-        FB.init({
-          appId: '1042234301953221', // আপনার নতুন পার্সোনাল অ্যাপ আইডি
-          cookie: true,
-          xfbml: true,
-          version: 'v18.0'
-        });
-
-        // @ts-ignore
-        FB.Event.subscribe('auth.statusChange', (response: any) => {
-          if (response.status === 'connected') {
-            // @ts-ignore
-            FB.api('/me', { fields: 'name,email,picture' }, (userInfo: any) => {
-              if (userInfo) {
-                const loggedUser = {
-                  uid: `FB-${userInfo.id || Date.now()}`,
-                  id: `FB-${userInfo.id || Date.now()}`,
-                  _id: `FB-${userInfo.id || Date.now()}`,
-                  displayName: userInfo.name || 'Facebook User',
-                  name: userInfo.name || 'Facebook User',
-                  email: userInfo.email || `${userInfo.id}@facebook.com`,
-                  role: 'customer',
-                  photoURL: userInfo.picture?.data?.url || null,
-                  provider: 'Facebook',
-                  joinedDate: new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
-                };
-
-                if (typeof setUser === 'function') setUser(loggedUser as any);
-                localStorage.setItem('currentUser', JSON.stringify(loggedUser));
-                localStorage.setItem('user', JSON.stringify(loggedUser));
-                localStorage.setItem('mo_fashion_customer_user', JSON.stringify(loggedUser));
-
-                saveSupabaseCustomer({
-                  id: loggedUser.id,
-                  name: loggedUser.name,
-                  email: loggedUser.email,
-                  status: 'Active',
-                  joinDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-                }).catch(() => null);
-
-                window.dispatchEvent(new Event('storage'));
-                window.dispatchEvent(new Event('settingsUpdated'));
-
-                toast.success(`Signed in successfully with Facebook as ${loggedUser.name}! 🎉`);
-                const from = (location.state as any)?.from?.pathname || '/profile';
-                navigate(from, { replace: true });
-              }
-            });
-          }
-        });
-      };
-
-      (function(d: Document, s: string, id: string){
-         var js: HTMLScriptElement, fjs = d.getElementsByTagName(s)[0] as HTMLElement;
-         if (d.getElementById(id)) {return;}
-         js = d.createElement('script') as HTMLScriptElement; 
-         js.id = id;
-         js.src = "https://connect.facebook.net/en_US/sdk.js";
-         if (fjs && fjs.parentNode) {
-           fjs.parentNode.insertBefore(js, fjs);
-         }
-       })(document, 'script', 'facebook-jssdk');
-    }
   }, [navigate, location, setUser]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -582,24 +512,11 @@ export default function LoginPage() {
           <div className="h-px bg-gray-800 flex-1"></div>
         </div>
 
-        {/* 🚀 100% REAL NATIVE DYNAMIC LOGGED IN BUTTONS ONLY */}
+        {/* 🚀 OFFICIAL 100% REAL GOOGLE SIGN-IN NATIVE BUTTON ONLY */}
         <div className="space-y-4 mb-6 w-full max-w-[280px] mx-auto flex flex-col items-center">
           
           {/* 1. Official Google Sign-In Native Render Button Container */}
           <div id="google-native-signin-btn" className="w-full min-h-[40px] flex justify-center overflow-hidden rounded-full shadow-sm bg-white" />
-
-          {/* 2. Official Facebook Sign-In Native Render Button Container (With Dynamic Logged In detection like Amazon) */}
-          <div className="w-full min-h-[40px] flex justify-center overflow-hidden rounded-full">
-            <div 
-              className="fb-login-button" 
-              data-size="large" 
-              data-button-type="login_with" 
-              data-layout="rounded" 
-              data-auto-logout-link="false" 
-              data-use-continue-as="true" // 🚀 স্বয়ংক্রিয়ভাবে একটিভ প্রোফাইল নাম ও ছবি ডিটেক্ট করবে (যেমন: "Continue as Md Mehedi")
-              data-width="280"
-            />
-          </div>
 
         </div>
 
