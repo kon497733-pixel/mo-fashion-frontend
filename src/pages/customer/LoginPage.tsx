@@ -37,8 +37,6 @@ export default function LoginPage() {
   
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // 🚀 জিরো ডিফল্ট ডাটা (১০০% ফাঁকা ও অরিজিনাল ইনপুট)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -128,13 +126,13 @@ export default function LoginPage() {
             }
           });
 
-          // Render Official Google Sign-In Button
+          // 🚀 Render Official Google Sign-In Button (Compact Pill Style)
           const googleBtnContainer = document.getElementById('google-native-signin-btn');
           if (googleBtnContainer) {
             googleBtnContainer.innerHTML = '';
             (window as any).google.accounts.id.renderButton(
               googleBtnContainer,
-              { theme: 'outline', size: 'large', width: '100%', text: 'signin_with', shape: 'pill' }
+              { theme: 'outline', size: 'large', width: '280', text: 'signin_with', shape: 'pill' }
             );
           }
 
@@ -602,17 +600,17 @@ export default function LoginPage() {
           <div className="h-px bg-gray-800 flex-1"></div>
         </div>
 
-        {/* 🚀 OFFICIAL 100% REAL RENDER BUTTONS (GOOGLE & FACEBOOK ONLY) */}
+        {/* 🚀 2 EQUAL-SIZED OFFICIAL UNIFORM WHITE BUTTONS (GOOGLE & FACEBOOK ONLY) */}
         <div className="space-y-3 mb-6">
           
-          {/* Official Google Sign-In Native Render Button */}
-          <div id="google-native-signin-btn" className="w-full flex justify-center overflow-hidden rounded-full shadow-sm" />
+          {/* Official Google Sign-In Native Render Button Container (Forced Equal Height & Width Pill Style) */}
+          <div id="google-native-signin-btn" className="w-full h-12 flex items-center justify-center overflow-hidden rounded-full shadow-sm bg-white border border-gray-300" />
 
-          {/* Official Facebook Sign-In Button */}
+          {/* Official Facebook Sign-In Button (Exact Same Size & Pill Style) */}
           <button
             type="button"
             onClick={handleOfficialFacebookLogin}
-            className="w-full flex items-center justify-center bg-white hover:bg-gray-50 border border-gray-300 py-3 px-4 rounded-full text-sm font-semibold text-gray-800 transition-all shadow-sm active:scale-95 group cursor-pointer"
+            className="w-full h-12 flex items-center justify-center bg-white hover:bg-gray-50 border border-gray-300 px-4 rounded-full text-sm font-semibold text-gray-800 transition-all shadow-sm active:scale-95 group cursor-pointer"
           >
             <svg className="w-5 h-5 mr-3 text-[#1877F2] shrink-0" fill="currentColor" viewBox="0 0 24 24">
               <path d="M24 12.073c0-6.627-4.873-12-10.875-12S2.25 5.446 2.25 12.073c0 5.99 4.388 10.954 10.125 11.854v-8.385H9.703v-3.47h2.672V9.413c0-2.637 1.57-4.09 3.97-4.09 1.149 0 2.35.205 2.35.205v2.583h-1.323c-1.307 0-1.714.811-1.714 1.643v1.97h2.912l-.465 3.47h-2.447v8.385C19.612 23.027 24 18.062 24 12.073z"/>
