@@ -85,9 +85,13 @@ export default function ProductDetailsPage() {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [previewModalImage, setPreviewModalImage] = useState<string | null>(null);
   
-  // ইমেজ হোভার জুম স্টেট
-  const [isZoomed, setIsZoomed] = useState(false);
-  const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
+  // মাউস ও হাতের স্পর্শে ইমেজ জুম স্টেট
+  const [mainZoomScale, setMainZoomScale] = useState(1);
+  const [mainZoomPos, setMainZoomPos] = useState({ x: 50, y: 50 });
+  const [isHovered, setIsHovered] = useState(false);
+  const [touchStartDist, setTouchStartDist] = useState<number | null>(null);
+
+  // লাইটবক্স প্রিভিউ জুম স্টেট
   const [zoomScale, setZoomScale] = useState(1);
 
   // 🚀 BACKGROUND CLOUD DB RE-SYNC (NON-BLOCKING)
@@ -139,12 +143,62 @@ export default function ProductDetailsPage() {
     };
   }, [id, selectedImage, selectedSize, selectedColor]);
 
-  // মাউস পজিশন অনুযায়ী জুম সেন্টার ক্যালকুলেশন
+  // মাউস পজিশন ট্র্যাকিং
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - left) / width) * 100;
     const y = ((e.clientY - top) / height) * 100;
-    setZoomPos({ x, y });
+    setMainZoomPos({ x, y });
+  };
+
+  // মাউস স্ক্রোল (Wheel) দিয়ে জুম ইন/আউট কন্ট্রোল
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const scaleChange = e.deltaY < 0 ? 0.2 : -0.2;
+    setMainZoomScale(prev => Math.min(3.5, Math.max(1, prev + scaleChange)));
+  };
+
+  // হাতের স্পর্শ (Touch/Pinch) দিয়ে জুম ও প্যান ট্র্যাকিং
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      setTouchStartDist(dist);
+      setIsHovered(true);
+    } else if (e.touches.length === 1) {
+      const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+      const x = ((e.touches[0].clientX - left) / width) * 100;
+      const y = ((e.touches[0].clientY - top) / height) * 100;
+      setMainZoomPos({ x, y });
+      setIsHovered(true);
+      if (mainZoomScale === 1) {
+        setMainZoomScale(1.8);
+      }
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length === 2 && touchStartDist !== null) {
+      e.preventDefault();
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const factor = dist / touchStartDist;
+      setMainZoomScale(prev => Math.min(3.5, Math.max(1, prev * factor)));
+      setTouchStartDist(dist);
+    } else if (e.touches.length === 1 && mainZoomScale > 1) {
+      const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+      const x = ((e.touches[0].clientX - left) / width) * 100;
+      const y = ((e.touches[0].clientY - top) / height) * 100;
+      setMainZoomPos({ x, y });
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setTouchStartDist(null);
   };
 
   // 🚀 কাস্টমার ফটো আপলোড হ্যান্ডলার (Base64 Encoding)
@@ -332,16 +386,25 @@ export default function ProductDetailsPage() {
         {/* 🚀 MAIN PRODUCT SHOWCASE GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
           
-          {/* Left Column: Interactive Image Gallery with Hover Zoom */}
+          {/* Left Column: Interactive Image Gallery with Hand/Mouse Scroll Zoom */}
           <div className="space-y-4">
             <div 
-              className="relative aspect-square w-full rounded-3xl bg-[#1A1A1A] border border-gray-800 shadow-[0_20px_50px_rgba(0,0,0,0.9)] overflow-hidden group cursor-zoom-in"
-              onMouseEnter={() => setIsZoomed(true)}
+              className="relative aspect-square w-full rounded-3xl bg-[#1A1A1A] border border-gray-800 shadow-[0_20px_50px_rgba(0,0,0,0.9)] overflow-hidden group"
+              style={{ touchAction: 'none' }} // মোবাইল টাচ জেসচারের জন্য পেজ স্ক্রোল অফ রাখা
+              onMouseEnter={() => {
+                setIsHovered(true);
+                if (mainZoomScale === 1) setMainZoomScale(1.5);
+              }}
               onMouseLeave={() => {
-                setIsZoomed(false);
-                setZoomPos({ x: 50, y: 50 });
+                setIsHovered(false);
+                setMainZoomScale(1);
+                setMainZoomPos({ x: 50, y: 50 });
               }}
               onMouseMove={handleMouseMove}
+              onWheel={handleWheel}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
               onClick={() => {
                 setZoomScale(1.25);
                 setPreviewModalImage(selectedImage);
@@ -351,10 +414,10 @@ export default function ProductDetailsPage() {
                 <img 
                   src={selectedImage} 
                   alt={product.name} 
-                  className="w-full h-full object-cover transition-transform duration-150 ease-out" 
+                  className="w-full h-full object-cover transition-transform duration-75 ease-out select-none pointer-events-none" 
                   style={{
-                    transform: isZoomed ? 'scale(2.0)' : 'scale(1)',
-                    transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`
+                    transform: isHovered ? `scale(${mainZoomScale})` : 'scale(1)',
+                    transformOrigin: `${mainZoomPos.x}% ${mainZoomPos.y}%`
                   }}
                 />
               ) : (
@@ -362,6 +425,11 @@ export default function ProductDetailsPage() {
                   No Image
                 </div>
               )}
+
+              {/* জুম নির্দেশক ব্যাজ */}
+              <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl border border-gray-800 text-[10px] text-gray-400 font-bold pointer-events-none transition-opacity duration-300 opacity-0 group-hover:opacity-100 hidden sm:block">
+                Scroll to Zoom In/Out
+              </div>
 
               {/* Floating Badges */}
               <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-10 pointer-events-none">
@@ -394,7 +462,7 @@ export default function ProductDetailsPage() {
                       selectedImage === img ? 'border-[#D4AF37] scale-105 shadow-md shadow-[#D4AF37]/20' : 'border-gray-800 opacity-60 hover:opacity-100'
                     }`}
                   >
-                    <img src={img} alt="" className="w-full h-full object-cover" />
+                    <img src={img} alt="" className="w-full h-full object-cover select-none pointer-events-none" />
                   </button>
                 ))}
               </div>
@@ -727,7 +795,7 @@ export default function ProductDetailsPage() {
                           }}
                           className="w-16 h-16 rounded-xl border border-[#D4AF37]/40 overflow-hidden cursor-pointer hover:scale-105 transition-transform shadow-md relative group"
                         >
-                          <img src={rev.photoUrl} alt="Review attachment" className="w-full h-full object-cover" />
+                          <img src={rev.photoUrl} alt="Review attachment" className="w-full h-full object-cover select-none pointer-events-none" />
                         </div>
                       </div>
                     )}
