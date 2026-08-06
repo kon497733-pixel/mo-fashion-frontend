@@ -10,8 +10,8 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/useAuthStore'; 
 import { getSupabaseSettings, saveSupabaseCustomer } from '../../lib/supabase';
 
-// 🚀 নিবন্ধিত আসল গুগল ক্লায়েন্ট আইডি
-const REAL_GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '277902353308-thjup151jhqo126u5an7orc2lg4o9b1i.apps.googleusercontent.com';
+// 🚀 আপনার নিজস্ব গুগল ক্লায়েন্ট আইডি সরাসরি এখানে বসানো হয়েছে
+const REAL_GOOGLE_CLIENT_ID = '277902353308-thjup151jhqo126u5an7orc2lg4o9b1i.apps.googleusercontent.com';
 
 // 🚀 গুগল JWT টোকেন ডিকোড করার হেল্পার
 const parseGoogleJwt = (token: string) => {
@@ -38,7 +38,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // 🚀 জিরো ডিফল্ট ডাটা (১০০% ফাঁকা ইনপুট)
+  // 🚀 জিরো ডিফল্ট ডাটা
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -76,7 +76,7 @@ export default function LoginPage() {
     loadSettings();
   }, []);
 
-  // 🚀 গুগলের অফিশিয়াল Identity Services SDK রিয়েল-টাইম ইনিশিয়ালাইজেশন
+  // 🚀 গুগলের অফিশিয়াল Identity Services SDK ইনিশিয়ালাইজেশন
   useEffect(() => {
     const initGoogleAuth = () => {
       if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
@@ -137,7 +137,7 @@ export default function LoginPage() {
               { 
                 theme: 'outline', 
                 size: 'large', 
-                width: googleBtnContainer.offsetWidth || 300, // 🚀 ডাইনামিক উইডথ (Dynamic Width Match)
+                width: googleBtnContainer.offsetWidth || 300, 
                 text: 'signin_with', 
                 shape: 'pill' 
               }
@@ -154,7 +154,6 @@ export default function LoginPage() {
 
     initGoogleAuth();
     
-    // উইন্ডো রিসাইজ হলে আবার সমান সাইজ রেন্ডার করবে
     window.addEventListener('resize', initGoogleAuth);
     const timer = setTimeout(initGoogleAuth, 1000);
     
@@ -616,13 +615,13 @@ export default function LoginPage() {
           <div className="h-px bg-gray-800 flex-1"></div>
         </div>
 
-        {/* 🚀 OFFICIAL 100% REAL EQUAL SIZED BUTTONS (GOOGLE & FACEBOOK ONLY) */}
+        {/* 🚀 OFFICIAL EQUAL SIZED BUTTONS */}
         <div className="space-y-4 mb-6 w-full mx-auto">
           
-          {/* 1. Official Google Sign-In Native Render Button Container (Full Width & Height Match) */}
+          {/* 1. Official Google Sign-In Native Render Button Container */}
           <div id="google-native-signin-btn" className="w-full min-h-[40px] flex justify-center overflow-hidden rounded-full shadow-sm" />
 
-          {/* 2. Official Facebook Sign-In Button (Exact Equal Size to Google Button) */}
+          {/* 2. Official Facebook Sign-In Button */}
           <button
             type="button"
             onClick={handleOfficialFacebookLogin}
