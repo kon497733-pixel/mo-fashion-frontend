@@ -74,7 +74,7 @@ export default function ProductDetailsPage() {
   const [quantity, setQuantity] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(!product);
 
-  // 🚀 দারাজ স্টাইল ফটো রিভিউ ফর্ম স্টেট
+  // 🚀 প্রিমিয়াম ফটো রিভিউ ফর্ম স্টেট
   const [reviewForm, setReviewForm] = useState({
     rating: 5,
     userName: '',
@@ -84,6 +84,11 @@ export default function ProductDetailsPage() {
   });
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [previewModalImage, setPreviewModalImage] = useState<string | null>(null);
+  
+  // ইমেজ হোভার জুম স্টেট
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
+  const [zoomScale, setZoomScale] = useState(1);
 
   // 🚀 BACKGROUND CLOUD DB RE-SYNC (NON-BLOCKING)
   useEffect(() => {
@@ -132,9 +137,17 @@ export default function ProductDetailsPage() {
       window.removeEventListener('reviewUpdated', handleUpdate);
       window.removeEventListener('productUpdated', handleUpdate);
     };
-  }, [id]);
+  }, [id, selectedImage, selectedSize, selectedColor]);
 
-  // 🚀 দারাজ স্টাইল কাস্টমার ফটো আপলোড হ্যান্ডলার (Base64 Encoding)
+  // মাউস পজিশন অনুযায়ী জুম সেন্টার ক্যালকুলেশন
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - left) / width) * 100;
+    const y = ((e.clientY - top) / height) * 100;
+    setZoomPos({ x, y });
+  };
+
+  // 🚀 কাস্টমার ফটো আপলোড হ্যান্ডলার (Base64 Encoding)
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -151,7 +164,7 @@ export default function ProductDetailsPage() {
     }
   };
 
-  // 🚀 রিয়েল-টাইম কাস্টমার রিভিউ সাবমিট
+  // 🚀 রিয়াল-টাইম কাস্টমার রিভিউ সাবমিট
   const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -240,7 +253,6 @@ export default function ProductDetailsPage() {
     );
   }
 
-  // Calculation
   const origPrice = Number(product.price) || 0;
   const discountPercent = Number(product.discount) || 0;
   const finalPrice = discountPercent > 0 ? origPrice - (origPrice * discountPercent) / 100 : origPrice;
@@ -248,7 +260,6 @@ export default function ProductDetailsPage() {
   const isOutOfStock = stockCount <= 0 || product.status === 'Out of Stock';
   const isLowStock = stockCount > 0 && stockCount <= 3;
 
-  // Real-time Average Rating Calculation
   const avgRating = reviews.length > 0 
     ? (reviews.reduce((acc, r) => acc + (Number(r.rating) || 5), 0) / reviews.length).toFixed(1)
     : '0.0';
@@ -257,7 +268,6 @@ export default function ProductDetailsPage() {
     ? product.images 
     : [product.imageUrl || product.image || selectedImage];
 
-  // Add to Cart Logic
   const handleAddToCart = (isBuyNow = false) => {
     if (isOutOfStock) {
       toast.error("Sorry, this item is out of stock!");
@@ -319,17 +329,33 @@ export default function ProductDetailsPage() {
           <span>BACK TO PREVIOUS PAGE</span>
         </button>
 
-        {/* 🚀 MAIN 3D PRODUCT SHOWCASE GRID */}
+        {/* 🚀 MAIN PRODUCT SHOWCASE GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
           
-          {/* Left Column: 3D Product Image Gallery */}
-          <div className="space-y-4 [perspective:1000px]">
-            <div className="relative aspect-square w-full rounded-3xl bg-[#1A1A1A] border border-gray-800 shadow-[0_20px_50px_rgba(0,0,0,0.9)] overflow-hidden group [transform-style:preserve-3d]">
+          {/* Left Column: Interactive Image Gallery with Hover Zoom */}
+          <div className="space-y-4">
+            <div 
+              className="relative aspect-square w-full rounded-3xl bg-[#1A1A1A] border border-gray-800 shadow-[0_20px_50px_rgba(0,0,0,0.9)] overflow-hidden group cursor-zoom-in"
+              onMouseEnter={() => setIsZoomed(true)}
+              onMouseLeave={() => {
+                setIsZoomed(false);
+                setZoomPos({ x: 50, y: 50 });
+              }}
+              onMouseMove={handleMouseMove}
+              onClick={() => {
+                setZoomScale(1.25);
+                setPreviewModalImage(selectedImage);
+              }}
+            >
               {selectedImage ? (
                 <img 
                   src={selectedImage} 
                   alt={product.name} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" 
+                  className="w-full h-full object-cover transition-transform duration-150 ease-out" 
+                  style={{
+                    transform: isZoomed ? 'scale(2.0)' : 'scale(1)',
+                    transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`
+                  }}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-gray-600 font-bold uppercase text-xs">
@@ -337,15 +363,14 @@ export default function ProductDetailsPage() {
                 </div>
               )}
 
-              {/* 3D Floating Badges */}
-              <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-10">
+              {/* Floating Badges */}
+              <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-10 pointer-events-none">
                 {discountPercent > 0 ? (
                   <span className="bg-gradient-to-r from-red-600 via-orange-500 to-[#D4AF37] text-white font-bold text-xs px-3 py-1.5 rounded-xl shadow-lg border border-red-400/40">
                     -{discountPercent}% OFF
                   </span>
                 ) : <span />}
 
-                {/* 🚀 ULTRA-PROMINENT 3D STOCK BADGE */}
                 <span className={`font-bold text-xs px-3 py-1.5 rounded-full uppercase border backdrop-blur-md shadow-lg ${
                   isOutOfStock 
                     ? 'bg-red-500/30 text-red-300 border-red-500 shadow-red-500/30' 
@@ -376,7 +401,7 @@ export default function ProductDetailsPage() {
             )}
           </div>
 
-          {/* Right Column: 3D Product Details & Order Actions */}
+          {/* Right Column: Product Details & Order Actions */}
           <div className="space-y-6">
             
             <div className="flex justify-between items-center text-xs">
@@ -414,7 +439,6 @@ export default function ProductDetailsPage() {
                 )}
               </div>
 
-              {/* 🚀 ULTRA-PROMINENT 3D METALLIC GOLD "SOLD" BADGE */}
               {Number(product.sold) > 0 && (
                 <span className="bg-gradient-to-r from-[#D4AF37] to-[#aa8c2c] text-black border border-[#D4AF37] px-3 py-1 rounded-xl text-xs font-bold shadow-md shadow-[#D4AF37]/20 uppercase">
                   {product.sold} Sold
@@ -496,7 +520,7 @@ export default function ProductDetailsPage() {
               </div>
             </div>
 
-            {/* 3D Action Buttons */}
+            {/* Action Buttons */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
               <button
                 onClick={() => handleAddToCart(false)}
@@ -520,7 +544,7 @@ export default function ProductDetailsPage() {
           </div>
         </div>
 
-        {/* 🚀 2.  STYLE REAL-TIME REVIEWS & RATING SECTION (WITH PHOTO UPLOAD) */}
+        {/* 🚀 CUSTOMER REVIEWS & RATING SECTION */}
         <section className="mt-20 pt-10 border-t border-gray-800">
           <div className="max-w-4xl mx-auto space-y-10">
             
@@ -550,7 +574,7 @@ export default function ProductDetailsPage() {
               </div>
             </div>
 
-            {/* 🚀  STYLE REVIEW SUBMISSION FORM */}
+            {/* 🚀 REVIEW SUBMISSION FORM */}
             <div className="bg-[#1A1A1A] border border-[#D4AF37]/30 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
               <h3 className="text-lg font-serif font-bold text-white uppercase tracking-wide">
                 Write a Customer Review
@@ -614,10 +638,10 @@ export default function ProductDetailsPage() {
                   />
                 </div>
 
-                {/* 📸 STYLE PHOTO ATTACHMENT INPUT */}
-                <div>z style small
+                {/* 📸 PHOTO ATTACHMENT INPUT */}
+                <div>
                   <label className="block text-xs font-bold uppercase text-gray-400 mb-1.5">
-                    Attach Product Photo <span className="text-[10px] text-[#D4AF37] font-normal">(Daraz Style Small Photo Review)</span>
+                    Attach Product Photo <span className="text-[10px] text-[#D4AF37] font-normal">(Optional)</span>
                   </label>
                   
                   <div className="flex items-center space-x-4">
@@ -652,7 +676,7 @@ export default function ProductDetailsPage() {
               </form>
             </div>
 
-            {/* REVIEWS LISTING DISPLAY (WITH  STYLE THUMBNAIL PHOTOS) */}
+            {/* REVIEWS LISTING DISPLAY */}
             <div className="space-y-4">
               {reviews.length === 0 ? (
                 <div className="text-center py-12 bg-[#1A1A1A]/40 rounded-3xl border border-gray-800/80 p-6">
@@ -692,12 +716,15 @@ export default function ProductDetailsPage() {
                       {rev.comment}
                     </p>
 
-                    {/* 📸 STYLE SMALL PHOTO THUMBNAIL WITH ZOOM PREVIEW */}
+                    {/* 📸 PHOTO THUMBNAIL WITH ZOOM PREVIEW */}
                     {rev.photoUrl && (
                       <div className="pt-2">
                         <p className="text-[10px] text-gray-500 font-bold mb-1 uppercase">Customer Photo:</p>
                         <div 
-                          onClick={() => setPreviewModalImage(rev.photoUrl)}
+                          onClick={() => {
+                            setZoomScale(1);
+                            setPreviewModalImage(rev.photoUrl);
+                          }}
                           className="w-16 h-16 rounded-xl border border-[#D4AF37]/40 overflow-hidden cursor-pointer hover:scale-105 transition-transform shadow-md relative group"
                         >
                           <img src={rev.photoUrl} alt="Review attachment" className="w-full h-full object-cover" />
@@ -727,14 +754,65 @@ export default function ProductDetailsPage() {
       {/* 🪟 PHOTO ZOOM PREVIEW MODAL */}
       {previewModalImage && (
         <div 
-          onClick={() => setPreviewModalImage(null)}
-          className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => {
+            setPreviewModalImage(null);
+            setZoomScale(1);
+          }}
+          className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4"
         >
-          <div className="relative max-w-2xl max-h-[85vh] rounded-2xl overflow-hidden border border-[#D4AF37]/40 shadow-2xl">
-            <img src={previewModalImage} alt="Review full preview" className="w-full h-full object-contain" />
+          <div 
+            onClick={(e) => e.stopPropagation()} 
+            className="relative max-w-2xl max-h-[85vh] rounded-2xl overflow-hidden border border-[#D4AF37]/40 shadow-2xl bg-[#111111] flex flex-col items-center p-4"
+          >
+            <div className="overflow-auto max-h-[70vh] max-w-full p-2 flex items-center justify-center custom-scrollbar">
+              <img 
+                src={previewModalImage} 
+                alt="Review full preview" 
+                className="object-contain transition-transform duration-200 select-none pointer-events-none" 
+                style={{ transform: `scale(${zoomScale})` }}
+              />
+            </div>
+            
+            {/* Interactive Zoom Controls */}
+            <div className="flex items-center space-x-4 mt-4 bg-[#1A1A1A] px-4 py-2 rounded-xl border border-gray-800 z-50">
+              <button 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  setZoomScale(prev => Math.max(0.5, prev - 0.25)); 
+                }}
+                className="p-1.5 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-[#D4AF37] transition-colors"
+                title="Zoom Out"
+              >
+                <Minus size={16} />
+              </button>
+              <span className="text-xs text-[#D4AF37] font-bold select-none">{Math.round(zoomScale * 100)}%</span>
+              <button 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  setZoomScale(prev => Math.min(3, prev + 0.25)); 
+                }}
+                className="p-1.5 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-[#D4AF37] transition-colors"
+                title="Zoom In"
+              >
+                <Plus size={16} />
+              </button>
+              <button 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  setZoomScale(1); 
+                }}
+                className="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-xs rounded-lg text-white font-bold transition-all border border-gray-700"
+              >
+                Reset
+              </button>
+            </div>
+
             <button 
-              onClick={() => setPreviewModalImage(null)}
-              className="absolute top-4 right-4 bg-black/70 text-white p-2 rounded-full border border-gray-700"
+              onClick={() => {
+                setPreviewModalImage(null);
+                setZoomScale(1);
+              }}
+              className="absolute top-4 right-4 bg-black/70 text-white p-2 rounded-full border border-gray-700 hover:bg-red-600 transition-colors"
             >
               <X size={20} />
             </button>
