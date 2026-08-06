@@ -170,7 +170,7 @@ export default function LoginPage() {
       window.fbAsyncInit = function() {
         // @ts-ignore
         FB.init({
-          appId: '2423416684846659', // আপনার নতুন পার্সোনাল অ্যাপ আইডি
+          appId: '1042234301953221', // আপনার নতুন পার্সোনাল অ্যাপ আইডি
           cookie: true,
           xfbml: true,
           version: 'v18.0'
