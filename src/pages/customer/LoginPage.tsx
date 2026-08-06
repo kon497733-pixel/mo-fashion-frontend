@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/useAuthStore'; 
 import { getSupabaseSettings, saveSupabaseCustomer } from '../../lib/supabase';
 
-// 🚀 আপনার নিজস্ব গুগল ক্লায়েন্ট আইডি সরাসরি এখানে বসানো হয়েছে
+// 🚀 আপনার নিজস্ব গুগল ক্লায়েন্ট আইডি
 const REAL_GOOGLE_CLIENT_ID = '277902353308-thjup151jhqo126u5an7orc2lg4o9b1i.apps.googleusercontent.com';
 
 // 🚀 গুগল JWT টোকেন ডিকোড করার হেল্পার
@@ -163,14 +163,14 @@ export default function LoginPage() {
     };
   }, [navigate, location, setUser]);
 
-  // 🚀 ফেসবুক অফিশিয়াল SDK লোড করা
+  // 🚀 আপনার নিজস্ব ফেসবুক অফিশিয়াল অ্যাপ আইডি এখানে যুক্ত করা হয়েছে
   useEffect(() => {
     if (typeof window !== 'undefined') {
       // @ts-ignore
       window.fbAsyncInit = function() {
         // @ts-ignore
         FB.init({
-          appId: '669323149842984',
+          appId: '1828806901586904', // 👈 আপনার নতুন ফেসবুক অ্যাপ আইডি সফলভাবে পরিবর্তন করা হয়েছে
           cookie: true,
           xfbml: true,
           version: 'v18.0'
