@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/useAuthStore'; 
 import { getSupabaseSettings, saveSupabaseCustomer } from '../../lib/supabase';
 
-// 🚀 নিবন্ধিত আসল গুগল ক্লায়েন্ট আইডি
+// 🚀 আপনার জেনারেট করা আসল গুগল ক্লায়েন্ট আইডি
 const REAL_GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '277902353308-thjup151jhqo126u5an7orc2lg4o9b1i.apps.googleusercontent.com';
 
 // 🚀 গুগল JWT টোকেন ডিকোড করার হেল্পার
@@ -37,6 +37,8 @@ export default function LoginPage() {
   
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // 🚀 জিরো ডিফল্ট ডাটা (১০০% ফাঁকা ও অরিজিনাল ইনপুট)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -126,7 +128,7 @@ export default function LoginPage() {
             }
           });
 
-          // 🚀 Render Official Google Sign-In Button (Compact Pill Style)
+          // Render Official Google Sign-In Button
           const googleBtnContainer = document.getElementById('google-native-signin-btn');
           if (googleBtnContainer) {
             googleBtnContainer.innerHTML = '';
@@ -600,13 +602,13 @@ export default function LoginPage() {
           <div className="h-px bg-gray-800 flex-1"></div>
         </div>
 
-        {/* 🚀 2 EQUAL-SIZED OFFICIAL UNIFORM WHITE BUTTONS (GOOGLE & FACEBOOK ONLY) */}
+        {/* 🚀 OFFICIAL 100% REAL RENDER BUTTONS (GOOGLE & FACEBOOK ONLY) */}
         <div className="space-y-3 mb-6">
           
-          {/* Official Google Sign-In Native Render Button Container (Forced Equal Height & Width Pill Style) */}
+          {/* Official Google Sign-In Native Render Button */}
           <div id="google-native-signin-btn" className="w-full h-12 flex items-center justify-center overflow-hidden rounded-full shadow-sm bg-white border border-gray-300" />
 
-          {/* Official Facebook Sign-In Button (Exact Same Size & Pill Style) */}
+          {/* Official Facebook Sign-In Button */}
           <button
             type="button"
             onClick={handleOfficialFacebookLogin}
