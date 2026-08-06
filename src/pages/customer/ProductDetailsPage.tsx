@@ -520,7 +520,7 @@ export default function ProductDetailsPage() {
           </div>
         </div>
 
-        {/* 🚀 2. DARAZ STYLE REAL-TIME REVIEWS & RATING SECTION (WITH PHOTO UPLOAD) */}
+        {/* 🚀 2.  STYLE REAL-TIME REVIEWS & RATING SECTION (WITH PHOTO UPLOAD) */}
         <section className="mt-20 pt-10 border-t border-gray-800">
           <div className="max-w-4xl mx-auto space-y-10">
             
@@ -550,7 +550,7 @@ export default function ProductDetailsPage() {
               </div>
             </div>
 
-            {/* 🚀 DARAZ STYLE REVIEW SUBMISSION FORM */}
+            {/* 🚀  STYLE REVIEW SUBMISSION FORM */}
             <div className="bg-[#1A1A1A] border border-[#D4AF37]/30 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
               <h3 className="text-lg font-serif font-bold text-white uppercase tracking-wide">
                 Write a Customer Review
@@ -614,7 +614,7 @@ export default function ProductDetailsPage() {
                   />
                 </div>
 
-                {/* 📸 DARAZ STYLE PHOTO ATTACHMENT INPUT */}
+                {/* 📸 STYLE PHOTO ATTACHMENT INPUT */}
                 <div>z style small
                   <label className="block text-xs font-bold uppercase text-gray-400 mb-1.5">
                     Attach Product Photo <span className="text-[10px] text-[#D4AF37] font-normal">(Daraz Style Small Photo Review)</span>
@@ -652,7 +652,7 @@ export default function ProductDetailsPage() {
               </form>
             </div>
 
-            {/* REVIEWS LISTING DISPLAY (WITH DARAZ STYLE THUMBNAIL PHOTOS) */}
+            {/* REVIEWS LISTING DISPLAY (WITH  STYLE THUMBNAIL PHOTOS) */}
             <div className="space-y-4">
               {reviews.length === 0 ? (
                 <div className="text-center py-12 bg-[#1A1A1A]/40 rounded-3xl border border-gray-800/80 p-6">
@@ -692,7 +692,7 @@ export default function ProductDetailsPage() {
                       {rev.comment}
                     </p>
 
-                    {/* 📸  SMALL PHOTO THUMBNAIL WITH ZOOM PREVIEW */}
+                    {/* 📸 STYLE SMALL PHOTO THUMBNAIL WITH ZOOM PREVIEW */}
                     {rev.photoUrl && (
                       <div className="pt-2">
                         <p className="text-[10px] text-gray-500 font-bold mb-1 uppercase">Customer Photo:</p>
