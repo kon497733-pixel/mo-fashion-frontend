@@ -163,20 +163,19 @@ export default function LoginPage() {
     };
   }, [navigate, location, setUser]);
 
-  // 🚀 ফেসবুক অফিশিয়াল SDK এবং নেটিভ বাটন সাবস্ক্রিপশন ইনিশিয়ালাইজেশন
+  // 🚀 ফেসবুক অফিশিয়াল SDK এবং ডাইনামিক সাবস্ক্রিপশন ইনিশিয়ালাইজেশন
   useEffect(() => {
     if (typeof window !== 'undefined') {
       // @ts-ignore
       window.fbAsyncInit = function() {
         // @ts-ignore
         FB.init({
-          appId: '2423416684846659', // আপনার নতুন ব্যক্তিগত অ্যাপ আইডি
+          appId: '2423416684846659', // আপনার নতুন পার্সোনাল অ্যাপ আইডি
           cookie: true,
           xfbml: true,
           version: 'v18.0'
         });
 
-        // নেটিভ রেন্ডার বাটনের লগইন স্ট্যাটাস মনিটর করার সাবস্ক্রিপশন
         // @ts-ignore
         FB.Event.subscribe('auth.statusChange', (response: any) => {
           if (response.status === 'connected') {
@@ -583,13 +582,13 @@ export default function LoginPage() {
           <div className="h-px bg-gray-800 flex-1"></div>
         </div>
 
-        {/* 🚀 OFFICIAL NATIVE RENDER BUTTONS ONLY */}
+        {/* 🚀 100% REAL NATIVE DYNAMIC LOGGED IN BUTTONS ONLY */}
         <div className="space-y-4 mb-6 w-full max-w-[280px] mx-auto flex flex-col items-center">
           
           {/* 1. Official Google Sign-In Native Render Button Container */}
           <div id="google-native-signin-btn" className="w-full min-h-[40px] flex justify-center overflow-hidden rounded-full shadow-sm bg-white" />
 
-          {/* 2. Official Facebook Sign-In Native Render Button Container */}
+          {/* 2. Official Facebook Sign-In Native Render Button Container (With Dynamic Logged In detection like Amazon) */}
           <div className="w-full min-h-[40px] flex justify-center overflow-hidden rounded-full">
             <div 
               className="fb-login-button" 
@@ -597,7 +596,7 @@ export default function LoginPage() {
               data-button-type="login_with" 
               data-layout="rounded" 
               data-auto-logout-link="false" 
-              data-use-continue-as="false"
+              data-use-continue-as="true" // 🚀 স্বয়ংক্রিয়ভাবে একটিভ প্রোফাইল নাম ও ছবি ডিটেক্ট করবে (যেমন: "Continue as Md Mehedi")
               data-width="280"
             />
           </div>
