@@ -615,7 +615,7 @@ export default function ProductDetailsPage() {
                 </div>
 
                 {/* 📸 DARAZ STYLE PHOTO ATTACHMENT INPUT */}
-                <div>
+                <div>z style small
                   <label className="block text-xs font-bold uppercase text-gray-400 mb-1.5">
                     Attach Product Photo <span className="text-[10px] text-[#D4AF37] font-normal">(Daraz Style Small Photo Review)</span>
                   </label>
@@ -692,7 +692,7 @@ export default function ProductDetailsPage() {
                       {rev.comment}
                     </p>
 
-                    {/* 📸 DARAZ STYLE SMALL PHOTO THUMBNAIL WITH ZOOM PREVIEW */}
+                    {/* 📸  SMALL PHOTO THUMBNAIL WITH ZOOM PREVIEW */}
                     {rev.photoUrl && (
                       <div className="pt-2">
                         <p className="text-[10px] text-gray-500 font-bold mb-1 uppercase">Customer Photo:</p>
