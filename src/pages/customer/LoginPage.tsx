@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { 
-  Mail, Lock, Eye, EyeOff, X, ShieldCheck, KeyRound, Shield, 
-  RefreshCw, CheckCircle2, Clock, Save, User as UserIcon,
-  ChevronRight, ArrowRight
+  Mail, Lock, Eye, EyeOff, X, Shield, 
+  RefreshCw, CheckCircle2, Clock, Save, 
+  ArrowRight
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/useAuthStore'; 
@@ -37,6 +37,8 @@ export default function LoginPage() {
   
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // 🚀 জিরো ডিফল্ট ডাটা (১০০% ফাঁকা ও অরিজিনাল ইনপুট)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -126,7 +128,7 @@ export default function LoginPage() {
             }
           });
 
-          // 🚀 Render Official Google Sign-In Button
+          // Render Official Google Sign-In Button
           const googleBtnContainer = document.getElementById('google-native-signin-btn');
           if (googleBtnContainer) {
             googleBtnContainer.innerHTML = '';
@@ -136,7 +138,6 @@ export default function LoginPage() {
             );
           }
 
-          // Google One Tap Prompt
           (window as any).google.accounts.id.prompt();
         } catch (e) {
           console.warn("Google Sign-In render warning:", e);
@@ -156,20 +157,23 @@ export default function LoginPage() {
       window.fbAsyncInit = function() {
         // @ts-ignore
         FB.init({
-          appId: '669323149842984', // Replace with your real FB App ID if needed
+          appId: '669323149842984',
           cookie: true,
           xfbml: true,
           version: 'v18.0'
         });
       };
 
-      (function(d, s, id){
-         var js, fjs = d.getElementsByTagName(s)[0];
+      (function(d: Document, s: string, id: string){
+         var js: HTMLScriptElement, fjs = d.getElementsByTagName(s)[0] as HTMLElement;
          if (d.getElementById(id)) {return;}
-         js = d.createElement(s); js.id = id;
+         js = d.createElement('script') as HTMLScriptElement; 
+         js.id = id;
          js.src = "https://connect.facebook.net/en_US/sdk.js";
-         fjs.parentNode.insertBefore(js, fjs);
-       }(document, 'script', 'facebook-jssdk'));
+         if (fjs && fjs.parentNode) {
+           fjs.parentNode.insertBefore(js, fjs);
+         }
+       })(document, 'script', 'facebook-jssdk');
     }
   }, []);
 
@@ -343,7 +347,6 @@ export default function LoginPage() {
         }
       }, { scope: 'email,public_profile' });
     } else {
-      // Fallback prompt if SDK is blocked by adblockers
       const fbEmail = prompt("Enter your Facebook Account Email:");
       if (!fbEmail || !fbEmail.includes('@')) {
         if (fbEmail !== null) toast.error("Please enter a valid email!");
