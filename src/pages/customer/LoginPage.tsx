@@ -10,25 +10,8 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/useAuthStore'; 
 import { getSupabaseSettings, saveSupabaseCustomer } from '../../lib/supabase';
 
-// 🚀 নিবন্ধিত আসল গুগল ক্লায়েন্ট আইডি
+// 🚀 আপনার নিবন্ধিত আসল গুগল ক্লায়েন্ট আইডি
 const REAL_GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '277902353308-thjup151jhqo126u5an7orc2lg4o9b1i.apps.googleusercontent.com';
-
-// 🚀 গুগল JWT টোকেন ডিকোড করার হেল্পার
-const parseGoogleJwt = (token: string) => {
-  try {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    );
-    return JSON.parse(jsonPayload);
-  } catch (e) {
-    return null;
-  }
-};
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -47,26 +30,6 @@ export default function LoginPage() {
   const [settings, setSettings] = useState<any>({
     storeName: 'MO FASHION',
     logoUrl: ''
-  });
-
-  // সোশ্যাল সাইন-ইন মোডাল স্টেট (Facebook & Apple)
-  const [socialModal, setSocialModal] = useState<'Facebook' | 'Apple' | null>(null);
-  const [socialEmail, setSocialEmail] = useState('');
-  const [socialPassword, setSocialPassword] = useState('');
-  const [showSocialPassword, setShowSocialPassword] = useState(false);
-
-  // গুগল পপ-আপ ফ্লো স্টেট
-  const [isGooglePopupOpen, setIsGooglePopupOpen] = useState(false);
-  const [googleStep, setGoogleStep] = useState<1 | 2 | 3>(1);
-
-  const [googleUser, setGoogleUser] = useState<{
-    name: string;
-    email: string;
-    photoURL: string;
-  }>({
-    name: '',
-    email: '',
-    photoURL: ''
   });
 
   // ইমেইল OTP পাসওয়ার্ড রিসেট স্টেট
@@ -92,56 +55,55 @@ export default function LoginPage() {
     };
 
     loadSettings();
-  }, []);
 
-  // 🚀 গুগলের অফিশিয়াল SDK এবং রেন্ডার বাটন ইনিশিয়ালাইজেশন
-  useEffect(() => {
-    const initGoogleAuth = () => {
-      if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
-        try {
-          (window as any).google.accounts.id.initialize({
-            client_id: REAL_GOOGLE_CLIENT_ID,
-            callback: (response: any) => {
-              if (response?.credential) {
-                const decoded = parseGoogleJwt(response.credential);
-                if (decoded && decoded.email) {
-                  const realName = decoded.name || `${decoded.given_name || ''} ${decoded.family_name || ''}`.trim() || decoded.email.split('@')[0];
-                  const realEmail = decoded.email;
-                  const realPicture = decoded.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(realName)}&background=5c3e34&color=fff&size=128&bold=true`;
+    // 🚀 গুগলের অফিশিয়াল OAuth 2.0 রেসপন্স টোকেন হ্যান্ডলার (URL Fragment Hash Parser)
+    const fragmentString = window.location.hash.substring(1);
+    if (fragmentString) {
+      const params = new URLSearchParams(fragmentString);
+      const accessToken = params.get('access_token');
+      if (accessToken) {
+        // Fetch Google User Profile via Access Token
+        fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`)
+          .then(res => res.json())
+          .then(googleData => {
+            if (googleData && googleData.email) {
+              const loggedUser = {
+                uid: `GOOGLE-${Date.now()}`,
+                id: `GOOGLE-${Date.now()}`,
+                _id: `GOOGLE-${Date.now()}`,
+                displayName: googleData.name || googleData.email.split('@')[0],
+                name: googleData.name || googleData.email.split('@')[0],
+                email: googleData.email.toLowerCase(),
+                role: 'customer',
+                photoURL: googleData.picture || null,
+                provider: 'Google',
+                joinedDate: new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+              };
 
-                  setGoogleUser({
-                    name: realName,
-                    email: realEmail,
-                    photoURL: realPicture
-                  });
-                  setGoogleStep(1);
-                  setIsGooglePopupOpen(true);
-                }
-              }
+              if (typeof setUser === 'function') setUser(loggedUser as any);
+              localStorage.setItem('currentUser', JSON.stringify(loggedUser));
+              localStorage.setItem('user', JSON.stringify(loggedUser));
+              localStorage.setItem('mo_fashion_customer_user', JSON.stringify(loggedUser));
+
+              saveSupabaseCustomer({
+                id: loggedUser.id,
+                name: loggedUser.name,
+                email: loggedUser.email,
+                status: 'Active',
+                joinDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+              }).catch(() => null);
+
+              window.dispatchEvent(new Event('storage'));
+              window.dispatchEvent(new Event('settingsUpdated'));
+
+              toast.success(`Signed in successfully as ${loggedUser.name}! 🎉`);
+              window.location.hash = ''; // Clear hash
+              navigate('/profile', { replace: true });
             }
-          });
-
-          // 🚀 Render Official Google Sign-In Button
-          const googleBtnContainer = document.getElementById('google-native-signin-btn');
-          if (googleBtnContainer) {
-            googleBtnContainer.innerHTML = '';
-            (window as any).google.accounts.id.renderButton(
-              googleBtnContainer,
-              { theme: 'outline', size: 'large', width: '100%', text: 'signin_with', shape: 'pill' }
-            );
-          }
-
-          // Google One Tap Prompt
-          (window as any).google.accounts.id.prompt();
-        } catch (e) {
-          console.warn("Google Sign-In render warning:", e);
-        }
+          })
+          .catch(err => console.error("Google Profile fetch error:", err));
       }
-    };
-
-    initGoogleAuth();
-    const timer = setTimeout(initGoogleAuth, 1000);
-    return () => clearTimeout(timer);
+    }
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -265,49 +227,37 @@ export default function LoginPage() {
     }
   };
 
-  // গুগল পপ-আপ থেকে সাইন-ইন সম্পূর্ণ করা
-  const handleCompleteGoogleLogin = () => {
-    const finalEmail = googleUser.email || formData.email || 'customer@gmail.com';
-    const finalName = googleUser.name || finalEmail.split('@')[0];
-    const finalPhoto = googleUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(finalName)}&background=5c3e34&color=fff&size=128&bold=true`;
+  // 🚀 ২. অফিসিয়াল গুগল অথেন্টিকেশন রিডাইরেক্ট ফ্লো (ChatGPT / OpenAI Style)
+  const handleGoogleSignIn = () => {
+    const oauth2Endpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
+    const currentRedirectUri = window.location.origin + window.location.pathname;
 
-    const loggedUser = {
-      uid: `GOOGLE-${Date.now()}`,
-      id: `GOOGLE-${Date.now()}`,
-      _id: `GOOGLE-${Date.now()}`,
-      displayName: finalName,
-      name: finalName,
-      email: finalEmail.toLowerCase(),
-      role: 'customer',
-      photoURL: finalPhoto,
-      provider: 'Google',
-      joinedDate: new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+    const form = document.createElement('form');
+    form.setAttribute('method', 'GET');
+    form.setAttribute('action', oauth2Endpoint);
+
+    const params = {
+      'client_id': REAL_GOOGLE_CLIENT_ID,
+      'redirect_uri': currentRedirectUri,
+      'response_type': 'token',
+      'scope': 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+      'include_granted_scopes': 'true',
+      'state': 'security_token_' + Math.random().toString(36).substring(2)
     };
 
-    if (typeof setUser === 'function') setUser(loggedUser as any);
-    localStorage.setItem('currentUser', JSON.stringify(loggedUser));
-    localStorage.setItem('user', JSON.stringify(loggedUser));
-    localStorage.setItem('mo_fashion_customer_user', JSON.stringify(loggedUser));
+    for (const p in params) {
+      const input = document.createElement('input');
+      input.setAttribute('type', 'hidden');
+      input.setAttribute('name', p);
+      input.setAttribute('value', (params as any)[p]);
+      form.appendChild(input);
+    }
 
-    saveSupabaseCustomer({
-      id: loggedUser.id,
-      name: loggedUser.name,
-      email: loggedUser.email,
-      status: 'Active',
-      joinDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-    }).catch(() => null);
-
-    window.dispatchEvent(new Event('storage'));
-    window.dispatchEvent(new Event('settingsUpdated'));
-
-    setIsGooglePopupOpen(false);
-    toast.success(`Signed in successfully as ${loggedUser.name}! 🎉`);
-
-    const from = (location.state as any)?.from?.pathname || '/profile';
-    navigate(from, { replace: true });
+    document.body.appendChild(form);
+    form.submit();
   };
 
-  // ইমেইল OTP পাসওয়ার্ড রিসেট
+  // 🚀 ৩. ইমেইল OTP দিয়ে পাসওয়ার্ড রিসেট
   const handleSendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
@@ -408,51 +358,6 @@ export default function LoginPage() {
     setInputOtp('');
     setNewPassword('');
     setConfirmPassword('');
-  };
-
-  const handleSocialClick = (providerType: 'Facebook' | 'Apple') => {
-    setSocialEmail('');
-    setSocialPassword('');
-    setSocialModal(providerType);
-  };
-
-  const handleSocialSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!socialEmail || !socialPassword) {
-      toast.error("Please enter both email and password.");
-      return;
-    }
-
-    if (socialPassword.length < 6) {
-      toast.error("Incorrect password! Password must be at least 6 characters.");
-      return;
-    }
-
-    const providerName = socialModal || 'Social';
-    const userName = socialEmail.split('@')[0] || `${providerName} Member`;
-
-    const loggedUser = {
-      uid: `SOCIAL-${Date.now()}`,
-      id: `SOCIAL-${Date.now()}`,
-      _id: `SOCIAL-${Date.now()}`,
-      displayName: userName,
-      name: userName,
-      email: socialEmail.trim().toLowerCase(),
-      role: 'customer',
-      photoURL: `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=D4AF37&color=000`,
-      provider: providerName,
-      joinedDate: new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
-    };
-
-    if (typeof setUser === 'function') setUser(loggedUser as any);
-    localStorage.setItem('currentUser', JSON.stringify(loggedUser));
-    localStorage.setItem('user', JSON.stringify(loggedUser));
-    localStorage.setItem('mo_fashion_customer_user', JSON.stringify(loggedUser));
-
-    setSocialModal(null);
-    toast.success(`Welcome back, ${loggedUser.name}! 🎉`);
-    navigate('/profile');
   };
 
   const storeLogoImage = settings?.logoUrl || settings?.logo || settings?.storeLogo || '';
@@ -582,16 +487,30 @@ export default function LoginPage() {
           <div className="h-px bg-gray-800 flex-1"></div>
         </div>
 
-        {/* 🚀 OFFICIAL GOOGLE NATIVE BUTTON & UNIFORM WHITE SOCIAL BUTTONS */}
+        {/* 🚀 OFFICIAL UNIFORM WHITE SOCIAL & GOOGLE BUTTONS */}
         <div className="space-y-3 mb-6">
           
-          {/* Official Google Sign-In Native Button Container */}
-          <div id="google-native-signin-btn" className="w-full flex justify-center overflow-hidden rounded-full shadow-sm" />
+          {/* Official Google Sign-In Button */}
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            className="w-full flex items-center justify-center bg-white hover:bg-gray-50 border border-gray-300 py-3 px-4 rounded-full text-sm font-semibold text-gray-800 transition-all shadow-sm active:scale-95 group"
+          >
+            <svg className="w-5 h-5 mr-3 shrink-0" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+            </svg>
+            <span className="text-gray-800">Sign in with Google</span>
+          </button>
 
           {/* Facebook Official Styled Light Button */}
           <button
             type="button"
-            onClick={() => handleSocialClick('Facebook')}
+            onClick={() => {
+              toast.error("Facebook OAuth login requires App ID configuration in Cloud Console.");
+            }}
             className="w-full flex items-center justify-center bg-white hover:bg-gray-50 border border-gray-300 py-3 px-4 rounded-full text-sm font-semibold text-gray-800 transition-all shadow-sm active:scale-95 group"
           >
             <svg className="w-5 h-5 mr-3 text-[#1877F2] shrink-0" fill="currentColor" viewBox="0 0 24 24">
@@ -603,7 +522,9 @@ export default function LoginPage() {
           {/* Apple Official Styled Light Button */}
           <button
             type="button"
-            onClick={() => handleSocialClick('Apple')}
+            onClick={() => {
+              toast.error("Apple OAuth login requires Service ID configuration in Cloud Console.");
+            }}
             className="w-full flex items-center justify-center bg-white hover:bg-gray-50 border border-gray-300 py-3 px-4 rounded-full text-sm font-semibold text-gray-800 transition-all shadow-sm active:scale-95 group"
           >
             <svg className="w-5 h-5 mr-3 text-black shrink-0" fill="currentColor" viewBox="0 0 24 24">
@@ -621,220 +542,6 @@ export default function LoginPage() {
           </Link>
         </p>
       </div>
-
-      {/* 🎬 🚀 গুগল সাইন-ইন পপ-আপ মোডাল */}
-      {isGooglePopupOpen && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white text-[#1f1f1f] rounded-3xl w-full max-w-md p-6 sm:p-8 shadow-2xl relative text-left font-sans animate-in zoom-in-95 duration-200 border border-gray-200">
-            
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center p-3 rounded-full bg-[#f0f4f9] mb-3 shadow-inner relative">
-                <svg className="w-10 h-10" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                </svg>
-              </div>
-
-              <h2 className="text-lg sm:text-xl font-medium text-gray-900 leading-snug">
-                Sign in to <span className="font-bold text-gray-900">{storeBrandTitle}</span> with google.com
-              </h2>
-              {googleStep === 1 && (
-                <p className="text-xs text-gray-500 mt-1">Choose an account to continue</p>
-              )}
-            </div>
-
-            {/* Step 1: Account Selection */}
-            {googleStep === 1 && (
-              <div className="space-y-6">
-                <div 
-                  onClick={() => setGoogleStep(2)}
-                  className="flex items-center justify-between p-3.5 rounded-2xl border border-blue-200 bg-blue-50/20 hover:bg-blue-50/60 cursor-pointer transition-all shadow-sm"
-                >
-                  <div className="flex items-center space-x-3.5">
-                    <img 
-                      src={googleUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(googleUser.name || 'User')}&background=5c3e34&color=fff&size=128&bold=true`} 
-                      alt="Profile Avatar" 
-                      className="w-11 h-11 rounded-full object-cover shadow-sm border border-gray-200 shrink-0"
-                    />
-                    <div className="text-left">
-                      <p className="font-semibold text-sm text-gray-900 leading-tight">{googleUser.name || 'Google Account'}</p>
-                      <p className="text-xs text-gray-600 font-normal">{googleUser.email || 'Click to continue'}</p>
-                    </div>
-                  </div>
-                  <ChevronRight size={18} className="text-gray-600" />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setGoogleStep(2)}
-                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-full transition-colors shadow-md flex items-center justify-center space-x-2"
-                >
-                  <span>Continue as {googleUser.name.split(' ')[0] || 'Customer'}</span>
-                </button>
-
-                <div className="text-[11px] text-gray-500 text-center leading-relaxed pt-1">
-                  To continue, google.com will share your name, email address and profile picture with this site.
-                </div>
-
-                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
-                        try { (window as any).google.accounts.id.prompt(); } catch (e) {}
-                      }
-                    }}
-                    className="px-4 py-2 rounded-full border border-gray-300 text-blue-600 text-xs font-medium hover:bg-gray-50 transition-colors"
-                  >
-                    Switch account
-                  </button>
-
-                  <button 
-                    type="button"
-                    onClick={() => setIsGooglePopupOpen(false)}
-                    className="px-5 py-2 rounded-full border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Step 2: Data Sharing Consent */}
-            {googleStep === 2 && (
-              <div className="space-y-6">
-                <div className="flex items-center space-x-3.5 p-2 border-b border-gray-100 pb-4">
-                  <img 
-                    src={googleUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(googleUser.name || 'User')}&background=5c3e34&color=fff&size=128&bold=true`} 
-                    alt="Profile Avatar" 
-                    className="w-10 h-10 rounded-full object-cover shadow-sm border border-gray-200 shrink-0"
-                  />
-                  <div className="text-left">
-                    <p className="font-semibold text-sm text-gray-900 leading-tight">
-                      {googleUser.name}
-                    </p>
-                    <p className="text-xs text-gray-600 font-normal">
-                      {googleUser.email}
-                    </p>
-                  </div>
-                </div>
-
-                <p className="text-xs text-gray-600 text-left leading-relaxed">
-                  To continue, google.com will share your name, email address and profile picture with this site.
-                </p>
-
-                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                  <button 
-                    type="button"
-                    onClick={() => setGoogleStep(1)}
-                    className="px-4 py-2 rounded-full border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50 transition-colors"
-                  >
-                    Back
-                  </button>
-
-                  <div className="flex space-x-2">
-                    <button 
-                      type="button"
-                      onClick={() => setIsGooglePopupOpen(false)}
-                      className="px-4 py-2 rounded-full bg-gray-100 text-gray-800 text-xs font-medium hover:bg-gray-200 transition-colors"
-                    >
-                      Cancel
-                    </button>
-
-                    <button 
-                      type="button"
-                      onClick={() => setGoogleStep(3)}
-                      className="px-5 py-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors shadow-sm"
-                    >
-                      Continue
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Full Terms & Privacy Disclaimers */}
-            {googleStep === 3 && (
-              <div className="space-y-5 text-left max-h-[75vh] overflow-y-auto pr-1">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 leading-snug">
-                    Sign in to {storeBrandTitle}
-                  </h3>
-                  
-                  <div className="flex items-center space-x-2.5 mt-3 p-2 bg-gray-50 rounded-xl">
-                    <img 
-                      src={googleUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(googleUser.name || 'User')}&background=5c3e34&color=fff&size=128&bold=true`} 
-                      alt="Avatar" 
-                      className="w-8 h-8 rounded-full object-cover shrink-0"
-                    />
-                    <span className="text-xs font-medium text-gray-800">
-                      {googleUser.email}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="space-y-4 pt-2">
-                  <p className="text-xs font-medium text-gray-800 leading-normal">
-                    Google will allow {storeBrandTitle} to access this info about you:
-                  </p>
-
-                  <div className="space-y-3 pl-1">
-                    <div className="flex items-start space-x-3">
-                      <UserIcon size={18} className="text-gray-600 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-xs font-bold text-gray-900">
-                          {googleUser.name}
-                        </p>
-                        <p className="text-[11px] text-gray-500">Name and profile picture</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start space-x-3">
-                      <Mail size={18} className="text-gray-600 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-xs font-bold text-gray-900">
-                          {googleUser.email}
-                        </p>
-                        <p className="text-[11px] text-gray-500">Email address</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t border-gray-200 text-[11px] text-gray-600 space-y-2 leading-relaxed">
-                  <p>
-                    Review {storeBrandTitle}'s <Link to="/privacy" className="text-blue-600 font-medium hover:underline">Privacy Policy</Link> and <Link to="/terms" className="text-blue-600 font-medium hover:underline">Terms of Service</Link> to understand how {storeBrandTitle} will process and protect your data.
-                  </p>
-                  <p>
-                    To make changes at any time, go to your <a href="https://myaccount.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 font-medium hover:underline">Google Account</a>.
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
-                  <button 
-                    type="button"
-                    onClick={() => setIsGooglePopupOpen(false)}
-                    className="px-6 py-2.5 rounded-full border border-gray-300 text-blue-600 text-xs font-medium hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-
-                  <button 
-                    type="button"
-                    onClick={handleCompleteGoogleLogin}
-                    className="px-7 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors shadow-md"
-                  >
-                    Continue
-                  </button>
-                </div>
-              </div>
-            )}
-
-          </div>
-        </div>
-      )}
 
       {/* 🚀 ইমেইল OTP পাসওয়ার্ড রিসেট মোডাল */}
       {showForgotModal && (
@@ -967,98 +674,6 @@ export default function LoginPage() {
               </form>
             )}
 
-          </div>
-        </div>
-      )}
-
-      {/* Social Auth Modal (Facebook / Apple) */}
-      {socialModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fade-in">
-          <div className="bg-[#1A1A1A] text-white rounded-3xl w-full max-w-md p-8 border border-[#D4AF37]/30 shadow-2xl relative">
-            <button 
-              onClick={() => setSocialModal(null)} 
-              className="absolute top-4 right-4 text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-800"
-            >
-              <X size={20} />
-            </button>
-
-            <div className="text-center space-y-3 mb-6">
-              <div className="w-14 h-14 rounded-full bg-[#111111] border border-[#D4AF37]/40 flex items-center justify-center mx-auto text-[#D4AF37] shadow-lg">
-                {socialModal === 'Facebook' && <span className="text-2xl font-black text-blue-500">f</span>}
-                {socialModal === 'Apple' && <span className="text-2xl font-black text-white"></span>}
-              </div>
-              <h3 className="text-xl font-serif font-bold text-[#D4AF37] uppercase">
-                Sign in with {socialModal}
-              </h3>
-              <p className="text-xs text-gray-400">
-                Enter your {socialModal} credentials to authenticate securely.
-              </p>
-            </div>
-
-            <form onSubmit={handleSocialSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1">{socialModal} Email Address *</label>
-                <div className="relative">
-                  <Mail size={16} className="absolute left-3 top-3 text-gray-500" />
-                  <input 
-                    type="email" 
-                    required
-                    placeholder={`your.email@${socialModal.toLowerCase()}.com`}
-                    value={socialEmail}
-                    onChange={(e) => setSocialEmail(e.target.value)}
-                    className="w-full bg-[#111111] border border-gray-700 rounded-lg pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-xs font-bold text-gray-300">{socialModal} Password *</label>
-                  <a 
-                    href={
-                      socialModal === 'Facebook' ? 'https://www.facebook.com/login/identify' :
-                      'https://iforgot.apple.com/'
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[10px] text-[#D4AF37] hover:underline"
-                  >
-                    Forgot password?
-                  </a>
-                </div>
-                <div className="relative">
-                  <KeyRound size={16} className="absolute left-3 top-3 text-gray-500" />
-                  <input 
-                    type={showSocialPassword ? "text" : "password"}
-                    required
-                    placeholder="Enter password"
-                    value={socialPassword}
-                    onChange={(e) => setShowSocialPassword(!showSocialPassword)}
-                    className="w-full bg-[#111111] border border-gray-700 rounded-lg pl-10 pr-10 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
-                  />
-                  <button
-                    type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-[#D4AF37]"
-                    onClick={() => setShowSocialPassword(!showSocialPassword)}
-                  >
-                    {showSocialPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="pt-2">
-                <button 
-                  type="submit"
-                  className="w-full bg-[#D4AF37] text-black font-bold py-3 rounded-lg hover:bg-white transition-colors uppercase tracking-wider text-xs shadow-lg"
-                >
-                  Authenticate & Sign In
-                </button>
-              </div>
-
-              <p className="text-[10px] text-center text-gray-500 mt-3">
-                Protected by 256-bit Encryption • <ShieldCheck size={12} className="inline text-green-500" /> Secure OAuth
-              </p>
-            </form>
           </div>
         </div>
       )}
