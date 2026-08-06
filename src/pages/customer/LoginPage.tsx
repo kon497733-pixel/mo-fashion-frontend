@@ -134,11 +134,17 @@ export default function LoginPage() {
             googleBtnContainer.innerHTML = '';
             (window as any).google.accounts.id.renderButton(
               googleBtnContainer,
-              { theme: 'outline', size: 'large', width: '280', text: 'signin_with', shape: 'pill' }
+              { 
+                theme: 'outline', 
+                size: 'large', 
+                width: googleBtnContainer.offsetWidth || 300, // 🚀 ডাইনামিক উইডথ (Dynamic Width Match)
+                text: 'signin_with', 
+                shape: 'pill' 
+              }
             );
           }
 
-          // Optional: Google One Tap Prompt
+          // Google One Tap Prompt
           (window as any).google.accounts.id.prompt();
         } catch (e) {
           console.warn("Google Sign-In render warning:", e);
@@ -147,8 +153,15 @@ export default function LoginPage() {
     };
 
     initGoogleAuth();
+    
+    // উইন্ডো রিসাইজ হলে আবার সমান সাইজ রেন্ডার করবে
+    window.addEventListener('resize', initGoogleAuth);
     const timer = setTimeout(initGoogleAuth, 1000);
-    return () => clearTimeout(timer);
+    
+    return () => {
+      window.removeEventListener('resize', initGoogleAuth);
+      clearTimeout(timer);
+    };
   }, [navigate, location, setUser]);
 
   // 🚀 ফেসবুক অফিশিয়াল SDK লোড করা
@@ -604,12 +617,12 @@ export default function LoginPage() {
         </div>
 
         {/* 🚀 OFFICIAL 100% REAL EQUAL SIZED BUTTONS (GOOGLE & FACEBOOK ONLY) */}
-        <div className="flex flex-col items-center space-y-3 mb-6 w-full max-w-[280px] mx-auto">
+        <div className="space-y-4 mb-6 w-full mx-auto">
           
-          {/* 1. Official Google Sign-In Native Render Button Container */}
-          <div id="google-native-signin-btn" className="w-full h-[40px] flex justify-center overflow-hidden rounded-full shadow-sm bg-white" />
+          {/* 1. Official Google Sign-In Native Render Button Container (Full Width & Height Match) */}
+          <div id="google-native-signin-btn" className="w-full min-h-[40px] flex justify-center overflow-hidden rounded-full shadow-sm" />
 
-          {/* 2. Official Facebook Sign-In Button (EXACTLY EQUAL SIZE TO GOOGLE BUTTON) */}
+          {/* 2. Official Facebook Sign-In Button (Exact Equal Size to Google Button) */}
           <button
             type="button"
             onClick={handleOfficialFacebookLogin}
