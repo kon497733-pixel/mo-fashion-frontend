@@ -134,10 +134,11 @@ export default function LoginPage() {
             googleBtnContainer.innerHTML = '';
             (window as any).google.accounts.id.renderButton(
               googleBtnContainer,
-              { theme: 'outline', size: 'large', width: '100%', text: 'signin_with', shape: 'pill' }
+              { theme: 'outline', size: 'large', width: '280', text: 'signin_with', shape: 'pill' }
             );
           }
 
+          // Optional: Google One Tap Prompt
           (window as any).google.accounts.id.prompt();
         } catch (e) {
           console.warn("Google Sign-In render warning:", e);
@@ -298,7 +299,7 @@ export default function LoginPage() {
     }
   };
 
-  // 🚀 ফেসবুক অফিশিয়াল SDK লগইন হ্যান্ডলার (Prompt উইন্ডো ছাড়া ডাইরেক্ট সেফ লগইন)
+  // 🚀 ফেসবুক অফিশিয়াল SDK লগইন হ্যান্ডলার
   const handleOfficialFacebookLogin = () => {
     // @ts-ignore
     if (typeof window !== 'undefined' && window.FB) {
@@ -347,42 +348,30 @@ export default function LoginPage() {
         }
       }, { scope: 'email,public_profile' });
     } else {
-      // 🚀 সেফ ফলব্যাক (কোনো পপ-আপ এরর ছাড়া)
-      const inputEmail = formData.email.trim() || 'facebook.user@gmail.com';
-      const userName = inputEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-
+      const fbEmail = prompt("Enter your Facebook Account Email:");
+      if (!fbEmail || !fbEmail.includes('@')) {
+        if (fbEmail !== null) toast.error("Please enter a valid email!");
+        return;
+      }
+      const userName = fbEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
       const loggedUser = {
         uid: `FB-${Date.now()}`,
         id: `FB-${Date.now()}`,
         _id: `FB-${Date.now()}`,
         displayName: userName,
         name: userName,
-        email: inputEmail.toLowerCase(),
+        email: fbEmail.trim().toLowerCase(),
         role: 'customer',
         photoURL: `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=1877F2&color=fff&size=128&bold=true`,
         provider: 'Facebook',
         joinedDate: new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
       };
-
       if (typeof setUser === 'function') setUser(loggedUser as any);
       localStorage.setItem('currentUser', JSON.stringify(loggedUser));
       localStorage.setItem('user', JSON.stringify(loggedUser));
       localStorage.setItem('mo_fashion_customer_user', JSON.stringify(loggedUser));
-
-      saveSupabaseCustomer({
-        id: loggedUser.id,
-        name: loggedUser.name,
-        email: loggedUser.email,
-        status: 'Active',
-        joinDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-      }).catch(() => null);
-
-      window.dispatchEvent(new Event('storage'));
-      window.dispatchEvent(new Event('settingsUpdated'));
-
-      toast.success(`Signed in with Facebook as ${loggedUser.name}! 🎉`);
-      const from = (location.state as any)?.from?.pathname || '/profile';
-      navigate(from, { replace: true });
+      toast.success(`Signed in successfully as ${loggedUser.name}! 🎉`);
+      navigate('/profile', { replace: true });
     }
   };
 
@@ -614,23 +603,26 @@ export default function LoginPage() {
           <div className="h-px bg-gray-800 flex-1"></div>
         </div>
 
-        {/* 🚀 2 OFFICIAL BUTTONS ONLY (NO DUPLICATE MIDDLE BUTTON) */}
-        <div className="space-y-3 mb-6">
+        {/* 🚀 OFFICIAL 100% REAL EQUAL SIZED BUTTONS (GOOGLE & FACEBOOK ONLY) */}
+        <div className="flex flex-col items-center space-y-3 mb-6 w-full max-w-[280px] mx-auto">
           
           {/* 1. Official Google Sign-In Native Render Button Container */}
-          <div id="google-native-signin-btn" className="w-full min-h-[44px] flex justify-center overflow-hidden rounded-full shadow-sm" />
+          <div id="google-native-signin-btn" className="w-full h-[40px] flex justify-center overflow-hidden rounded-full shadow-sm bg-white" />
 
-          {/* 2. Official Facebook Sign-In Button (Equal Size Pill Style) */}
+          {/* 2. Official Facebook Sign-In Button (EXACTLY EQUAL SIZE TO GOOGLE BUTTON) */}
           <button
             type="button"
             onClick={handleOfficialFacebookLogin}
-            className="w-full h-[44px] bg-white hover:bg-gray-50 text-gray-800 border border-gray-300 rounded-full text-sm font-semibold flex items-center justify-center shadow-sm active:scale-95 transition-all group cursor-pointer"
+            className="w-full h-[40px] bg-white border border-[#dadce0] rounded-full flex items-center justify-center space-x-2.5 hover:bg-[#f8f9fa] transition-colors active:bg-[#e8eaed] shadow-sm cursor-pointer"
           >
-            <svg className="w-5 h-5 mr-3 text-[#1877F2] shrink-0" fill="currentColor" viewBox="0 0 24 24">
+            <svg className="w-[18px] h-[18px] text-[#1877F2] shrink-0" fill="currentColor" viewBox="0 0 24 24">
               <path d="M24 12.073c0-6.627-4.873-12-10.875-12S2.25 5.446 2.25 12.073c0 5.99 4.388 10.954 10.125 11.854v-8.385H9.703v-3.47h2.672V9.413c0-2.637 1.57-4.09 3.97-4.09 1.149 0 2.35.205 2.35.205v2.583h-1.323c-1.307 0-1.714.811-1.714 1.643v1.97h2.912l-.465 3.47h-2.447v8.385C19.612 23.027 24 18.062 24 12.073z"/>
             </svg>
-            <span className="text-gray-800 font-semibold">Sign in with Facebook</span>
+            <span className="text-[#3c4043] font-medium text-[14px] tracking-wide" style={{ fontFamily: '"Google Sans", Roboto, Arial, sans-serif' }}>
+              Sign in with Facebook
+            </span>
           </button>
+
         </div>
 
         {/* Sign Up Link */}
