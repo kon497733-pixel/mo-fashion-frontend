@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { 
   Users, Sparkles, Award, ShieldCheck, Truck, 
@@ -12,10 +12,12 @@ export default function About() {
     aboutImageUrl: ''
   });
 
+  // Apple-Style 3D Scroll Reveal Reference
+  const revealContainerRef = useRef<HTMLDivElement>(null);
+
   // 🚀 ১. সেন্ট্রাল এপিআই দিয়ে ক্লাউড ডাটাবেস (MongoDB API) থেকে রিয়েল-টাইম এবাউট সেটিং লোড করা
   useEffect(() => {
     const fetchAboutSettings = async () => {
-      // ১. প্রথমে লোকাল মেমোরি থেকে ইনস্ট্যান্ট ডাটা লোড
       const savedSettings = localStorage.getItem('mo_fashion_settings');
       if (savedSettings) {
         try {
@@ -25,7 +27,6 @@ export default function About() {
         }
       }
 
-      // ২. ক্লাউড ডাটাবেস (MongoDB Backend) থেকে সিঙ্ক করা
       try {
         const cloudData = await getLiveSettings();
         if (cloudData && Object.keys(cloudData).length > 0) {
@@ -39,7 +40,6 @@ export default function About() {
 
     fetchAboutSettings();
 
-    // সেটিংস আপডেট ইভেন্ট লিসেনার
     const handleSettingsUpdate = () => fetchAboutSettings();
     window.addEventListener('storage', handleSettingsUpdate);
     window.addEventListener('settingsUpdated', handleSettingsUpdate);
@@ -48,6 +48,26 @@ export default function About() {
       window.removeEventListener('storage', handleSettingsUpdate);
       window.removeEventListener('settingsUpdated', handleSettingsUpdate);
     };
+  }, []);
+
+  // Apple-Style 3D Scroll Interaction Effect
+  useEffect(() => {
+    const handleScroll = () => {
+      if (revealContainerRef.current) {
+        const rect = revealContainerRef.current.getBoundingClientRect();
+        const windowHeight = window.innerHeight;
+        const scrollPercent = Math.min(1, Math.max(0, (windowHeight - rect.top) / windowHeight));
+        
+        const rotateValue = (1 - scrollPercent) * 10; 
+        const scaleValue = 0.97 + scrollPercent * 0.03;
+        
+        revealContainerRef.current.style.transform = `perspective(1200px) rotateX(${rotateValue}deg) scale(${scaleValue})`;
+        revealContainerRef.current.style.opacity = `${scrollPercent}`;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   // 🚀 ৮টি প্রিমিয়াম ফিচার কার্ডের ডাটা
@@ -100,46 +120,49 @@ export default function About() {
         <title>About Us | {siteSettings?.storeName || 'MO FASHION'}</title>
       </Helmet>
 
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-4 max-w-7xl">
         
         {/* Header Section */}
         <div className="text-center mb-16 border-b border-[#D4AF37]/20 pb-10">
-          <h1 className="text-4xl md:text-6xl font-serif font-bold text-[#D4AF37] mb-4 uppercase tracking-widest">
+          <h1 className="text-4xl md:text-6xl font-serif font-bold text-[#D4AF37] mb-4 uppercase tracking-widest gold-text-glow">
             About {siteSettings?.storeName || 'MO FASHION'}
           </h1>
-          <p className="text-gray-400 max-w-2xl mx-auto text-lg">
+          <p className="text-gray-400 max-w-2xl mx-auto text-lg font-light">
             Redefining Luxury & Fashion.
           </p>
         </div>
 
-        {/* Our Story & Fashion Team Box Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center mb-20">
-          
+        {/* 🚀 APPLE-STYLE 3D STORY & TEAM SECTION */}
+        <div 
+          ref={revealContainerRef}
+          className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center mb-20 transition-all duration-300 ease-out origin-top"
+          style={{ transformStyle: 'preserve-3d' }}
+        >
           {/* Left Text */}
           <div className="space-y-6">
-            <h2 className="text-3xl font-serif font-bold text-[#D4AF37] flex items-center">
-              <Sparkles size={24} className="mr-3 text-[#D4AF37]" />
+            <h2 className="text-3xl font-serif font-bold text-[#D4AF37] flex items-center gold-text-glow">
+              <Sparkles size={24} className="mr-3 text-[#D4AF37] animate-pulse" />
               Our Story
             </h2>
-            <p className="text-gray-300 leading-relaxed text-base">
-              Founded in Bangladesh, <strong className="text-[#D4AF37]">{siteSettings?.storeName || 'MO FASHION'}</strong> started with a simple vision: to make premium, high-quality fashion accessible to everyone. What began as a small boutique has now transformed into a nationwide e-commerce destination for fashion enthusiasts.
+            <p className="text-gray-300 leading-relaxed text-base font-light">
+              Founded in Bangladesh, <strong className="text-[#D4AF37] font-bold">{siteSettings?.storeName || 'MO FASHION'}</strong> started with a simple vision: to make premium, high-quality fashion accessible to everyone. What began as a small boutique has now transformed into a nationwide e-commerce destination for fashion enthusiasts.
             </p>
-            <p className="text-gray-300 leading-relaxed text-base">
+            <p className="text-gray-300 leading-relaxed text-base font-light">
               We believe that clothes are not just fabric; they are a statement of who you are. That’s why every product in our catalog is handpicked to ensure it meets the highest standards of craftsmanship, durability, and style.
             </p>
           </div>
 
-          {/* Right Box: "The Fashion Team" (ডাটাবেস থেকে সিঙ্ক করা অরিজিনাল ফটো) */}
-          <div className="bg-[#1A1A1A] border-2 border-[#D4AF37]/30 rounded-2xl p-3 flex items-center justify-center overflow-hidden shadow-2xl relative min-h-[300px] md:min-h-[360px]">
+          {/* Right Box: "The Fashion Team" (3D Glassmorphic Photo Frame) */}
+          <div className="bg-[#1A1A1A] border-2 border-[#D4AF37]/40 rounded-3xl p-3 flex items-center justify-center overflow-hidden shadow-2xl relative min-h-[300px] md:min-h-[360px] glass-3d-panel">
             {siteSettings?.aboutImageUrl ? (
               <img 
                 src={siteSettings.aboutImageUrl} 
                 alt="The Fashion Team" 
-                className="w-full h-full max-h-[380px] object-cover rounded-xl transition-transform duration-500 hover:scale-105"
+                className="w-full h-full max-h-[380px] object-cover rounded-2xl transition-transform duration-500 hover:scale-105"
               />
             ) : (
-              <div className="text-center p-8 border border-dashed border-[#D4AF37]/20 rounded-xl w-full h-full flex flex-col items-center justify-center bg-[#111111]/50">
-                <Users size={56} className="text-[#D4AF37] mb-4 opacity-80" />
+              <div className="text-center p-8 border border-dashed border-[#D4AF37]/30 rounded-2xl w-full h-full flex flex-col items-center justify-center bg-[#111111]/50">
+                <Users size={56} className="text-[#D4AF37] mb-4 opacity-80 animate-pulse" />
                 <h3 className="text-2xl font-serif text-[#D4AF37] font-bold tracking-wider">The Fashion Team</h3>
                 <p className="text-gray-500 text-xs mt-2">Upload a photo from Settings to show your team here</p>
               </div>
@@ -148,23 +171,23 @@ export default function About() {
 
         </div>
 
-        {/* 🚀 ফিচার কার্ড সেকশন */}
+        {/* 🚀 3D FEATURE CARDS SECTION */}
         <div className="pt-12 border-t border-[#D4AF37]/20">
           
           <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-4xl font-serif font-bold text-[#D4AF37] uppercase tracking-widest">
+            <h2 className="text-2xl md:text-4xl font-serif font-bold text-[#D4AF37] uppercase tracking-widest gold-text-glow">
               Why Choose {siteSettings?.storeName || 'MO FASHION'}
             </h2>
-            <div className="w-24 h-1 bg-[#D4AF37] mx-auto mt-4 rounded-full opacity-50"></div>
+            <div className="w-24 h-1 bg-[#D4AF37] mx-auto mt-4 rounded-full opacity-50 shadow-[0_0_10px_#D4AF37]"></div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 [perspective:1200px]">
             {features.map((item, index) => {
               const Icon = item.icon;
               return (
                 <div 
                   key={index} 
-                  className="bg-[#1A1A1A] p-6 rounded-2xl border border-gray-800/80 hover:border-[#D4AF37] transition-all duration-500 hover:shadow-[0_0_25px_rgba(212,175,55,0.25)] hover:-translate-y-2 group relative overflow-hidden flex flex-col justify-between"
+                  className="bg-[#1A1A1A] p-6 rounded-2xl border border-gray-800/80 hover:border-[#D4AF37] transition-all duration-500 hover:shadow-[0_20px_40px_rgba(212,175,55,0.2)] hover:-translate-y-2 group relative overflow-hidden flex flex-col justify-between glass-3d-card"
                 >
                   <div className="absolute inset-0 bg-gradient-to-b from-[#D4AF37]/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
 
@@ -177,7 +200,7 @@ export default function About() {
                       {item.title}
                     </h3>
 
-                    <p className="text-gray-400 text-sm text-center leading-relaxed">
+                    <p className="text-gray-400 text-sm text-center leading-relaxed font-light">
                       {item.desc}
                     </p>
                   </div>

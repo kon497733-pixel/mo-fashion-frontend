@@ -213,7 +213,6 @@ export default function CategoryProductsPage() {
     return false;
   };
 
-  // 🚀 Filter products by smart category matcher OR show all if "Collection" / "All"
   let categoryProducts = products.filter(p => {
     const matchesCat = isAllProductsView ? true : isCategoryMatch(p.category, decodedCategoryName);
 
@@ -223,7 +222,6 @@ export default function CategoryProductsPage() {
     return matchesCat && matchesSearch;
   });
 
-  // Sort logic
   if (sortBy === 'price-low') {
     categoryProducts.sort((a, b) => Number(a.price) - Number(b.price));
   } else if (sortBy === 'price-high') {
@@ -232,7 +230,6 @@ export default function CategoryProductsPage() {
     categoryProducts.sort((a, b) => (Number(b.discount) || 0) - (Number(a.discount) || 0));
   }
 
-  // Find category description from DB categories if available
   const currentCategoryObj = categories.find(c => String(c.name || '').toLowerCase().trim() === decodedCategoryName.toLowerCase().trim());
   const categoryDescription = currentCategoryObj?.description || (
     isAllProductsView 
@@ -261,22 +258,20 @@ export default function CategoryProductsPage() {
           <span>BACK TO ALL CATEGORIES</span>
         </Link>
 
-        {/* 🚀 DYNAMIC CATEGORY HEADER WITH DYNAMIC TITLE & DESCRIPTION */}
+        {/* 🚀 3D GLASSMORPHIC CATEGORY HEADER */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 pb-6 border-b border-[#D4AF37]/20 gap-4">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center space-x-2 bg-[#1A1A1A] border border-[#D4AF37]/30 px-3.5 py-1.5 rounded-full text-xs font-bold text-[#D4AF37] uppercase mb-3">
+            <div className="inline-flex items-center space-x-2 bg-[#1A1A1A] border border-[#D4AF37]/30 px-3.5 py-1.5 rounded-full text-xs font-bold text-[#D4AF37] uppercase mb-3 glass-3d-panel">
               {storeLogoImage ? (
                 <img src={storeLogoImage} alt="" className="w-4 h-4 object-cover rounded-full" />
               ) : null}
               <span>{isAllProductsView ? 'GLOBAL COLLECTION' : 'CATEGORY COLLECTION'}</span>
             </div>
 
-            {/* 🚀 DYNAMIC CATEGORY TITLE */}
-            <h1 className="text-3xl md:text-5xl font-serif font-bold text-white uppercase tracking-wider">
+            <h1 className="text-3xl md:text-5xl font-serif font-bold text-white uppercase tracking-wider gold-text-glow">
               {displayTitle}
             </h1>
 
-            {/* 🚀 DYNAMIC CATEGORY DESCRIPTION */}
             <p className="text-xs sm:text-sm text-gray-400 mt-2 leading-relaxed font-light">
               {categoryDescription}
             </p>
@@ -296,13 +291,13 @@ export default function CategoryProductsPage() {
                 placeholder={`Search in ${displayTitle}...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[#1A1A1A] border border-gray-800 focus:border-[#D4AF37] rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none transition-all"
+                className="w-full bg-[#1A1A1A] border border-gray-800 focus:border-[#D4AF37] rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none transition-all shadow-inner"
               />
               <Search className="absolute left-3 top-3 text-gray-400" size={14} />
             </div>
 
             {/* Sort Dropdown */}
-            <div className="flex items-center space-x-2 bg-[#1A1A1A] border border-gray-800 rounded-xl px-3 py-2">
+            <div className="flex items-center space-x-2 bg-[#1A1A1A] border border-gray-800 rounded-xl px-3 py-2 glass-3d-panel">
               <Filter size={14} className="text-[#D4AF37]" />
               <select
                 value={sortBy}
@@ -319,21 +314,21 @@ export default function CategoryProductsPage() {
           </div>
         </div>
 
-        {/* 🚀 2 COLUMNS ON MOBILE GRID (`grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4`) */}
+        {/* 🚀 3D METALLIC GRID CARDS */}
         {categoryProducts.length === 0 && !loading ? (
-          <div className="text-center py-20 bg-[#1A1A1A]/60 rounded-3xl border border-gray-800 p-8 max-w-xl mx-auto">
+          <div className="text-center py-20 bg-[#1A1A1A]/60 rounded-3xl border border-gray-800 p-8 max-w-xl mx-auto glass-3d-panel">
             <ShoppingBag size={48} className="mx-auto text-gray-600 mb-4 opacity-50" />
             <h3 className="text-lg font-serif font-bold text-white mb-2">No products found in "{displayTitle}"!</h3>
             <p className="text-xs text-gray-400 mb-6">Try searching for a different keyword or reset filters.</p>
             <button
               onClick={() => { setSearchQuery(''); navigate('/products'); }}
-              className="px-6 py-2.5 bg-[#D4AF37] text-black font-bold text-xs uppercase rounded-xl hover:scale-105 transition-all"
+              className="px-6 py-2.5 bg-[#D4AF37] text-black font-bold text-xs uppercase rounded-xl hover:scale-105 transition-all shadow-md"
             >
               Browse All Products
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6 [perspective:1200px]">
             {categoryProducts.map((product: any) => {
               const pId = String(product.id || product._id);
               const pName = product.name || 'Luxury Fashion Item';
@@ -350,14 +345,13 @@ export default function CategoryProductsPage() {
                 ? product.images 
                 : (product.imageUrl || product.image ? [product.imageUrl || product.image] : []);
 
-              // 🚀 REAL-TIME RATING CALCULATOR
               const ratingStats = getProductRatingStats(pId);
 
               return (
                 <div
                   key={pId}
                   onClick={() => navigate(`/product/${pId}`)}
-                  className="group relative bg-[#1A1A1A] border border-gray-800 hover:border-[#D4AF37]/60 rounded-2xl overflow-hidden cursor-pointer shadow-xl transition-all duration-500 hover:-translate-y-2 [perspective:1000px] [transform-style:preserve-3d]"
+                  className="group relative bg-[#1A1A1A] border border-gray-800 hover:border-[#D4AF37]/60 rounded-2xl overflow-hidden cursor-pointer shadow-2xl transition-all duration-500 hover:-translate-y-2 [perspective:1000px] [transform-style:preserve-3d] glass-3d-card"
                 >
                   {/* 3D Image Box with Auto Image Slideshow */}
                   <div className="relative aspect-square w-full bg-[#111111] overflow-hidden">
@@ -371,7 +365,6 @@ export default function CategoryProductsPage() {
                         </span>
                       ) : <span />}
 
-                      {/* 🚀 ULTRA-PROMINENT 3D STOCK BADGE */}
                       <span className={`font-bold text-[9px] sm:text-[10px] px-2.5 py-1 rounded-full uppercase border backdrop-blur-md shadow-md ${
                         isOutOfStock 
                           ? 'bg-red-500/30 text-red-300 border-red-500 shadow-red-500/30' 
@@ -413,7 +406,6 @@ export default function CategoryProductsPage() {
                         {product.category || displayTitle}
                       </span>
                       
-                      {/* 🚀 REAL-TIME STAR RATING (NO DEFAULT 5.0!) */}
                       <span className="flex items-center text-yellow-400 font-bold bg-[#111111] px-2 py-0.5 rounded-full border border-gray-800">
                         <Star size={12} className="fill-yellow-400 mr-1" />
                         {ratingStats.rating > '0.0' ? `${ratingStats.rating} (${ratingStats.count})` : 'New'}
@@ -424,7 +416,6 @@ export default function CategoryProductsPage() {
                       {pName}
                     </h3>
 
-                    {/* Pricing & LINKED SOLD & REMAINING STOCK 3D BADGES */}
                     <div className="flex flex-col space-y-1.5 pt-1">
                       <div className="flex items-baseline justify-between">
                         <div className="flex items-baseline space-x-1.5">
@@ -438,7 +429,6 @@ export default function CategoryProductsPage() {
                           )}
                         </div>
 
-                        {/* 🚀 LINKED SOLD & REMAINING METALLIC 3D BADGE */}
                         <div className="flex items-center space-x-1">
                           {soldCount > 0 && (
                             <span className="bg-gradient-to-r from-[#D4AF37] to-[#aa8c2c] text-black border border-[#D4AF37] px-2 py-0.5 rounded-lg text-[9px] font-bold shadow-md shadow-[#D4AF37]/20 uppercase">

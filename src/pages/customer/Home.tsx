@@ -56,7 +56,7 @@ function ProductCardImageSlider({ images, name }: { images: string[]; name: stri
             <div
               key={i}
               className={`h-1 rounded-full transition-all duration-500 ${
-                i === currentIndex ? 'bg-[#D4AF37] w-3' : 'bg-white/40 w-1'
+                i === currentIndex ? 'bg-[#D4AF37] w-3 shadow-[0_0_8px_#D4AF37]' : 'bg-white/40 w-1'
               }`}
             />
           ))}
@@ -152,7 +152,7 @@ export default function Home() {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width - 0.5;
     const y = (e.clientY - rect.top) / rect.height - 0.5;
-    setHeroTilt({ x: y * 15, y: -x * 15 });
+    setHeroTilt({ x: y * 18, y: -x * 18 });
   };
 
   const handleHeroMouseLeave = () => setHeroTilt({ x: 0, y: 0 });
@@ -207,7 +207,6 @@ export default function Home() {
     toast.success(`${product.name} added to cart! 🛒`);
   };
 
-  // 🚀 REAL-TIME AVERAGE STAR RATING CALCULATOR (NO DEFAULT 5.0!)
   const getProductRatingStats = (productId: string) => {
     const prodReviews = reviews.filter(r => String(r.productId || r.product_id) === String(productId));
     if (prodReviews.length === 0) return { rating: '0.0', count: 0 };
@@ -217,7 +216,6 @@ export default function Home() {
     return { rating: avg, count: prodReviews.length };
   };
 
-  // Filter 100% REAL Products
   const filteredProducts = products.filter(p => {
     const matchesCat = activeCategory === 'All' || String(p.category || '').toLowerCase() === activeCategory.toLowerCase();
     const searchQ = sectionSearchQuery.trim().toLowerCase();
@@ -244,13 +242,13 @@ export default function Home() {
         <title>{storeBrandTitle} | Luxury Fashion Store</title>
       </Helmet>
 
-      {/* 🚀 1. PURE CSS 3D HERO BANNER SECTION (ADMIN DYNAMIC TEXTS) */}
+      {/* 🚀 1. PURE 3D HERO BANNER SECTION WITH PARALLAX TILT */}
       <section 
         className="relative min-h-[85vh] flex items-center justify-center py-16 px-4 [perspective:1200px]"
         onMouseMove={handleHeroMouseMove}
         onMouseLeave={handleHeroMouseLeave}
       >
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-[#D4AF37]/15 rounded-full blur-[120px] pointer-events-none animate-pulse" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-[#D4AF37]/15 rounded-full blur-[150px] pointer-events-none animate-pulse" />
         
         <div 
           className="container mx-auto max-w-7xl relative z-10 transition-transform duration-300 ease-out [transform-style:preserve-3d] will-change-transform"
@@ -262,7 +260,7 @@ export default function Home() {
             
             <div className="space-y-6 text-center lg:text-left [transform:translateZ(30px)]">
               
-              <div className="inline-flex items-center space-x-2 bg-[#1A1A1A]/90 border border-[#D4AF37]/40 px-4 py-2 rounded-full backdrop-blur-md shadow-[0_0_20px_rgba(212,175,55,0.25)]">
+              <div className="inline-flex items-center space-x-2 bg-[#1A1A1A]/90 border border-[#D4AF37]/40 px-4 py-2 rounded-full backdrop-blur-md shadow-[0_0_20px_rgba(212,175,55,0.25)] glass-3d-panel">
                 {storeLogoImage ? (
                   <img src={storeLogoImage} alt={storeBrandTitle} className="w-4 h-4 object-cover rounded-full" />
                 ) : null}
@@ -271,7 +269,7 @@ export default function Home() {
                 </span>
               </div>
 
-              <h1 className="text-4xl sm:text-6xl md:text-7xl font-serif font-bold leading-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-[#f3e5ab] to-[#D4AF37] drop-shadow-[0_10px_25px_rgba(212,175,55,0.35)] uppercase">
+              <h1 className="text-4xl sm:text-6xl md:text-7xl font-serif font-bold leading-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-[#f3e5ab] to-[#D4AF37] drop-shadow-[0_10px_25px_rgba(212,175,55,0.35)] uppercase gold-text-glow">
                 {settings?.heroTitle || 'ELEVATE YOUR SIGNATURE STYLE'}
               </h1>
 
@@ -290,15 +288,16 @@ export default function Home() {
 
                 <button
                   onClick={() => navigate('/categories')}
-                  className="px-8 py-4 bg-[#1A1A1A]/80 hover:bg-[#D4AF37]/20 text-white hover:text-[#D4AF37] font-bold text-xs sm:text-sm tracking-[0.2em] uppercase rounded-xl border border-gray-800 hover:border-[#D4AF37]/50 backdrop-blur-md transition-all duration-300 hover:scale-105 active:scale-95 [transform:translateZ(10px)]"
+                  className="px-8 py-4 bg-[#1A1A1A]/80 hover:bg-[#D4AF37]/20 text-white hover:text-[#D4AF37] font-bold text-xs sm:text-sm tracking-[0.2em] uppercase rounded-xl border border-gray-800 hover:border-[#D4AF37]/50 backdrop-blur-md transition-all duration-300 hover:scale-105 active:scale-95 [transform:translateZ(10px)] glass-3d-panel"
                 >
                   EXPLORE CATEGORIES
                 </button>
               </div>
             </div>
 
+            {/* 🚀 3D FLOATING HERO CARD */}
             <div className="relative flex justify-center items-center [transform-style:preserve-3d]">
-              <div className="relative w-72 h-72 sm:w-96 sm:h-96 rounded-3xl bg-gradient-to-tr from-[#1A1A1A] via-[#111111] to-[#1A1A1A] border border-[#D4AF37]/40 shadow-[0_25px_60px_rgba(0,0,0,0.9),0_0_40px_rgba(212,175,55,0.2)] p-6 flex flex-col justify-between overflow-hidden group [transform:translateZ(40px)]">
+              <div className="relative w-72 h-72 sm:w-96 sm:h-96 rounded-3xl bg-gradient-to-tr from-[#1A1A1A] via-[#111111] to-[#1A1A1A] border border-[#D4AF37]/40 shadow-[0_25px_60px_rgba(0,0,0,0.95),0_0_40px_rgba(212,175,55,0.2)] p-6 flex flex-col justify-between overflow-hidden group [transform:translateZ(45px)] glass-3d-card animate-float-3d">
                 
                 <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full border-4 border-[#D4AF37]/30 group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
                 <div className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full border-4 border-[#D4AF37]/20 group-hover:scale-110 transition-transform duration-700 pointer-events-none" />
@@ -311,7 +310,7 @@ export default function Home() {
                 </div>
 
                 <div className="text-center z-10 py-6">
-                  <span className="font-serif text-2xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#ffffff] uppercase">
+                  <span className="font-serif text-2xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#ffffff] uppercase gold-text-glow">
                     {settings?.heroCardTitle || '100% AUTHENTIC'}
                   </span>
                   <p className="text-xs text-gray-400 mt-2 uppercase tracking-widest font-semibold">
@@ -330,12 +329,12 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 🚀 2. TRUST FEATURES BAR */}
+      {/* 🚀 2. TRUST FEATURES BAR WITH 3D CARDS */}
       <section className="py-10 border-y border-gray-800/80 bg-[#161616]/60 backdrop-blur-md">
         <div className="container mx-auto px-4 max-w-7xl">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-            <div className="bg-[#1A1A1A]/80 border border-gray-800 hover:border-[#D4AF37]/40 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-center text-center sm:text-left space-y-2 sm:space-y-0 sm:space-x-4 shadow-lg hover:scale-105 transition-all duration-300">
-              <div className="p-3 rounded-xl bg-[#D4AF37]/10 text-[#D4AF37] shrink-0 border border-[#D4AF37]/20">
+            <div className="bg-[#1A1A1A]/80 border border-gray-800 hover:border-[#D4AF37]/50 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-center text-center sm:text-left space-y-2 sm:space-y-0 sm:space-x-4 shadow-lg hover:-translate-y-1 transition-all duration-300 glass-3d-panel">
+              <div className="p-3 rounded-xl bg-[#D4AF37]/10 text-[#D4AF37] shrink-0 border border-[#D4AF37]/30">
                 <Truck size={22} />
               </div>
               <div>
@@ -344,8 +343,8 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="bg-[#1A1A1A]/80 border border-gray-800 hover:border-[#D4AF37]/40 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-center text-center sm:text-left space-y-2 sm:space-y-0 sm:space-x-4 shadow-lg hover:scale-105 transition-all duration-300">
-              <div className="p-3 rounded-xl bg-[#D4AF37]/10 text-[#D4AF37] shrink-0 border border-[#D4AF37]/20">
+            <div className="bg-[#1A1A1A]/80 border border-gray-800 hover:border-[#D4AF37]/50 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-center text-center sm:text-left space-y-2 sm:space-y-0 sm:space-x-4 shadow-lg hover:-translate-y-1 transition-all duration-300 glass-3d-panel">
+              <div className="p-3 rounded-xl bg-[#D4AF37]/10 text-[#D4AF37] shrink-0 border border-[#D4AF37]/30">
                 <ShieldCheck size={22} />
               </div>
               <div>
@@ -354,8 +353,8 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="bg-[#1A1A1A]/80 border border-gray-800 hover:border-[#D4AF37]/40 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-center text-center sm:text-left space-y-2 sm:space-y-0 sm:space-x-4 shadow-lg hover:scale-105 transition-all duration-300">
-              <div className="p-3 rounded-xl bg-[#D4AF37]/10 text-[#D4AF37] shrink-0 border border-[#D4AF37]/20">
+            <div className="bg-[#1A1A1A]/80 border border-gray-800 hover:border-[#D4AF37]/50 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-center text-center sm:text-left space-y-2 sm:space-y-0 sm:space-x-4 shadow-lg hover:-translate-y-1 transition-all duration-300 glass-3d-panel">
+              <div className="p-3 rounded-xl bg-[#D4AF37]/10 text-[#D4AF37] shrink-0 border border-[#D4AF37]/30">
                 <RotateCcw size={22} />
               </div>
               <div>
@@ -364,8 +363,8 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="bg-[#1A1A1A]/80 border border-gray-800 hover:border-[#D4AF37]/40 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-center text-center sm:text-left space-y-2 sm:space-y-0 sm:space-x-4 shadow-lg hover:scale-105 transition-all duration-300">
-              <div className="p-3 rounded-xl bg-[#D4AF37]/10 text-[#D4AF37] shrink-0 border border-[#D4AF37]/20">
+            <div className="bg-[#1A1A1A]/80 border border-gray-800 hover:border-[#D4AF37]/50 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-center text-center sm:text-left space-y-2 sm:space-y-0 sm:space-x-4 shadow-lg hover:-translate-y-1 transition-all duration-300 glass-3d-panel">
+              <div className="p-3 rounded-xl bg-[#D4AF37]/10 text-[#D4AF37] shrink-0 border border-[#D4AF37]/30">
                 <Award size={22} />
               </div>
               <div>
@@ -377,12 +376,12 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 🚀 3. NEW ARRIVALS & PRODUCTS SECTION WITH SEARCH BAR ABOVE */}
+      {/* 🚀 3. NEW ARRIVALS & PRODUCTS SECTION WITH SEARCH BAR */}
       <section className="py-16 px-4 bg-[#111111] relative">
         <div className="container mx-auto max-w-7xl space-y-8">
           
-          {/* 🚀 PRODUCT & CATEGORY SEARCH BAR DIRECTLY ABOVE NEW ARRIVALS */}
-          <div className="bg-[#1A1A1A]/90 border border-[#D4AF37]/30 rounded-2xl p-4 shadow-xl backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-4">
+          {/* SEARCH BAR */}
+          <div className="bg-[#1A1A1A]/90 border border-[#D4AF37]/30 rounded-2xl p-4 shadow-xl backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-4 glass-3d-panel">
             <div className="relative w-full sm:w-96">
               <input
                 type="text"
@@ -402,7 +401,7 @@ export default function Home() {
 
           <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-[#D4AF37]/20 pb-4 gap-4">
             <div>
-              <h2 className="text-2xl sm:text-4xl font-serif font-bold text-[#D4AF37] uppercase tracking-wider flex items-center">
+              <h2 className="text-2xl sm:text-4xl font-serif font-bold text-[#D4AF37] uppercase tracking-wider flex items-center gold-text-glow">
                 {storeLogoImage ? (
                   <img src={storeLogoImage} alt="" className="w-8 h-8 mr-3 object-cover rounded-full border border-[#D4AF37]/40" />
                 ) : null}
@@ -466,9 +465,9 @@ export default function Home() {
             </div>
           </div>
 
-          {/* 🚀 SMOOTH HORIZONTAL 3D PRODUCT SLIDER / CAROUSEL WITH LINKED SOLD & REMAINING STOCK */}
+          {/* 🚀 SMOOTH HORIZONTAL 3D PRODUCT SLIDER */}
           {filteredProducts.length === 0 ? (
-            <div className="text-center py-20 bg-[#1A1A1A]/60 rounded-3xl border border-gray-800 p-8 max-w-xl mx-auto">
+            <div className="text-center py-20 bg-[#1A1A1A]/60 rounded-3xl border border-gray-800 p-8 max-w-xl mx-auto glass-3d-panel">
               <ShoppingBag size={48} className="mx-auto text-gray-600 mb-4 opacity-50" />
               <h3 className="text-lg font-serif font-bold text-white mb-2">No products matched your search or category!</h3>
               <p className="text-xs text-gray-400 mb-6">Try searching for a different keyword or reset filters.</p>
@@ -500,20 +499,18 @@ export default function Home() {
                   ? product.images 
                   : (product.imageUrl || product.image ? [product.imageUrl || product.image] : []);
 
-                // 🚀 REAL-TIME RATING CALCULATOR
                 const ratingStats = getProductRatingStats(pId);
 
                 return (
                   <div
                     key={pId}
                     onClick={() => navigate(`/product/${pId}`)}
-                    className="w-[48%] sm:w-[48%] md:w-[30%] lg:w-[23%] shrink-0 snap-start group relative bg-[#1A1A1A] border border-gray-800 hover:border-[#D4AF37]/60 rounded-2xl overflow-hidden cursor-pointer shadow-xl transition-all duration-500 hover:-translate-y-2 [perspective:1000px] [transform-style:preserve-3d]"
+                    className="w-[48%] sm:w-[48%] md:w-[30%] lg:w-[23%] shrink-0 snap-start group relative bg-[#1A1A1A] border border-gray-800 hover:border-[#D4AF37]/60 rounded-2xl overflow-hidden cursor-pointer shadow-xl transition-all duration-500 hover:-translate-y-2 [perspective:1000px] [transform-style:preserve-3d] glass-3d-card"
                   >
-                    {/* 3D Image Box with Auto Image Slideshow */}
+                    {/* 3D Image Box */}
                     <div className="relative aspect-square w-full bg-[#111111] overflow-hidden">
                       <ProductCardImageSlider images={productImagesList} name={pName} />
 
-                      {/* 3D Floating Badges */}
                       <div className="absolute top-2.5 left-2.5 right-2.5 flex justify-between items-start z-10">
                         {discountPercent > 0 ? (
                           <span className="bg-gradient-to-r from-red-600 via-orange-500 to-[#D4AF37] text-white font-bold text-[10px] sm:text-xs px-2.5 py-1 rounded-lg shadow-[0_4px_12px_rgba(220,38,38,0.4)] border border-red-400/40">
@@ -521,7 +518,6 @@ export default function Home() {
                           </span>
                         ) : <span />}
 
-                        {/* 🚀 ULTRA-PROMINENT 3D STOCK BADGE */}
                         <span className={`font-bold text-[9px] sm:text-[10px] px-2.5 py-1 rounded-full uppercase border backdrop-blur-md shadow-md ${
                           isOutOfStock 
                             ? 'bg-red-500/30 text-red-300 border-red-500 shadow-red-500/30' 
@@ -533,7 +529,6 @@ export default function Home() {
                         </span>
                       </div>
 
-                      {/* Quick Hover Overlay Actions */}
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center space-x-3 p-4">
                         <button
                           onClick={(e) => handleQuickAddToCart(e, product)}
@@ -556,26 +551,22 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* Product Details Content */}
                     <div className="p-3.5 sm:p-5 space-y-2">
                       <div className="flex items-center justify-between text-[10px] sm:text-xs text-gray-400">
                         <span className="uppercase tracking-wider font-semibold text-[#D4AF37]">
                           {product.category || 'Luxury'}
                         </span>
                         
-                        {/* 🚀 REAL-TIME STAR RATING (NO DEFAULT 5.0!) */}
                         <span className="flex items-center text-yellow-400 font-bold bg-[#111111] px-2 py-0.5 rounded-full border border-gray-800">
                           <Star size={12} className="fill-yellow-400 mr-1" />
                           {ratingStats.rating > '0.0' ? `${ratingStats.rating} (${ratingStats.count})` : 'New'}
                         </span>
                       </div>
 
-                      {/* 3D Product Title */}
                       <h3 className="font-serif font-bold text-xs sm:text-sm text-white line-clamp-1 group-hover:text-[#D4AF37] transition-colors uppercase tracking-wide">
                         {pName}
                       </h3>
 
-                      {/* Pricing & LINKED SOLD & REMAINING STOCK 3D BADGES */}
                       <div className="flex flex-col space-y-1.5 pt-1">
                         <div className="flex items-baseline justify-between">
                           <div className="flex items-baseline space-x-1.5">
@@ -589,7 +580,6 @@ export default function Home() {
                             )}
                           </div>
 
-                          {/* 🚀 LINKED SOLD & REMAINING METALLIC 3D BADGE */}
                           <div className="flex items-center space-x-1">
                             {soldCount > 0 && (
                               <span className="bg-gradient-to-r from-[#D4AF37] to-[#aa8c2c] text-black border border-[#D4AF37] px-2 py-0.5 rounded-lg text-[9px] font-bold shadow-md shadow-[#D4AF37]/20 uppercase">
@@ -612,17 +602,17 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 🚀 4. SPECIAL OFFER BANNER (ADMIN DYNAMIC TEXTS) */}
+      {/* 🚀 4. SPECIAL OFFER BANNER */}
       <section className="py-16 px-4">
         <div className="container mx-auto max-w-7xl">
-          <div className="relative rounded-3xl bg-gradient-to-r from-[#1A1A1A] via-[#111111] to-[#1A1A1A] border border-[#D4AF37]/40 p-8 sm:p-12 overflow-hidden shadow-2xl [perspective:1000px]">
+          <div className="relative rounded-3xl bg-gradient-to-r from-[#1A1A1A] via-[#111111] to-[#1A1A1A] border border-[#D4AF37]/40 p-8 sm:p-12 overflow-hidden shadow-2xl [perspective:1000px] glass-3d-panel">
             <div className="absolute top-0 right-0 w-80 h-80 bg-[#D4AF37]/10 rounded-full blur-[100px] pointer-events-none" />
 
             <div className="relative z-10 max-w-2xl space-y-4">
               <span className="bg-[#D4AF37]/20 text-[#D4AF37] text-xs font-bold px-3.5 py-1.5 rounded-full border border-[#D4AF37]/40 inline-block uppercase tracking-widest">
                 {settings?.offerBadge || 'LIMITED TIME OFFER'}
               </span>
-              <h2 className="text-3xl sm:text-5xl font-serif font-bold text-white leading-tight uppercase">
+              <h2 className="text-3xl sm:text-5xl font-serif font-bold text-white leading-tight uppercase gold-text-glow">
                 {settings?.offerTitle || 'SPECIAL LUXURY DISCOUNT UP TO 30% OFF'}
               </h2>
               <p className="text-xs sm:text-sm text-gray-400">

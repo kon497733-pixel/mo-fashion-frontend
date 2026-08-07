@@ -65,7 +65,6 @@ export default function ProfilePage() {
       const userId = currentUser._id || currentUser.id;
       const userEmail = currentUser.email?.toLowerCase().trim();
 
-      // 🚀 ১. কাস্টমার রিসাইকেল বিন ডাটা লোড
       const recycleBinKey = `customer_recycle_bin_${userEmail || userId}`;
       const savedBin = localStorage.getItem(recycleBinKey);
       if (savedBin) {
@@ -217,7 +216,6 @@ export default function ProfilePage() {
     }
   };
 
-  // 🚀 কাস্টমার কার্ট রিসাইকেল বিন থেকে পণ্য কার্টে রিস্টোর করা (Type-Safe Handled)
   const handleRestoreToCart = (item: any) => {
     const store = cartStore as any;
     if (store && typeof store.addItem === 'function') {
@@ -235,7 +233,6 @@ export default function ProfilePage() {
     toast.success(`"${item.name || 'Item'}" restored to your shopping cart! 🛒`);
   };
 
-  // 🚀 কাস্টমার রিসাইকেল বিন থেকে পার্মানেন্ট ডিলিট করা
   const handleDeleteFromRecycleBin = (itemId: string, itemName: string) => {
     if (window.confirm(`Permanently remove "${itemName}" from your trash?`)) {
       const userId = currentUser?._id || currentUser?.id || currentUser?.email;
@@ -264,24 +261,22 @@ export default function ProfilePage() {
     }
   };
 
-  // 📊 রিয়েল-টাইম কাস্টমার স্ট্যাটিস্টিক্স হিসাব
   const deliveredOrdersCount = myOrders.filter(o => o.status === 'Delivered').length;
   const activeOrdersCount = myOrders.filter(o => o.status === 'Pending' || o.status === 'Processing' || o.status === 'Shipped').length;
   const totalSpentAmount = myOrders.reduce((sum, o) => sum + (Number(o.orderSummary?.total || o.total) || 0), 0);
 
-  // ফিল্টার করা অর্ডার লিস্ট
   const filteredOrders = myOrders.filter(order => orderFilter === 'All' || order.status === orderFilter);
 
   if (!currentUser) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center bg-[#111111] text-white px-4">
         <Helmet><title>Profile | MO FASHION</title></Helmet>
-        <div className="max-w-md w-full bg-[#1A1A1A] border border-[#D4AF37]/30 rounded-2xl shadow-2xl p-8 text-center space-y-6 backdrop-blur-md animate-in fade-in zoom-in-95 duration-200">
+        <div className="max-w-md w-full bg-[#1A1A1A] border border-[#D4AF37]/30 rounded-3xl shadow-2xl p-8 text-center space-y-6 backdrop-blur-md animate-in fade-in zoom-in-95 duration-200 glass-3d-panel">
           <div className="w-20 h-20 bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#D4AF37] rounded-full flex items-center justify-center mx-auto shadow-lg animate-bounce">
             <User className="w-10 h-10" />
           </div>
           <div>
-            <h2 className="text-2xl font-serif font-bold text-white uppercase tracking-wider">
+            <h2 className="text-2xl font-serif font-bold text-white uppercase tracking-wider gold-text-glow">
               Access Your Profile
             </h2>
             <p className="text-gray-400 mt-2 text-sm leading-relaxed">
@@ -315,10 +310,10 @@ export default function ProfilePage() {
       <input type="file" ref={avatarInputRef} onChange={(e) => handleImageUpload(e, 'avatarUrl')} accept="image/*" className="hidden" />
       <input type="file" ref={coverInputRef} onChange={(e) => handleImageUpload(e, 'coverUrl')} accept="image/*" className="hidden" />
 
-      <div className="max-w-5xl mx-auto space-y-8">
+      <div className="max-w-5xl mx-auto space-y-8 [perspective:1200px]">
         
-        {/* 🚀 Header & Profile Card with Joss Animations */}
-        <div className="bg-[#1A1A1A] border border-[#D4AF37]/30 rounded-2xl shadow-2xl overflow-hidden relative backdrop-blur-md transition-all duration-300 hover:border-[#D4AF37]/50">
+        {/* 🚀 Header & 3D Glassmorphic Profile Card */}
+        <div className="bg-[#1A1A1A] border border-[#D4AF37]/30 rounded-3xl shadow-2xl overflow-hidden relative backdrop-blur-md transition-all duration-300 hover:border-[#D4AF37]/50 glass-3d-panel">
           
           {/* Banner Photo Section */}
           <div className="relative h-48 sm:h-64 bg-[#0a0a0a] border-b border-[#D4AF37]/20 overflow-hidden group">
@@ -344,9 +339,9 @@ export default function ProfilePage() {
               {/* Profile Avatar with Glowing Ring */}
               <div className="relative group">
                 {profile.avatarUrl ? (
-                  <img src={profile.avatarUrl} alt={profile.name} className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-[#1A1A1A] object-cover shadow-2xl bg-[#111111] group-hover:scale-105 transition-transform duration-300 ring-2 ring-[#D4AF37]/40" />
+                  <img src={profile.avatarUrl} alt={profile.name} className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-[#1A1A1A] object-cover shadow-2xl bg-[#111111] group-hover:scale-105 transition-transform duration-300 ring-2 ring-[#D4AF37]/50" />
                 ) : (
-                  <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-[#1A1A1A] shadow-2xl bg-[#111111] flex items-center justify-center text-[#D4AF37] ring-2 ring-[#D4AF37]/40">
+                  <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-[#1A1A1A] shadow-2xl bg-[#111111] flex items-center justify-center text-[#D4AF37] ring-2 ring-[#D4AF37]/50">
                     <User className="w-16 h-16 animate-pulse" />
                   </div>
                 )}
@@ -383,7 +378,7 @@ export default function ProfilePage() {
             {!isEditing ? (
               <div className="space-y-4">
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-serif font-bold text-white flex items-center space-x-2">
+                  <h1 className="text-2xl sm:text-3xl font-serif font-bold text-white flex items-center space-x-2 gold-text-glow">
                     <span>{profile.name || 'Your Name'}</span>
                     <Sparkles className="w-5 h-5 text-[#D4AF37] animate-pulse" />
                   </h1>
@@ -393,7 +388,7 @@ export default function ProfilePage() {
                   </p>
                 </div>
 
-                <p className="text-gray-400 max-w-2xl text-sm leading-relaxed">
+                <p className="text-gray-400 max-w-2xl text-sm leading-relaxed font-light">
                   {profile.bio || 'No bio added yet. Click "Edit Profile" to write something about yourself.'}
                 </p>
 
@@ -437,9 +432,9 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* 📊 Live Statistics Dashboard Cards */}
+        {/* 📊 3D Glassmorphic Statistics Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-[#1A1A1A] p-5 rounded-2xl border border-[#D4AF37]/20 hover:border-[#D4AF37]/50 transition-all duration-300 shadow-xl group">
+          <div className="bg-[#1A1A1A] p-5 rounded-2xl border border-[#D4AF37]/20 hover:border-[#D4AF37]/50 transition-all duration-300 shadow-xl group glass-3d-card">
             <div className="flex justify-between items-center mb-2">
               <span className="text-gray-400 text-xs uppercase font-bold">Total Orders</span>
               <Package className="w-5 h-5 text-[#D4AF37] group-hover:scale-110 transition-transform" />
@@ -447,7 +442,7 @@ export default function ProfilePage() {
             <p className="text-2xl font-bold text-white">{myOrders.length}</p>
           </div>
 
-          <div className="bg-[#1A1A1A] p-5 rounded-2xl border border-[#D4AF37]/20 hover:border-[#D4AF37]/50 transition-all duration-300 shadow-xl group">
+          <div className="bg-[#1A1A1A] p-5 rounded-2xl border border-[#D4AF37]/20 hover:border-[#D4AF37]/50 transition-all duration-300 shadow-xl group glass-3d-card">
             <div className="flex justify-between items-center mb-2">
               <span className="text-gray-400 text-xs uppercase font-bold">In Transit</span>
               <Truck className="w-5 h-5 text-blue-400 group-hover:scale-110 transition-transform" />
@@ -455,7 +450,7 @@ export default function ProfilePage() {
             <p className="text-2xl font-bold text-blue-400">{activeOrdersCount}</p>
           </div>
 
-          <div className="bg-[#1A1A1A] p-5 rounded-2xl border border-[#D4AF37]/20 hover:border-[#D4AF37]/50 transition-all duration-300 shadow-xl group">
+          <div className="bg-[#1A1A1A] p-5 rounded-2xl border border-[#D4AF37]/20 hover:border-[#D4AF37]/50 transition-all duration-300 shadow-xl group glass-3d-card">
             <div className="flex justify-between items-center mb-2">
               <span className="text-gray-400 text-xs uppercase font-bold">Delivered</span>
               <CheckCircle className="w-5 h-5 text-emerald-400 group-hover:scale-110 transition-transform" />
@@ -463,7 +458,7 @@ export default function ProfilePage() {
             <p className="text-2xl font-bold text-emerald-400">{deliveredOrdersCount}</p>
           </div>
 
-          <div className="bg-[#1A1A1A] p-5 rounded-2xl border border-[#D4AF37]/20 hover:border-[#D4AF37]/50 transition-all duration-300 shadow-xl group">
+          <div className="bg-[#1A1A1A] p-5 rounded-2xl border border-[#D4AF37]/20 hover:border-[#D4AF37]/50 transition-all duration-300 shadow-xl group glass-3d-card">
             <div className="flex justify-between items-center mb-2">
               <span className="text-gray-400 text-xs uppercase font-bold">Total Spent</span>
               <Tag className="w-5 h-5 text-[#D4AF37] group-hover:scale-110 transition-transform" />
@@ -473,7 +468,7 @@ export default function ProfilePage() {
         </div>
 
         {/* 🏷️ Dynamic Tabs: Live Orders & Cart Trash Bin */}
-        <div className="bg-[#1A1A1A] border border-[#D4AF37]/20 rounded-2xl shadow-xl p-6">
+        <div className="bg-[#1A1A1A] border border-[#D4AF37]/20 rounded-3xl shadow-xl p-6 glass-3d-panel">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-800 pb-4 mb-6 gap-4">
             
             <div className="flex space-x-3">
@@ -502,7 +497,6 @@ export default function ProfilePage() {
               </button>
             </div>
 
-            {/* Filter status for orders tab */}
             {activeTab === 'orders' && (
               <select 
                 value={orderFilter}
@@ -540,7 +534,7 @@ export default function ProfilePage() {
                   const orderTotal = order.orderSummary ? order.orderSummary.total : (order.total || 0);
 
                   return (
-                    <div key={idx} className="bg-[#111111] p-5 rounded-2xl border border-gray-800 hover:border-[#D4AF37]/40 transition-all duration-300 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 group hover:shadow-lg">
+                    <div key={idx} className="bg-[#111111] p-5 rounded-2xl border border-gray-800 hover:border-[#D4AF37]/40 transition-all duration-300 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 group hover:shadow-lg glass-3d-card">
                       <div className="space-y-1">
                         <p className="font-bold text-[#D4AF37] uppercase text-sm group-hover:scale-105 transition-transform">
                           Order #{String(orderId).slice(-6)}
@@ -588,7 +582,7 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 customerRecycleBin.map((item, idx) => (
-                  <div key={idx} className="bg-[#111111] p-4 rounded-2xl border border-gray-800 hover:border-red-500/30 transition-all duration-300 flex items-center justify-between gap-4">
+                  <div key={idx} className="bg-[#111111] p-4 rounded-2xl border border-gray-800 hover:border-red-500/30 transition-all duration-300 flex items-center justify-between gap-4 glass-3d-card">
                     <div className="flex items-center space-x-3">
                       <div className="w-12 h-12 bg-[#1A1A1A] rounded-xl border border-gray-800 overflow-hidden shrink-0">
                         {item.image ? (

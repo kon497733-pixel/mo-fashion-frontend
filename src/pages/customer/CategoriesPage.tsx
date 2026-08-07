@@ -125,7 +125,6 @@ export default function CategoriesPage() {
   const cleanRealCategories = () => {
     const map = new Map<string, any>();
 
-    // 1. Process DB Categories (Extract multiple images array)
     categories.forEach((cat: any) => {
       const name = String(cat.name || cat.title || '').trim();
       if (name && name !== 'undefined' && name !== 'null') {
@@ -145,7 +144,6 @@ export default function CategoriesPage() {
       }
     });
 
-    // 2. Process Categories derived from Products
     products.forEach((prod: any) => {
       const catName = String(prod.category || '').trim();
       if (catName && catName !== 'undefined' && catName !== 'null') {
@@ -171,12 +169,10 @@ export default function CategoriesPage() {
 
   const realCategories = cleanRealCategories();
 
-  // Filter Categories by Search Query
   const filteredCategories = realCategories.filter(cat => 
     String(cat.name || '').toLowerCase().includes(searchQuery.trim().toLowerCase())
   );
 
-  // Helper to count real items per category
   const getProductCountForCategory = (catName: string) => {
     return products.filter(p => String(p.category || '').toLowerCase() === catName.toLowerCase()).length;
   };
@@ -192,16 +188,16 @@ export default function CategoriesPage() {
 
       <div className="container mx-auto px-4 max-w-7xl">
         
-        {/* Header */}
+        {/* 🚀 3D GLASSMORPHIC HEADER */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 pb-6 border-b border-[#D4AF37]/20 gap-4">
           <div>
-            <div className="inline-flex items-center space-x-2 bg-[#1A1A1A] border border-[#D4AF37]/30 px-3.5 py-1.5 rounded-full text-xs font-bold text-[#D4AF37] uppercase mb-3">
+            <div className="inline-flex items-center space-x-2 bg-[#1A1A1A] border border-[#D4AF37]/30 px-3.5 py-1.5 rounded-full text-xs font-bold text-[#D4AF37] uppercase mb-3 glass-3d-panel">
               {storeLogoImage ? (
                 <img src={storeLogoImage} alt="" className="w-4 h-4 object-cover rounded-full" />
               ) : null}
               <span>LUXURY SELECTIONS</span>
             </div>
-            <h1 className="text-3xl md:text-5xl font-serif font-bold text-[#D4AF37] uppercase tracking-wider flex items-center">
+            <h1 className="text-3xl md:text-5xl font-serif font-bold text-[#D4AF37] uppercase tracking-wider flex items-center gold-text-glow">
               <Grid className="mr-3 text-[#D4AF37]" size={36} />
               CATEGORIES
             </h1>
@@ -210,28 +206,28 @@ export default function CategoriesPage() {
             </p>
           </div>
 
-          {/* 🚀 CATEGORY SEARCH BAR */}
+          {/* 🚀 3D CATEGORY SEARCH BAR */}
           <div className="relative w-full sm:w-80">
             <input
               type="text"
               placeholder="Search category name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#1A1A1A] border border-gray-800 focus:border-[#D4AF37] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#D4AF37]/50 transition-all"
+              className="w-full bg-[#1A1A1A] border border-gray-800 focus:border-[#D4AF37] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#D4AF37]/50 transition-all shadow-inner"
             />
             <Search className="absolute left-3.5 top-3 text-gray-400" size={16} />
           </div>
         </div>
 
-        {/* 🚀 2 COLUMNS ON MOBILE GRID (`grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4`) */}
+        {/* 🚀 3D PERSPECTIVE CATEGORY CARDS GRID */}
         {filteredCategories.length === 0 && !loading ? (
-          <div className="text-center py-20 bg-[#1A1A1A]/60 rounded-3xl border border-gray-800 p-8 max-w-xl mx-auto">
+          <div className="text-center py-20 bg-[#1A1A1A]/60 rounded-3xl border border-gray-800 p-8 max-w-xl mx-auto glass-3d-panel">
             <Folder size={48} className="mx-auto text-gray-600 mb-4 opacity-50" />
             <h3 className="text-lg font-serif font-bold text-white mb-2">No categories matched your search!</h3>
             <p className="text-xs text-gray-400">Try searching for a different category keyword.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6 [perspective:1200px]">
             {filteredCategories.map((cat: any) => {
               const count = getProductCountForCategory(cat.name);
 
@@ -239,13 +235,13 @@ export default function CategoriesPage() {
                 <div
                   key={cat.id}
                   onClick={() => navigate(`/products?category=${encodeURIComponent(cat.name)}`)}
-                  className="group relative h-48 sm:h-64 rounded-2xl bg-[#1A1A1A] border border-gray-800 hover:border-[#D4AF37]/80 overflow-hidden cursor-pointer shadow-xl transition-all duration-500 hover:-translate-y-2 [perspective:1000px] [transform-style:preserve-3d]"
+                  className="group relative h-48 sm:h-64 rounded-2xl bg-[#1A1A1A] border border-gray-800 hover:border-[#D4AF37]/80 overflow-hidden cursor-pointer shadow-2xl transition-all duration-500 hover:-translate-y-2 [perspective:1000px] [transform-style:preserve-3d] glass-3d-card"
                 >
                   {/* Category Image / Auto Slider */}
                   <CategoryCardImageSlider images={cat.images} name={cat.name} />
 
                   {/* Gradient Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent p-4 sm:p-6 flex flex-col justify-end z-10">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent p-4 sm:p-6 flex flex-col justify-end z-10 [transform:translateZ(10px)]">
                     
                     {/* Item Count Badge */}
                     <div className="mb-2">

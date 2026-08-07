@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import {
   Home as HouseIcon,
@@ -10,6 +10,78 @@ import {
 import Navbar from "../components/shared/Navbar";
 import Footer from "../components/shared/Footer";
 import { useCartStore } from "../store/useCartStore";
+
+// 🚀 3D Ambient Particle Background Canvas Component
+function Ambient3DCanvas() {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    let width = (canvas.width = window.innerWidth);
+    let height = (canvas.height = window.innerHeight);
+
+    const handleResize = () => {
+      if (!canvas) return;
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    // ৩ডি স্পেসের গোল্ডেন কণা তৈরি
+    const particles = Array.from({ length: 35 }, () => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      z: Math.random() * 2 + 0.5,
+      radius: Math.random() * 1.5 + 0.5,
+      opacity: Math.random() * 0.5 + 0.2,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+    }));
+
+    const render = () => {
+      ctx.clearRect(0, 0, width, height);
+
+      particles.forEach((p) => {
+        p.x += p.vx * p.z;
+        p.y += p.vy * p.z;
+
+        if (p.x < 0) p.x = width;
+        if (p.x > width) p.x = 0;
+        if (p.y < 0) p.y = height;
+        if (p.y > height) p.y = 0;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius * p.z, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(212, 175, 55, ${p.opacity * (p.z / 2)})`;
+        ctx.shadowBlur = 10 * p.z;
+        ctx.shadowColor = '#D4AF37';
+        ctx.fill();
+      });
+
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
+  return (
+    <canvas 
+      ref={canvasRef} 
+      className="pointer-events-none fixed inset-0 z-0 opacity-40 select-none"
+    />
+  );
+}
 
 export default function MainLayout() {
   const location = useLocation();
@@ -29,10 +101,9 @@ export default function MainLayout() {
     tagline: "Premium E-Commerce Experience",
   });
 
-  // 🚀 প্রসেসড পিএনজি লোগো স্টেট (ব্যাকগ্রাউন্ড ঘর ভ্যানিশ করার পর)
+  // 🚀 প্রসেসড পিএনজি লোগো স্টেট
   const [cleanLogoUrl, setCleanLogoUrl] = useState("");
 
-  // 🚀 অটোমেটিক ফেইক চেকবার্ড ব্যাকগ্রাউন্ড মুছে ফেলার অ্যালগরিদম
   const removeCheckerboard = (imageSrc: string) => {
     if (!imageSrc || imageSrc.trim() === "") return;
 
@@ -52,19 +123,17 @@ export default function MainLayout() {
       const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imgData.data;
 
-      // পিক্সেল বাই পিক্সেল চেক করে ফেক চেকবার্ড ঘর ডিলিট করা
       for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
         const g = data[i + 1];
         const b = data[i + 2];
 
-        // ধূসর ও সাদা ঘরের পিক্সেল চেনা
         const isGreyOrWhite =
           Math.abs(r - g) < 20 && Math.abs(g - b) < 20 && Math.abs(r - b) < 20;
-        const isNotGold = !(r > 120 && g > 80 && b < 140); // গোল্ডেন কালার রক্ষা করা
+        const isNotGold = !(r > 120 && g > 80 && b < 140);
 
         if (isGreyOrWhite && isNotGold && (r > 60 || g > 60 || b > 60)) {
-          data[i + 3] = 0; // স্বচ্ছ (Transparent) করে দেওয়া
+          data[i + 3] = 0;
         }
       }
 
@@ -109,7 +178,6 @@ export default function MainLayout() {
 
     fetchSettings();
 
-    // 🚀 নেটফ্লিক্স স্টাইল ইনট্রো অ্যানিমেশন টাইমিং
     const timer1 = setTimeout(() => setSplashPhase(2), 1200);
     const timer2 = setTimeout(() => setSplashPhase(3), 3000);
     const timer3 = setTimeout(() => setShowSplash(false), 3800);
@@ -141,7 +209,11 @@ export default function MainLayout() {
   const displayLogo = cleanLogoUrl || siteSettings?.logoUrl;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#111111] text-white flex flex-col relative overflow-x-hidden">
+      
+      {/* 🚀 ৩ডি অ্যাম্বিয়েন্ট ক্যানভাস ব্যাকগ্রাউন্ড */}
+      <Ambient3DCanvas />
+
       {/* 🚀 নেটফ্লিক্স স্টাইল জুম-ইন ও গ্লো অ্যানিমেশন CSS */}
       <style>{`
         @keyframes netflixZoomGlow {
@@ -163,18 +235,16 @@ export default function MainLayout() {
         }
       `}</style>
 
-      {/* 🎬 🚀 ১. নেটফ্লিক্স-স্টাইল সিনেম্যাটিক ইনট্রো অ্যানিমেশন (Zero Default / Only Admin Selected Logo) */}
+      {/* 🎬 ১. নেটফ্লিক্স-স্টাইল সিনেম্যাটিক ইনট্রো অ্যানিমেশন */}
       {showSplash && (
         <div
           className={`fixed inset-0 z-[9999] bg-[#050505] flex flex-col items-center justify-center transition-opacity duration-1000 ease-in-out select-none ${
             splashPhase === 3 ? "opacity-0 pointer-events-none" : "opacity-100"
           }`}
         >
-          {/* ৩৬০ ডিগ্রি অল-সাইড গ্লো ব্যাকগ্রাউন্ড আভা */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#D4AF37]/15 rounded-full blur-[180px] pointer-events-none animate-pulse"></div>
 
           <div className="flex items-center justify-center relative z-10 px-4 max-w-full">
-            {/* 🚀 ছোট থেকে বড় হওয়ার পজিশন কন্টেইনার */}
             <div
               className={`transition-all duration-1000 ease-out transform flex items-center relative ${
                 splashPhase === 1 ? "scale-125" : "scale-100"
@@ -182,7 +252,6 @@ export default function MainLayout() {
             >
               <div className="absolute inset-0 bg-[#D4AF37]/25 rounded-full blur-3xl animate-pulse pointer-events-none"></div>
 
-              {/* 🚀 শুধুমাত্র অ্যাডমিন থেকে সিলেক্ট করা অরিজিনাল লোগো (কোনো ডিফল্ট লোগো নেই) */}
               {displayLogo && displayLogo.trim() !== "" && (
                 <img
                   src={displayLogo}
@@ -194,7 +263,6 @@ export default function MainLayout() {
                 />
               )}
 
-              {/* 🚀 "FASHION" শব্দটি 'N' সহ ১০০% পুরোপুরি দৃশ্যমান হওয়া */}
               <div
                 className={`overflow-hidden transition-all duration-1000 ease-out flex items-center ml-2 sm:ml-4 shrink-0 ${
                   splashPhase >= 2
@@ -214,19 +282,20 @@ export default function MainLayout() {
       {/* Top Header Navbar */}
       <Navbar />
 
-      {/* Main Content Area */}
-      <main className="flex-grow pt-16 pb-20 md:pb-0 safe-padding-bottom">
+      {/* 🚀 3D Perspective Main Content Area */}
+      <main className="flex-grow pt-16 pb-20 md:pb-0 safe-padding-bottom relative z-10 perspective-1200 preserve-3d">
         <Outlet />
       </main>
 
-      {/* 📱 🚀 মোবাইল বটম নেভিগেশন বার (Glowing Mobile App Nav Bar) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#141414]/95 backdrop-blur-xl border-t border-[#D4AF37]/30 z-50 px-3 py-2 flex justify-around items-center shadow-[0_-10px_30px_rgba(0,0,0,0.8)]">
-        {/* 🏠 Home Button with Glowing House Icon */}
+      {/* 📱 🚀 ৩ডি গ্লাসমরফিক মোবাইল বটম নেভিগেশন বার (3D Mobile App Nav Bar) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#141414]/90 backdrop-blur-2xl border-t border-[#D4AF37]/40 z-50 px-3 py-2 flex justify-around items-center shadow-[0_-15px_40px_rgba(0,0,0,0.9)] glass-3d-panel">
+        
+        {/* Home */}
         <Link
           to="/"
-          className={`flex flex-col items-center py-1.5 px-3 rounded-2xl transition-all duration-300 relative ${
+          className={`flex flex-col items-center py-1.5 px-3 rounded-2xl transition-all duration-300 relative active:scale-95 ${
             isActivePath("/") && location.pathname === "/"
-              ? "text-[#D4AF37] font-bold scale-110 bg-[#D4AF37]/10 shadow-[0_0_20px_rgba(212,175,55,0.3)] border border-[#D4AF37]/40"
+              ? "text-[#D4AF37] font-bold scale-110 bg-[#D4AF37]/15 shadow-[0_0_20px_rgba(212,175,55,0.4)] border border-[#D4AF37]/50"
               : "text-gray-400 hover:text-white"
           }`}
         >
@@ -234,7 +303,7 @@ export default function MainLayout() {
             size={20}
             className={
               isActivePath("/") && location.pathname === "/"
-                ? "drop-shadow-[0_0_8px_rgba(212,175,55,0.8)]"
+                ? "drop-shadow-[0_0_10px_rgba(212,175,55,0.9)]"
                 : ""
             }
           />
@@ -246,9 +315,9 @@ export default function MainLayout() {
         {/* Categories */}
         <Link
           to="/categories"
-          className={`flex flex-col items-center py-1.5 px-3 rounded-2xl transition-all duration-300 relative ${
+          className={`flex flex-col items-center py-1.5 px-3 rounded-2xl transition-all duration-300 relative active:scale-95 ${
             isActivePath("/categories") || isActivePath("/category")
-              ? "text-[#D4AF37] font-bold scale-110 bg-[#D4AF37]/10 shadow-[0_0_20px_rgba(212,175,55,0.3)] border border-[#D4AF37]/40"
+              ? "text-[#D4AF37] font-bold scale-110 bg-[#D4AF37]/15 shadow-[0_0_20px_rgba(212,175,55,0.4)] border border-[#D4AF37]/50"
               : "text-gray-400 hover:text-white"
           }`}
         >
@@ -256,7 +325,7 @@ export default function MainLayout() {
             size={20}
             className={
               isActivePath("/categories") || isActivePath("/category")
-                ? "drop-shadow-[0_0_8px_rgba(212,175,55,0.8)]"
+                ? "drop-shadow-[0_0_10px_rgba(212,175,55,0.9)]"
                 : ""
             }
           />
@@ -265,12 +334,12 @@ export default function MainLayout() {
           </span>
         </Link>
 
-        {/* Cart with Live Glowing Badge */}
+        {/* Cart */}
         <Link
           to="/cart"
-          className={`flex flex-col items-center py-1.5 px-3 rounded-2xl transition-all duration-300 relative ${
+          className={`flex flex-col items-center py-1.5 px-3 rounded-2xl transition-all duration-300 relative active:scale-95 ${
             isActivePath("/cart")
-              ? "text-[#D4AF37] font-bold scale-110 bg-[#D4AF37]/10 shadow-[0_0_20px_rgba(212,175,55,0.3)] border border-[#D4AF37]/40"
+              ? "text-[#D4AF37] font-bold scale-110 bg-[#D4AF37]/15 shadow-[0_0_20px_rgba(212,175,55,0.4)] border border-[#D4AF37]/50"
               : "text-gray-400 hover:text-white"
           }`}
         >
@@ -278,12 +347,12 @@ export default function MainLayout() {
             size={20}
             className={
               isActivePath("/cart")
-                ? "drop-shadow-[0_0_8px_rgba(212,175,55,0.8)]"
+                ? "drop-shadow-[0_0_10px_rgba(212,175,55,0.9)]"
                 : ""
             }
           />
           {cartCount > 0 && (
-            <span className="absolute -top-1 right-1 bg-[#D4AF37] text-black text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center shadow-[0_0_10px_#D4AF37] animate-pulse">
+            <span className="absolute -top-1 right-1 bg-[#D4AF37] text-black text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center shadow-[0_0_12px_#D4AF37] animate-pulse">
               {cartCount}
             </span>
           )}
@@ -295,9 +364,9 @@ export default function MainLayout() {
         {/* About */}
         <Link
           to="/about"
-          className={`flex flex-col items-center py-1.5 px-3 rounded-2xl transition-all duration-300 relative ${
+          className={`flex flex-col items-center py-1.5 px-3 rounded-2xl transition-all duration-300 relative active:scale-95 ${
             isActivePath("/about")
-              ? "text-[#D4AF37] font-bold scale-110 bg-[#D4AF37]/10 shadow-[0_0_20px_rgba(212,175,55,0.3)] border border-[#D4AF37]/40"
+              ? "text-[#D4AF37] font-bold scale-110 bg-[#D4AF37]/15 shadow-[0_0_20px_rgba(212,175,55,0.4)] border border-[#D4AF37]/50"
               : "text-gray-400 hover:text-white"
           }`}
         >
@@ -305,7 +374,7 @@ export default function MainLayout() {
             size={20}
             className={
               isActivePath("/about")
-                ? "drop-shadow-[0_0_8px_rgba(212,175,55,0.8)]"
+                ? "drop-shadow-[0_0_10px_rgba(212,175,55,0.9)]"
                 : ""
             }
           />
@@ -317,9 +386,9 @@ export default function MainLayout() {
         {/* Profile */}
         <Link
           to="/profile"
-          className={`flex flex-col items-center py-1.5 px-3 rounded-2xl transition-all duration-300 relative ${
+          className={`flex flex-col items-center py-1.5 px-3 rounded-2xl transition-all duration-300 relative active:scale-95 ${
             isActivePath("/profile")
-              ? "text-[#D4AF37] font-bold scale-110 bg-[#D4AF37]/10 shadow-[0_0_20px_rgba(212,175,55,0.3)] border border-[#D4AF37]/40"
+              ? "text-[#D4AF37] font-bold scale-110 bg-[#D4AF37]/15 shadow-[0_0_20px_rgba(212,175,55,0.4)] border border-[#D4AF37]/50"
               : "text-gray-400 hover:text-white"
           }`}
         >
@@ -327,7 +396,7 @@ export default function MainLayout() {
             size={20}
             className={
               isActivePath("/profile")
-                ? "drop-shadow-[0_0_8px_rgba(212,175,55,0.8)]"
+                ? "drop-shadow-[0_0_10px_rgba(212,175,55,0.9)]"
                 : ""
             }
           />

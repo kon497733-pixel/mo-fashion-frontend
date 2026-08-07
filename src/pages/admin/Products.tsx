@@ -80,7 +80,6 @@ export default function Products() {
 
         localStorage.setItem('mo_fashion_categories', JSON.stringify(updatedCategories));
 
-        // Supabase-এ ক্যাটাগরি প্রোডাক্ট সংখ্যা আপডেট
         for (const cat of updatedCategories) {
           await saveSupabaseCategory(cat).catch(() => null);
         }
@@ -127,7 +126,6 @@ export default function Products() {
       if (Array.isArray(cloudData)) {
         const cleanCloud = sanitizeProducts(cloudData);
 
-        // 🚀 লোকাল ডাটা ও ক্লাউড ডাটা সেফলি মার্জ করা
         const mergedMap = new Map();
         [...localList, ...cleanCloud].forEach((item: any) => {
           const key = String(item.id || item._id);
@@ -156,7 +154,6 @@ export default function Products() {
     loadCategoriesList();
     fetchProducts();
 
-    // 🚀 ৩. Supabase Realtime WebSocket Listener (সব ডিভাইসে ১ সেকেন্ডে ব্রডকাস্ট হবে)
     const channel = supabase
       .channel('public:products:management:5g')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
@@ -216,7 +213,7 @@ export default function Products() {
     setIsModalOpen(true);
   };
 
-  // 🚀 হাই-কমপ্রেশন ইমেজ আপলোড (কখনো লোকাল স্টোরেজ ক্র্যাশ করবে না)
+  // 🚀 হাই-কমপ্রেশন ইমেজ আপলোড
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && uploadIndex !== null) {
@@ -303,7 +300,7 @@ export default function Products() {
     }
   };
 
-  // 🚀 ৪. ট্রিপল-লেভেল আনস্টপাবল সেভ প্রোডাক্ট লজিক (১০০% গ্যারান্টেড সেভ)
+  // 🚀 ৪. সেভ প্রোডাক্ট লজিক
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -350,13 +347,11 @@ export default function Products() {
         sizes: sizeVar ? sizeVar.options : []     
       };
 
-      // 🚀 ১. আনকন্ডিশনাল স্টেট আপডেট
       setProducts(prevProducts => {
         const filtered = prevProducts.filter(p => String(p.id || p._id) !== targetId);
         return [productPayload, ...filtered];
       });
 
-      // 🚀 ২. সেফ লোকাল স্টোরেজ সেভ
       try {
         const currentList = sanitizeProducts(JSON.parse(localStorage.getItem('mo_fashion_products') || '[]'));
         const filtered = currentList.filter((p: any) => String(p.id || p._id) !== targetId);
@@ -367,13 +362,11 @@ export default function Products() {
 
       setIsModalOpen(false);
 
-      // 🚀 ৩. ক্লাউড সেভ (Supabase Cloud Direct Upsert)
       await saveSupabaseProduct(productPayload);
 
       toast.success(`Product "${productPayload.name}" saved LIVE in "${selectedCategoryName}"! 🎉`, { id: toastId });
       try { await notifyProductChange(modalMode === 'add' ? 'Added' : 'Updated', productPayload.name); } catch(e){}
 
-      // 🚀 ৪. ক্যাটাগরি প্রোডাক্ট কাউন্ট অটো-ইনক্রিমেন্ট
       updateCategoryProductCounts([productPayload, ...products]);
 
       window.dispatchEvent(new Event('storage'));
@@ -398,24 +391,24 @@ export default function Products() {
     <div className="text-white pb-10 transition-all duration-300">
       <Helmet><title>Admin - Products Management | MO FASHION</title></Helmet>
       
-      {/* 🌟 Header Section */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-2xl border border-[#D4AF37]/20 backdrop-blur-md shadow-xl transition-all duration-300 hover:border-[#D4AF37]/40">
+      {/* 🌟 3D GLASSMORPHIC HEADER SECTION */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-3xl border border-[#D4AF37]/30 backdrop-blur-md shadow-2xl transition-all duration-300 hover:border-[#D4AF37]/50 glass-3d-panel">
         <div>
           <div className="flex items-center space-x-3">
-            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#D4AF37] uppercase flex items-center tracking-wide">
+            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#D4AF37] uppercase flex items-center tracking-wide gold-text-glow">
               <Package className="mr-3 text-[#D4AF37] animate-bounce" size={28} /> Products Management
             </h1>
             <span className="bg-[#D4AF37]/10 text-[#D4AF37] text-xs font-bold px-3.5 py-1.5 rounded-full border border-[#D4AF37]/30 flex items-center animate-pulse shadow-sm">
               <Box size={14} className="mr-1.5" /> Total: {products.length} Items
             </span>
           </div>
-          <p className="text-sm text-gray-400 mt-1">Manage live database inventory, discounts, dynamic variants, and multi-device stock</p>
+          <p className="text-sm text-gray-400 mt-1 font-light">Manage live database inventory, discounts, dynamic variants, and multi-device stock</p>
         </div>
 
         <div className="flex items-center space-x-3">
           <button 
             onClick={fetchProducts}
-            className="p-2.5 bg-[#111111] hover:bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 rounded-xl transition-all duration-200 active:scale-95"
+            className="p-2.5 bg-[#111111] hover:bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 rounded-xl transition-all duration-200 active:scale-95 shadow-md"
             title="Refresh Database"
           >
             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
@@ -423,40 +416,40 @@ export default function Products() {
           
           <button 
             onClick={handleOpenAdd} 
-            className="bg-gradient-to-r from-[#D4AF37] to-[#f3e5ab] text-black px-6 py-2.5 rounded-xl hover:scale-105 font-bold flex items-center space-x-2 shadow-lg shadow-[#D4AF37]/20 transition-all duration-300 active:scale-95"
+            className="bg-gradient-to-r from-[#D4AF37] via-[#f3e5ab] to-[#aa8c2c] text-black px-6 py-2.5 rounded-xl hover:scale-105 font-bold flex items-center space-x-2 shadow-lg shadow-[#D4AF37]/20 transition-all duration-300 active:scale-95 text-xs uppercase tracking-wider"
           >
             <Plus size={20} /> <span>Add New Product</span>
           </button>
         </div>
       </div>
 
-      {/* 🔎 Search & Filters */}
-      <div className="bg-[#1A1A1A] p-4 rounded-xl border border-[#D4AF37]/20 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center shadow-lg transition-all duration-300">
+      {/* 🔎 3D SEARCH & FILTERS */}
+      <div className="bg-[#1A1A1A] p-4 rounded-2xl border border-[#D4AF37]/20 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center shadow-lg transition-all duration-300 glass-3d-panel">
         <div className="relative w-full md:w-96">
           <input 
             type="text" 
             placeholder="Search products by name..." 
             value={searchQuery} 
             onChange={(e) => setSearchQuery(e.target.value)} 
-            className="w-full bg-[#111111] border border-gray-800 rounded-lg pl-10 pr-4 py-2.5 text-white focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]/30 focus:outline-none transition-all duration-200" 
+            className="w-full bg-[#111111] border border-gray-800 rounded-xl pl-10 pr-4 py-2.5 text-white focus:border-[#D4AF37] focus:outline-none transition-all duration-200 text-sm shadow-inner" 
           />
-          <Search className="absolute left-3 top-3 text-gray-500" size={18} />
+          <Search className="absolute left-3.5 top-3 text-gray-500" size={18} />
         </div>
 
         <select 
           value={categoryFilter} 
           onChange={(e) => setCategoryFilter(e.target.value)} 
-          className="w-full md:w-64 bg-[#111111] border border-gray-800 rounded-lg px-4 py-2.5 text-white focus:border-[#D4AF37] focus:outline-none cursor-pointer transition-colors"
+          className="w-full md:w-64 bg-[#111111] border border-gray-800 rounded-xl px-4 py-2.5 text-white focus:border-[#D4AF37] focus:outline-none cursor-pointer transition-colors text-xs font-bold text-[#D4AF37]"
         >
-          <option value="">All Categories</option>
+          <option value="" className="bg-[#111111] text-white">All Categories</option>
           {categories.map((cat: any, i: number) => (
-            <option key={i} value={cat.name}>{cat.name}</option>
+            <option key={i} value={cat.name} className="bg-[#111111] text-white">{cat.name}</option>
           ))}
         </select>
       </div>
 
-      {/* 📦 Animated Products Table with Selling Price Display */}
-      <div className="bg-[#1A1A1A] rounded-2xl border border-[#D4AF37]/20 overflow-hidden shadow-2xl transition-all duration-300">
+      {/* 📦 3D ANIMATED PRODUCTS TABLE */}
+      <div className="bg-[#1A1A1A] rounded-3xl border border-[#D4AF37]/20 overflow-hidden shadow-2xl transition-all duration-300 glass-3d-panel">
         <div className="overflow-x-auto custom-scrollbar">
           {loading && products.length === 0 ? (
              <div className="text-center py-20 text-[#D4AF37] animate-pulse flex flex-col items-center justify-center space-y-3">
@@ -518,11 +511,10 @@ export default function Products() {
                         </div>
                       </td>
 
-                      <td className="px-6 py-4 text-sm text-gray-400">{p.category}</td>
+                      <td className="px-6 py-4 text-sm text-gray-400 font-light">{p.category}</td>
                       
-                      {/* 🚀 ডিসকাউন্টেড সেল প্রাইস ডিসপ্লে (Discounted Selling Price Explicitly Displayed) */}
                       <td className="px-6 py-4">
-                        <div className="font-bold text-[#D4AF37] text-base">
+                        <div className="font-bold text-[#D4AF37] text-base gold-text-glow">
                           ৳{sellingPrice.toFixed(2)}
                         </div>
                         {discPercent > 0 ? (
@@ -541,7 +533,7 @@ export default function Products() {
 
                       <td className="px-6 py-4">
                         <div className="text-xs text-gray-400">
-                          <span className="bg-gray-800/80 text-gray-200 px-2.5 py-1 rounded-md border border-gray-700">
+                          <span className="bg-gray-800/80 text-gray-200 px-2.5 py-1 rounded-md border border-gray-700 font-bold">
                             {variantCount} Option(s)
                           </span>
                         </div>
@@ -597,13 +589,13 @@ export default function Products() {
         </div>
       </div>
 
-      {/* 🪟 Animated Add/Edit Product Modal */}
+      {/* 🪟 3D Animated Add/Edit Product Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-opacity duration-300">
-          <div className="bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md transition-opacity duration-300">
+          <div className="bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200 glass-3d-panel">
             
             <div className="flex justify-between items-center p-6 border-b border-[#D4AF37]/20 bg-[#111111]">
-              <h2 className="text-xl font-serif font-bold text-[#D4AF37] uppercase flex items-center tracking-wider">
+              <h2 className="text-xl font-serif font-bold text-[#D4AF37] uppercase flex items-center tracking-wider gold-text-glow">
                 <Sparkles className="mr-2 text-[#D4AF37]" size={22} />
                 {modalMode === 'add' ? 'ADD NEW PRODUCT' : 'EDIT PRODUCT'}
               </h2>
@@ -618,66 +610,66 @@ export default function Products() {
             <form onSubmit={handleSubmit} className="overflow-y-auto custom-scrollbar p-6 space-y-5">
               
               <div>
-                <label className="block text-gray-300 text-sm mb-2 font-medium">Product Name *</label>
+                <label className="block text-gray-300 text-xs font-bold uppercase mb-2">Product Name *</label>
                 <input 
                   type="text" 
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#D4AF37] transition-colors"
+                  className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#D4AF37] transition-colors text-sm"
                   placeholder="e.g. Premium Signature Gold Watch"
                 />
               </div>
 
               <div>
-                <label className="block text-gray-300 text-sm mb-2 font-medium">Product Description</label>
+                <label className="block text-gray-300 text-xs font-bold uppercase mb-2">Product Description</label>
                 <textarea 
                   required
                   rows={3}
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#D4AF37] transition-colors resize-none text-sm"
+                  className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#D4AF37] transition-colors resize-none text-sm font-light"
                   placeholder="Enter detailed product description..."
                 ></textarea>
               </div>
 
               {/* 🚀 Dynamic Options/Variants Section */}
-              <div className="bg-[#111111] border border-gray-800 rounded-xl p-5 space-y-4">
+              <div className="bg-[#111111] border border-gray-800 rounded-2xl p-5 space-y-4">
                 <div className="flex justify-between items-center border-b border-gray-800 pb-3">
-                  <h3 className="text-[#D4AF37] font-bold text-sm uppercase tracking-wider flex items-center">
+                  <h3 className="text-[#D4AF37] font-bold text-xs uppercase tracking-wider flex items-center gold-text-glow">
                     <ListPlus size={18} className="mr-2" /> Custom Options (Colors, Sizes, Materials, etc.)
                   </h3>
                   <button 
                     type="button" 
                     onClick={addVariantField}
-                    className="text-xs bg-[#D4AF37]/10 text-[#D4AF37] px-3 py-1.5 rounded-lg border border-[#D4AF37]/30 hover:bg-[#D4AF37] hover:text-black font-bold transition-all duration-200"
+                    className="text-xs bg-[#D4AF37]/10 text-[#D4AF37] px-3 py-1.5 rounded-lg border border-[#D4AF37]/30 hover:bg-[#D4AF37] hover:text-black font-bold transition-all duration-200 uppercase tracking-wider"
                   >
                     + Add New Option Box
                   </button>
                 </div>
                 
                 {formData.variants.length === 0 ? (
-                  <p className="text-gray-500 text-xs italic text-center py-2">No custom options added. Leave empty if this product has no variants.</p>
+                  <p className="text-gray-500 text-xs italic text-center py-2 font-light">No custom options added. Leave empty if this product has no variants.</p>
                 ) : (
                   formData.variants.map((variant, index) => (
-                    <div key={index} className="flex flex-col sm:flex-row gap-3 bg-[#1A1A1A] p-3 rounded-lg border border-gray-700 relative group">
+                    <div key={index} className="flex flex-col sm:flex-row gap-3 bg-[#1A1A1A] p-3 rounded-xl border border-gray-700 relative group">
                       <div className="w-full sm:w-1/3">
-                        <label className="block text-gray-400 text-xs mb-1 uppercase font-bold">Option Name</label>
+                        <label className="block text-gray-400 text-[10px] mb-1 uppercase font-bold">Option Name</label>
                         <input 
                           type="text" 
                           value={variant.name}
                           onChange={(e) => handleVariantChange(index, 'name', e.target.value)}
-                          className="w-full bg-[#111111] border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-[#D4AF37] focus:outline-none text-sm"
+                          className="w-full bg-[#111111] border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-[#D4AF37] focus:outline-none text-xs"
                           placeholder="e.g. Color or Size"
                         />
                       </div>
                       <div className="w-full sm:w-2/3">
-                        <label className="block text-gray-400 text-xs mb-1 uppercase font-bold">Options (Comma separated)</label>
+                        <label className="block text-gray-400 text-[10px] mb-1 uppercase font-bold">Options (Comma separated)</label>
                         <input 
                           type="text" 
                           value={variant.options}
                           onChange={(e) => handleVariantChange(index, 'options', e.target.value)}
-                          className="w-full bg-[#111111] border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-[#D4AF37] focus:outline-none text-sm"
+                          className="w-full bg-[#111111] border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-[#D4AF37] focus:outline-none text-xs"
                           placeholder="e.g. Red, Blue, Gold"
                         />
                       </div>
@@ -696,11 +688,11 @@ export default function Products() {
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-gray-300 text-sm mb-2 font-medium">Category *</label>
+                  <label className="block text-gray-300 text-xs font-bold mb-2 uppercase">Category *</label>
                   <select 
                     value={formData.category}
                     onChange={(e) => setFormData({...formData, category: e.target.value})}
-                    className="w-full bg-[#111111] border border-[#D4AF37]/50 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#D4AF37] transition-colors cursor-pointer text-sm font-bold text-[#D4AF37]"
+                    className="w-full bg-[#111111] border border-[#D4AF37]/50 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#D4AF37] transition-colors cursor-pointer text-xs font-bold text-[#D4AF37]"
                   >
                     {categories.map((cat: any) => (
                       <option key={cat.id || cat.name} value={cat.name} className="bg-[#111111] text-white">{cat.name}</option>
@@ -709,11 +701,11 @@ export default function Products() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-gray-300 text-sm mb-2 font-medium">Status</label>
+                  <label className="block text-gray-300 text-xs font-bold mb-2 uppercase">Status</label>
                   <select 
                     value={formData.status}
                     onChange={(e) => setFormData({...formData, status: e.target.value})}
-                    className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#D4AF37] transition-colors cursor-pointer text-sm"
+                    className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#D4AF37] transition-colors cursor-pointer text-xs font-bold"
                   >
                     <option value="Active">Active</option>
                     <option value="Low Stock">Low Stock</option>
@@ -725,7 +717,7 @@ export default function Products() {
               {/* Price, Discount & Stock */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                 <div>
-                  <label className="block text-gray-300 text-sm mb-2 font-medium">Price (৳) *</label>
+                  <label className="block text-gray-300 text-xs font-bold mb-2 uppercase">Price (৳) *</label>
                   <input 
                     type="number" 
                     step="0.01"
@@ -737,7 +729,7 @@ export default function Products() {
                   />
                 </div>
                 <div>
-                  <label className="text-gray-300 text-sm mb-2 font-medium flex items-center">
+                  <label className="text-gray-300 text-xs font-bold mb-2 uppercase flex items-center">
                     Discount (%) <Percent size={14} className="ml-1 text-gray-500" />
                   </label>
                   <input 
@@ -751,7 +743,7 @@ export default function Products() {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-300 text-sm mb-2 font-medium">Stock Quantity *</label>
+                  <label className="block text-gray-300 text-xs font-bold mb-2 uppercase">Stock Quantity *</label>
                   <input 
                     type="number" 
                     required
@@ -765,7 +757,7 @@ export default function Products() {
 
               {/* Multiple Images Gallery */}
               <div className="space-y-3">
-                <label className="block text-gray-300 text-sm mb-2 font-medium">Product Images (URLs or Upload)</label>
+                <label className="block text-gray-300 text-xs font-bold uppercase mb-2">Product Images (URLs or Upload)</label>
                 
                 {formData.images.map((imgUrl, index) => (
                   <div key={index} className="flex items-center gap-2 bg-[#111111] p-2 rounded-xl border border-gray-800">
@@ -804,7 +796,7 @@ export default function Products() {
                 <button 
                   type="button"
                   onClick={addImageField}
-                  className="flex items-center space-x-2 text-xs text-[#D4AF37] font-bold bg-[#D4AF37]/10 px-4 py-2 rounded-xl border border-[#D4AF37]/30 hover:bg-[#D4AF37]/20 transition-all duration-200"
+                  className="flex items-center space-x-2 text-xs text-[#D4AF37] font-bold bg-[#D4AF37]/10 px-4 py-2 rounded-xl border border-[#D4AF37]/30 hover:bg-[#D4AF37]/20 transition-all duration-200 uppercase tracking-wider"
                 >
                   <Plus size={14} />
                   <span>Add New Image Field</span>
@@ -815,14 +807,14 @@ export default function Products() {
                 <button 
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-6 py-2.5 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors font-medium text-sm"
+                  className="px-6 py-2.5 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors font-medium text-xs uppercase"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
                   disabled={isSaving}
-                  className="bg-[#D4AF37] text-black px-8 py-2.5 rounded-xl hover:bg-white transition-all duration-300 font-bold shadow-lg shadow-[#D4AF37]/20 disabled:opacity-50 text-sm active:scale-95"
+                  className="bg-[#D4AF37] text-black px-8 py-2.5 rounded-xl hover:bg-white transition-all duration-300 font-extrabold shadow-lg shadow-[#D4AF37]/20 disabled:opacity-50 text-xs uppercase tracking-wider active:scale-95"
                 >
                   {isSaving ? 'Saving to Cloud...' : (modalMode === 'add' ? 'Save Product & Push Live' : 'Update Product')}
                 </button>

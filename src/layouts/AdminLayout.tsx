@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getLiveSettings, apiRequest } from "../config/api"; // 🚀 সেন্ট্রাল এপিআই কানেক্ট
+import { supabase } from "../lib/supabase"; // 🚀 সুপাবেস রিয়েল-টাইম কানেক্ট
 
 export default function AdminLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -56,6 +57,26 @@ export default function AdminLayout() {
     logoUrl: "",
   });
 
+  // 🚀 ৪. ডাইনামিক রিয়েল-টাইম নোটিফিকেশন স্টেট
+  const [notifications, setNotifications] = useState<any[]>(() => {
+    const saved = localStorage.getItem("mo_admin_notifications");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return [];
+      }
+    }
+    return [
+      {
+        id: "NOTIF-WELCOME",
+        text: "🔔 Welcome to MO FASHION Admin Dashboard! 5G Cloud Real-time sync is active.",
+        time: "Just now",
+        unread: true,
+      }
+    ];
+  });
+
   // সাইডবারের মেনু লিস্ট
   const menuItems = [
     { path: "/admin", icon: LayoutDashboard, label: "Dashboard" },
@@ -69,28 +90,7 @@ export default function AdminLayout() {
     { path: "/admin/recycle-bin", icon: Trash2, label: "Recycle Bin" },
   ];
 
-  const notificationsList = [
-    {
-      id: 1,
-      text: "New order #ORD-9876 received.",
-      time: "2 mins ago",
-      unread: true,
-    },
-    {
-      id: 2,
-      text: "Stock running low for 'Premium Signature T-Shirt'.",
-      time: "1 hour ago",
-      unread: true,
-    },
-    {
-      id: 3,
-      text: "New customer 'Emily Davis' registered.",
-      time: "3 hours ago",
-      unread: true,
-    },
-  ];
-
-  // লোগো ও সেটিংস ফেচ করা
+  // লোগো ও সেটিংস ফেচ করা এবং সুপাবেস রিয়েল-টাইম নোটিফিকেশন লিসেনার
   useEffect(() => {
     const fetchSettings = async () => {
       const savedSettings = localStorage.getItem("mo_fashion_settings");
@@ -115,7 +115,88 @@ export default function AdminLayout() {
     };
 
     fetchSettings();
+
+    // 🚀 সুপাবেস ক্লাউড রিয়েল-টাইম নোটিফিকেশন সাবস্ক্রিপশন
+    const realtimeChannel = supabase
+      .channel('public:admin:live:notifications:hub')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => {
+        const newOrder = payload.new;
+        const displayId = newOrder.orderId || newOrder.id;
+        const amount = Number(newOrder.total || newOrder.orderSummary?.total || 0);
+
+        const newNotif = {
+          id: `NOTIF-ORD-${Date.now()}`,
+          text: `🛍️ New Order #${String(displayId).slice(-6)} received! Total: ৳${amount.toFixed(2)}`,
+          time: "Just now",
+          unread: true
+        };
+
+        setNotifications(prev => {
+          const updated = [newNotif, ...prev];
+          localStorage.setItem("mo_admin_notifications", JSON.stringify(updated));
+          return updated;
+        });
+
+        toast("New Order Received! 🛒", { icon: "🔔", duration: 5000 });
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'customers' }, (payload) => {
+        const newCust = payload.new;
+        const name = newCust.name || "New Customer";
+
+        const newNotif = {
+          id: `NOTIF-CUST-${Date.now()}`,
+          text: `👤 New Customer "${name}" registered on your website.`,
+          time: "Just now",
+          unread: true
+        };
+
+        setNotifications(prev => {
+          const updated = [newNotif, ...prev];
+          localStorage.setItem("mo_admin_notifications", JSON.stringify(updated));
+          return updated;
+        });
+
+        toast("New Customer Registered! 👤", { icon: "🔔", duration: 5000 });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(realtimeChannel);
+    };
   }, []);
+
+  // নোটিফিকেশন সিঙ্গেল রিড মার্ক করা
+  const handleMarkSingleRead = (id: string) => {
+    setNotifications(prev => {
+      const updated = prev.map(n => n.id === id ? { ...n, unread: false } : n);
+      localStorage.setItem("mo_admin_notifications", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  // সব নোটিফিকেশন একসাথে রিড মার্ক করা
+  const handleMarkAllRead = () => {
+    setNotifications(prev => {
+      const updated = prev.map(n => ({ ...n, unread: false }));
+      localStorage.setItem("mo_admin_notifications", JSON.stringify(updated));
+      return updated;
+    });
+    toast.success("All notifications marked as read!");
+  };
+
+  // নোটিফিকেশন ডিলিট করা
+  const handleDeleteNotification = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setNotifications(prev => {
+      const updated = prev.filter(n => n.id !== id);
+      localStorage.setItem("mo_admin_notifications", JSON.stringify(updated));
+      return updated;
+    });
+    toast.success("Notification deleted!");
+  };
+
+  // আনরিড নোটিফিকেশন কাউন্ট করা
+  const unreadCount = notifications.filter((n: any) => n.unread).length;
 
   // 🚀 ৪. হাই-লেভেল পাসওয়ার্ড ভ্যালিডেশন
   const handleVerifyPasscode = (e: React.FormEvent) => {
@@ -133,7 +214,7 @@ export default function AdminLayout() {
     }
   };
 
-  // 🚀 ৫. আসল জিমেইল ইনবক্সে OTP পাঠানোর API কল (Strict Gmail Check & No Code in Popup)
+  // 🚀 ৫. আসল জিমেইল ইনবক্সে OTP পাঠানোর API কল
   const handleSendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
@@ -149,7 +230,6 @@ export default function AdminLayout() {
       return;
     }
 
-    // 🔒 জিমেইল ভ্যালিডেশন: না মিললে "Please enter the real Gmail." দেখাবে
     if (typedEmail !== registeredEmail) {
       toast.error("Please enter the real Gmail.");
       return;
@@ -189,7 +269,7 @@ export default function AdminLayout() {
     }
   };
 
-  // 🚀 ৬. জিমেইল ইনবক্স থেকে আনা OTP কড়াভাবে ভেরিফাই করা (ভুল বা রিভার্স কোড দিলে কড়াভাবে রিজেক্ট করবে)
+  // 🚀 ৬. জিমেইল ইনবক্স থেকে আনা OTP কড়াভাবে ভেরিফাই করা
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputOtp.trim()) {
@@ -258,11 +338,10 @@ export default function AdminLayout() {
     navigate("/");
   };
 
-  // 🔒 যদি এডমিন অথরাইজড না থাকে (৩-৪টি ছোট গ্লোয়িং বক্সেস মুভিং স্লাইডার অ্যানিমেশন)
+  // 🔒 যদি এডমিন অথরাইজড না থাকে
   if (!isAuthorized) {
     return (
       <div className="min-h-screen bg-[#030303] flex items-center justify-center p-4 font-sans text-white relative overflow-hidden select-none">
-        {/* 🚀 ৩-৪টি ছোট গ্লোয়িং বক্স পুরো স্ক্রিনে ডানে-বামে-উপরে-নিচে ঘুরে বেড়ানোর CSS কিফ্রেম */}
         <style>{`
           @keyframes move3DBoxCluster {
             0% { top: 8%; left: 8%; }
@@ -273,12 +352,9 @@ export default function AdminLayout() {
           }
         `}</style>
 
-        {/* ⬛ 🚀 ৩-৪টি ছোট গ্লোয়িং বক্সের মুভিং ব্যাকগ্রাউন্ড */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 bg-[#030303]">
-          {/* কালো ব্যাকগ্রাউন্ড যেখানে বক্স নেই */}
           <div className="absolute inset-0 bg-black/90 z-0"></div>
 
-          {/* গ্রিড স্কয়ার ছোট ছোট বক্সেস */}
           <div className="absolute inset-0 grid grid-cols-6 sm:grid-cols-10 md:grid-cols-14 grid-rows-8 sm:grid-rows-10 gap-1.5 p-2 opacity-25 z-1">
             {[...Array(140)].map((_, i) => (
               <div
@@ -288,7 +364,6 @@ export default function AdminLayout() {
             ))}
           </div>
 
-          {/* 🌟 🚀 ৩-৪টি ছোট জ্বলজ্বলে বক্সের ক্লাস্টার যা পুরো স্ক্রিনে ডানে, বামে, উপরে, নিচে ঘুরে বেড়াবে */}
           <div
             className="absolute w-36 h-36 md:w-48 md:h-48 border-2 border-[#D4AF37] bg-[#D4AF37]/10 rounded-2xl shadow-[0_0_60px_#D4AF37] z-2 transition-all duration-1000 p-2"
             style={{ animation: "move3DBoxCluster 13s ease-in-out infinite" }}
@@ -301,13 +376,10 @@ export default function AdminLayout() {
             </div>
           </div>
 
-          {/* সেফটি রেডিয়াল শ্যাডো */}
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_#030303_85%)] z-3"></div>
         </div>
 
-        {/* লক স্ক্রিন মেইন কার্ড */}
         <div className="bg-[#121212]/95 backdrop-blur-2xl border-2 border-[#D4AF37]/50 rounded-3xl p-8 sm:p-10 max-w-md w-full shadow-[0_0_90px_rgba(212,175,55,0.25)] relative z-10 text-center animate-in fade-in zoom-in-95 duration-500">
-          {/* ওয়েবসাইট লোগো */}
           <div className="flex items-center justify-center mb-6">
             {siteSettings?.logoUrl && siteSettings.logoUrl.trim() !== "" ? (
               <div className="w-20 h-20 bg-[#0A0A0A] border-2 border-[#D4AF37] rounded-2xl p-2 flex items-center justify-center shadow-[0_0_30px_rgba(212,175,55,0.4)] animate-pulse">
@@ -413,7 +485,6 @@ export default function AdminLayout() {
                 </div>
               </div>
 
-              {/* Step 1: Send OTP */}
               {forgotStep === "email_input" && (
                 <form onSubmit={handleSendOtp} className="space-y-5">
                   <p className="text-sm text-gray-300 leading-relaxed">
@@ -461,7 +532,6 @@ export default function AdminLayout() {
                 </form>
               )}
 
-              {/* Step 2: Enter OTP Code */}
               {forgotStep === "otp" && (
                 <form onSubmit={handleVerifyOtp} className="space-y-5">
                   <div className="flex items-center space-x-2 text-xs text-yellow-500 bg-yellow-500/10 p-3 rounded-lg border border-yellow-500/20">
@@ -502,7 +572,6 @@ export default function AdminLayout() {
                 </form>
               )}
 
-              {/* Step 3: Set New Password */}
               {forgotStep === "new_password" && (
                 <form onSubmit={handleSaveNewPassword} className="space-y-4">
                   <p className="text-sm text-gray-300">
@@ -568,16 +637,16 @@ export default function AdminLayout() {
         ></div>
       )}
 
-      {/* Sidebar */}
+      {/* 🚀 3D Glassmorphic Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#1A1A1A] border-r border-[#D4AF37]/20 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 flex flex-col ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#1A1A1A]/90 backdrop-blur-2xl border-r border-[#D4AF37]/30 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 flex flex-col glass-3d-panel ${
           isSidebarOpen
-            ? "translate-x-0 shadow-[0_0_30px_rgba(0,0,0,0.8)]"
+            ? "translate-x-0 shadow-[0_0_40px_rgba(0,0,0,0.9)]"
             : "-translate-x-full"
         }`}
       >
         {/* Sidebar Header */}
-        <div className="h-20 flex items-center justify-between px-6 border-b border-[#D4AF37]/10">
+        <div className="h-20 flex items-center justify-between px-6 border-b border-[#D4AF37]/20">
           <Link to="/admin" className="flex items-center space-x-3 group">
             {siteSettings?.logoUrl && siteSettings.logoUrl.trim() !== "" ? (
               <img
@@ -588,7 +657,7 @@ export default function AdminLayout() {
             ) : (
               <Shield size={22} className="text-[#D4AF37]" />
             )}
-            <span className="text-xl font-serif font-bold text-[#D4AF37] tracking-widest drop-shadow">
+            <span className="text-xl font-serif font-bold text-[#D4AF37] tracking-widest drop-shadow-[0_0_10px_rgba(212,175,55,0.5)]">
               MO ADMIN
             </span>
           </Link>
@@ -611,7 +680,7 @@ export default function AdminLayout() {
                 onClick={() => setIsSidebarOpen(false)}
                 className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-300 group ${
                   isActive
-                    ? "bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/30 shadow-[0_0_15px_rgba(212,175,55,0.15)] font-bold translate-x-1"
+                    ? "bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/40 shadow-[0_0_20px_rgba(212,175,55,0.25)] font-bold translate-x-1"
                     : "text-gray-400 hover:text-white hover:bg-[#111111] hover:translate-x-1"
                 }`}
               >
@@ -626,7 +695,7 @@ export default function AdminLayout() {
         </nav>
 
         {/* Sidebar Footer (Logout) */}
-        <div className="p-4 border-t border-[#D4AF37]/10">
+        <div className="p-4 border-t border-[#D4AF37]/20">
           <button
             onClick={handleLogout}
             className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all font-medium"
@@ -639,8 +708,8 @@ export default function AdminLayout() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
-        {/* Topbar */}
-        <header className="h-20 bg-[#1A1A1A] border-b border-[#D4AF37]/20 flex items-center justify-between px-4 lg:px-8 z-30 shadow-md relative">
+        {/* 🚀 3D Glassmorphic Topbar */}
+        <header className="h-20 bg-[#1A1A1A]/90 backdrop-blur-xl border-b border-[#D4AF37]/30 flex items-center justify-between px-4 lg:px-8 z-30 shadow-lg relative glass-3d-panel">
           <div className="flex items-center">
             <button
               onClick={() => setIsSidebarOpen(true)}
@@ -649,7 +718,7 @@ export default function AdminLayout() {
               <Menu size={24} />
             </button>
             <h2 className="text-xl font-serif font-bold text-white hidden sm:block tracking-wide">
-              Welcome, <span className="text-[#D4AF37]">Admin</span>
+              Welcome, <span className="text-[#D4AF37] drop-shadow-[0_0_8px_rgba(212,175,55,0.5)]">Admin</span>
             </h2>
           </div>
 
@@ -661,43 +730,61 @@ export default function AdminLayout() {
                 onClick={() => setIsNotificationOpen(!isNotificationOpen)}
                 className="relative text-gray-400 hover:text-[#D4AF37] transition-colors focus:outline-none p-2 rounded-full hover:bg-[#111111]"
               >
-                <Bell size={22} className="animate-pulse" />
-                <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-extrabold flex items-center justify-center rounded-full border border-[#1A1A1A] shadow">
-                  3
-                </span>
+                <Bell size={22} className={unreadCount > 0 ? "animate-pulse text-[#D4AF37]" : ""} />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-extrabold flex items-center justify-center rounded-full border border-[#1A1A1A] shadow-[0_0_8px_#EF4444]">
+                    {unreadCount}
+                  </span>
+                )}
               </button>
 
-              {/* Notification Dropdown Panel */}
+              {/* 🚀 3D Notification Dropdown Panel */}
               {isNotificationOpen && (
-                <div className="absolute right-0 mt-4 w-80 bg-[#1A1A1A] border border-[#D4AF37]/30 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-3 duration-300">
-                  <div className="p-4 border-b border-[#D4AF37]/10 flex justify-between items-center bg-[#111111]">
+                <div className="absolute right-0 mt-4 w-80 bg-[#1A1A1A]/95 backdrop-blur-2xl border border-[#D4AF37]/40 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.9)] z-50 overflow-hidden animate-in fade-in slide-in-from-top-3 duration-300">
+                  <div className="p-4 border-b border-[#D4AF37]/20 flex justify-between items-center bg-[#111111]/80">
                     <h3 className="font-bold text-white text-sm flex items-center">
                       <Bell size={14} className="mr-2 text-[#D4AF37]" />{" "}
                       Notifications
                     </h3>
                     <button
-                      onClick={() => toast.success("Marked all as read")}
+                      onClick={handleMarkAllRead}
                       className="text-[11px] text-[#D4AF37] hover:underline flex items-center font-bold"
                     >
                       <Check size={12} className="mr-1" /> Mark all read
                     </button>
                   </div>
                   <div className="max-h-72 overflow-y-auto custom-scrollbar">
-                    {notificationsList.map((n) => (
-                      <div
-                        key={n.id}
-                        className={`p-4 border-b border-gray-800/60 hover:bg-[#111111] transition-colors cursor-pointer ${n.unread ? "bg-[#D4AF37]/5" : ""}`}
-                      >
-                        <p className="text-xs text-gray-300 leading-snug">
-                          {n.text}
-                        </p>
-                        <p className="text-[10px] text-gray-500 mt-2 font-medium">
-                          {n.time}
-                        </p>
+                    {notifications.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500 text-xs">
+                        No notifications found.
                       </div>
-                    ))}
+                    ) : (
+                      notifications.map((n: any) => (
+                        <div
+                          key={n.id}
+                          onClick={() => handleMarkSingleRead(n.id)}
+                          className={`p-4 border-b border-gray-800/60 hover:bg-[#111111] transition-colors cursor-pointer relative group ${n.unread ? "bg-[#D4AF37]/10" : ""}`}
+                        >
+                          <p className="text-xs text-gray-300 leading-snug pr-6 font-medium">
+                            {n.text}
+                          </p>
+                          <p className="text-[10px] text-gray-500 mt-2 font-semibold">
+                            {n.time}
+                          </p>
+                          
+                          {/* 🗑️ নোটিফিকেশন ইন্ডিভিজুয়ালি ডিলিট করার বাটন */}
+                          <button 
+                            onClick={(e) => handleDeleteNotification(n.id, e)}
+                            className="absolute right-3 top-4 opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-red-400 p-1"
+                            title="Delete Notification"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ))
+                    )}
                   </div>
-                  <div className="p-3 text-center border-t border-gray-800 bg-[#111111]">
+                  <div className="p-3 text-center border-t border-gray-800 bg-[#111111]/80">
                     <button
                       onClick={() => setIsNotificationOpen(false)}
                       className="text-xs text-[#D4AF37] hover:text-white transition-colors font-bold uppercase tracking-wider flex items-center justify-center mx-auto"
@@ -730,7 +817,7 @@ export default function AdminLayout() {
         </header>
 
         {/* Dynamic Content Area */}
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-[#111111]">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-[#111111] perspective-1200 preserve-3d">
           <div
             key={location.pathname}
             className="p-4 lg:p-8 animate-in fade-in zoom-in-95 duration-500"

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { User, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { User, Mail, Lock, Eye, EyeOff, ShieldCheck, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/useAuthStore'; 
 
@@ -70,12 +70,10 @@ export default function RegisterPage() {
           memberSince: new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
         };
 
-        // ২. গ্লোবাল স্টোর এবং কারেন্ট ইউজার সেভ করা (প্রোফাইল পেজের জন্য)
         if (typeof setUser === 'function') setUser(newUser);
         localStorage.setItem('currentUser', JSON.stringify(newUser));
         localStorage.setItem('user', JSON.stringify(newUser));
 
-        // লোকাল ব্যাকআপ
         const savedUsers = JSON.parse(localStorage.getItem('mo_fashion_users') || '[]');
         localStorage.setItem('mo_fashion_users', JSON.stringify([newUser, ...savedUsers]));
 
@@ -85,7 +83,7 @@ export default function RegisterPage() {
           if (newUser.role === 'admin') {
             navigate('/admin');
           } else {
-            navigate('/profile'); // সরাসরি নতুন প্রোফাইল পেজে যাবে
+            navigate('/profile');
           }
         }, 1500);
 
@@ -95,7 +93,6 @@ export default function RegisterPage() {
     } catch (error) {
       console.warn("Backend API offline, falling back to local registration.", error);
       
-      // লোকাল মেমোরি ব্যাকআপ
       const savedUsers = JSON.parse(localStorage.getItem('mo_fashion_users') || '[]');
       const existingUser = savedUsers.find((user: any) => user.email === formData.email.toLowerCase());
       
@@ -139,31 +136,35 @@ export default function RegisterPage() {
   };
 
   return (
-    <main className="min-h-[85vh] flex items-center justify-center py-12 px-4 bg-[#111111] text-white">
+    <main className="min-h-[85vh] flex items-center justify-center py-12 px-4 bg-[#111111] text-white relative overflow-hidden select-none">
       <Helmet>
         <title>Create Account | MO FASHION</title>
       </Helmet>
 
-      <div className="w-full max-w-md bg-[#1A1A1A] border border-[#D4AF37]/20 rounded-2xl p-8 shadow-2xl">
+      {/* 🚀 3D GLASSMORPHIC REGISTRATION CARD */}
+      <div className="w-full max-w-md bg-[#1A1A1A]/95 backdrop-blur-2xl border border-[#D4AF37]/40 rounded-3xl p-8 shadow-[0_20px_50px_rgba(0,0,0,0.9),0_0_30px_rgba(212,175,55,0.15)] relative z-10 animate-in fade-in zoom-in-95 duration-500 glass-3d-panel">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-serif font-bold text-[#D4AF37] mb-2 tracking-wider uppercase">
+          <div className="w-16 h-16 bg-[#111111] border border-[#D4AF37] rounded-2xl flex items-center justify-center mx-auto mb-4 text-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.3)]">
+            <ShieldCheck size={32} />
+          </div>
+          <h1 className="text-3xl font-serif font-bold text-[#D4AF37] mb-2 tracking-wider uppercase gold-text-glow">
             Create Account
           </h1>
-          <p className="text-gray-400">Join MO FASHION for a premium experience</p>
+          <p className="text-gray-400 text-xs">Join MO FASHION for an exclusive luxury experience</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-gray-300 text-sm mb-2 font-medium">Full Name</label>
+            <label className="block text-gray-300 text-xs font-bold mb-2 uppercase tracking-wider">Full Name</label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <User size={18} className="text-gray-500" />
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                <User size={18} className="text-[#D4AF37]" />
               </div>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
-                className="w-full bg-[#111111] border border-gray-700 rounded-lg pl-10 pr-4 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
+                className="w-full bg-[#111111] border border-gray-700 rounded-xl pl-10 pr-4 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-all text-sm"
                 placeholder="e.g. Mehedi Hasan"
                 required
               />
@@ -171,16 +172,16 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-gray-300 text-sm mb-2 font-medium">Email Address</label>
+            <label className="block text-gray-300 text-xs font-bold mb-2 uppercase tracking-wider">Email Address</label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Mail size={18} className="text-gray-500" />
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                <Mail size={18} className="text-[#D4AF37]" />
               </div>
               <input
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
-                className="w-full bg-[#111111] border border-gray-700 rounded-lg pl-10 pr-4 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
+                className="w-full bg-[#111111] border border-gray-700 rounded-xl pl-10 pr-4 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-all text-sm"
                 placeholder="e.g. mail@example.com"
                 required
               />
@@ -188,22 +189,22 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-gray-300 text-sm mb-2 font-medium">Password</label>
+            <label className="block text-gray-300 text-xs font-bold mb-2 uppercase tracking-wider">Password</label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Lock size={18} className="text-gray-500" />
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                <Lock size={18} className="text-[#D4AF37]" />
               </div>
               <input
                 type={showPassword ? "text" : "password"}
                 value={formData.password}
                 onChange={(e) => setFormData({...formData, password: e.target.value})}
-                className="w-full bg-[#111111] border border-gray-700 rounded-lg pl-10 pr-12 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
+                className="w-full bg-[#111111] border border-gray-700 rounded-xl pl-10 pr-12 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-all text-sm"
                 placeholder="Create a password"
                 required
               />
               <button
                 type="button"
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-[#D4AF37] transition-colors"
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-500 hover:text-[#D4AF37] transition-colors"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -212,40 +213,40 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-gray-300 text-sm mb-2 font-medium">Confirm Password</label>
+            <label className="block text-gray-300 text-xs font-bold mb-2 uppercase tracking-wider">Confirm Password</label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Lock size={18} className="text-gray-500" />
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                <Lock size={18} className="text-[#D4AF37]" />
               </div>
               <input
                 type={showPassword ? "text" : "password"}
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
-                className="w-full bg-[#111111] border border-gray-700 rounded-lg pl-10 pr-12 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
+                className="w-full bg-[#111111] border border-gray-700 rounded-xl pl-10 pr-12 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-all text-sm"
                 placeholder="Confirm your password"
                 required
               />
             </div>
           </div>
 
-          <div className="flex items-start text-sm">
+          <div className="flex items-start text-xs pt-1">
             <label className="flex items-center text-gray-400 cursor-pointer hover:text-white transition-colors">
-              <input type="checkbox" className="mr-2 accent-[#D4AF37] mt-1" required />
-              <span>I agree to the <Link to="/terms" className="text-[#D4AF37] hover:underline">Terms & Conditions</Link> and <Link to="/privacy" className="text-[#D4AF37] hover:underline">Privacy Policy</Link></span>
+              <input type="checkbox" className="mr-2 accent-[#D4AF37] w-4 h-4 rounded" required />
+              <span>I agree to the <Link to="/policy" className="text-[#D4AF37] hover:underline font-bold">Terms & Privacy Policy</Link></span>
             </label>
           </div>
 
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-[#D4AF37] text-black font-bold uppercase tracking-wider py-3 rounded-lg hover:bg-white transition-colors shadow-[0_0_15px_rgba(212,175,55,0.3)] mt-2 disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-[#D4AF37] via-[#f3e5ab] to-[#aa8c2c] text-black font-extrabold uppercase tracking-wider py-3.5 rounded-xl hover:brightness-110 transition-all duration-300 shadow-[0_10px_25px_rgba(212,175,55,0.35)] active:scale-95 disabled:opacity-50 flex items-center justify-center space-x-2"
           >
-            {isSubmitting ? 'Creating Account...' : 'Create Account'}
+            <span>{isSubmitting ? 'Creating Account...' : 'Create Account'}</span>
+            <ArrowRight size={16} />
           </button>
         </form>
 
-        {/* 🚀 Link Fix: /register এর বদলে /login লিংক বসানো হলো */}
-        <p className="text-center text-gray-400 mt-6 text-sm">
+        <p className="text-center text-gray-400 mt-6 text-xs">
           Already have an account?{' '}
           <Link to="/login" className="text-[#D4AF37] font-bold hover:text-white transition-colors">
             Sign in now

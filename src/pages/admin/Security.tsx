@@ -7,7 +7,7 @@ import {
 import toast from 'react-hot-toast';
 
 export default function Security() {
-  // 🚀 ১. সিকিউরিটি ভোল্ট লক স্টেট (পেজে ঢুকলে আগে পাসওয়ার্ড দিয়ে আনলক করতে হবে)
+  // 🚀 ১. সিকিউরিটি ভোল্ট লক স্টেট
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [inputPasscode, setInputPasscode] = useState('');
   const [passcodeError, setPasscodeError] = useState(false);
@@ -105,21 +105,21 @@ export default function Security() {
   };
 
   return (
-    <div className="text-white pb-10">
+    <div className="text-white pb-10 transition-all duration-300">
       <Helmet><title>Admin - Security Management | MO FASHION</title></Helmet>
 
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-serif font-bold text-[#D4AF37] uppercase flex items-center">
+        <h1 className="text-2xl font-serif font-bold text-[#D4AF37] uppercase flex items-center gold-text-glow">
           <Shield className="mr-3 text-[#D4AF37]" size={28} />
           Security & Password Management
         </h1>
-        <p className="text-sm text-gray-400 mt-1">Configure high-level security passcode, email recovery, and authentication settings</p>
+        <p className="text-sm text-gray-400 mt-1 font-light">Configure high-level security passcode, email recovery, and authentication settings</p>
       </div>
 
       {/* 🔒 যদি সিকিউরিটি পেজ লক অবস্থায় থাকে */}
       {!isUnlocked ? (
-        <div className="min-h-[60vh] flex items-center justify-center p-4 relative overflow-hidden select-none rounded-3xl bg-[#080808] border border-[#D4AF37]/20">
+        <div className="min-h-[60vh] flex items-center justify-center p-4 relative overflow-hidden select-none rounded-3xl bg-[#080808] border border-[#D4AF37]/30 glass-3d-panel [perspective:1200px]">
           
           {/* 🚀 গ্রিড ম্যাট্রিক্স অ্যানিমেশন CSS */}
           <style>{`
@@ -145,17 +145,17 @@ export default function Security() {
 
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_#080808_85%)] z-1 pointer-events-none"></div>
 
-          {/* সেফটি লক কার্ড */}
-          <div className="bg-[#141414]/95 backdrop-blur-2xl border-2 border-[#D4AF37]/40 rounded-3xl p-8 max-w-md w-full shadow-[0_0_60px_rgba(212,175,55,0.2)] relative z-10 text-center animate-in fade-in zoom-in-95 duration-500">
+          {/* সেফটি লক ৩ডি কার্ড */}
+          <div className="bg-[#141414]/95 backdrop-blur-2xl border-2 border-[#D4AF37]/50 rounded-3xl p-8 max-w-md w-full shadow-[0_0_80px_rgba(212,175,55,0.25)] relative z-10 text-center animate-in fade-in zoom-in-95 duration-500 glass-3d-card">
             
             <div className="w-16 h-16 bg-[#D4AF37]/10 border-2 border-[#D4AF37] rounded-2xl flex items-center justify-center text-[#D4AF37] mx-auto mb-4 shadow-[0_0_25px_rgba(212,175,55,0.3)] animate-bounce">
               <ShieldCheck size={36} />
             </div>
 
-            <h2 className="text-xl font-serif font-bold text-[#D4AF37] tracking-[0.2em] uppercase mb-1">
+            <h2 className="text-xl font-serif font-bold text-[#D4AF37] tracking-[0.2em] uppercase mb-1 gold-text-glow">
               SECURITY VAULT LOCKED
             </h2>
-            <p className="text-gray-400 text-xs mb-6 leading-relaxed">
+            <p className="text-gray-400 text-xs mb-6 leading-relaxed font-light">
               Enter your Admin Passcode to unlock security & password controls.
             </p>
 
@@ -177,7 +177,7 @@ export default function Security() {
 
               <button 
                 type="submit"
-                className="w-full bg-[#D4AF37] text-black py-3.5 rounded-xl font-extrabold uppercase tracking-wider hover:bg-white transition-all duration-300 shadow-[0_0_20px_rgba(212,175,55,0.3)] active:scale-95 flex items-center justify-center space-x-2"
+                className="w-full bg-gradient-to-r from-[#D4AF37] via-[#f3e5ab] to-[#aa8c2c] text-black py-3.5 rounded-xl font-extrabold uppercase tracking-wider hover:brightness-110 transition-all duration-300 shadow-[0_0_20px_rgba(212,175,55,0.3)] active:scale-95 flex items-center justify-center space-x-2"
               >
                 <Key size={18} />
                 <span>Unlock Security Options</span>
@@ -188,11 +188,11 @@ export default function Security() {
         </div>
       ) : (
         /* 🔓 আনলক হলে আসল সিকিউরিটি সেটিংস কন্ট্রোলস দেখাবে */
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="space-y-8 animate-in fade-in duration-500 [perspective:1200px]">
           
           {/* সিকিউরিটি স্ট্যাটাস ওভারভিউ */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-[#1A1A1A] p-5 rounded-2xl border border-[#D4AF37]/20 flex items-center space-x-4 shadow-lg">
+            <div className="bg-[#1A1A1A] p-5 rounded-2xl border border-[#D4AF37]/30 flex items-center space-x-4 shadow-xl glass-3d-card">
               <div className="p-3 bg-[#D4AF37]/10 text-[#D4AF37] rounded-xl border border-[#D4AF37]/30">
                 <ShieldCheck size={28} />
               </div>
@@ -202,7 +202,7 @@ export default function Security() {
               </div>
             </div>
 
-            <div className="bg-[#1A1A1A] p-5 rounded-2xl border border-[#D4AF37]/20 flex items-center space-x-4 shadow-lg">
+            <div className="bg-[#1A1A1A] p-5 rounded-2xl border border-[#D4AF37]/30 flex items-center space-x-4 shadow-xl glass-3d-card">
               <div className="p-3 bg-[#D4AF37]/10 text-[#D4AF37] rounded-xl border border-[#D4AF37]/30">
                 <Mail size={28} />
               </div>
@@ -212,13 +212,13 @@ export default function Security() {
               </div>
             </div>
 
-            <div className="bg-[#1A1A1A] p-5 rounded-2xl border border-[#D4AF37]/20 flex items-center space-x-4 shadow-lg">
+            <div className="bg-[#1A1A1A] p-5 rounded-2xl border border-[#D4AF37]/30 flex items-center space-x-4 shadow-xl glass-3d-card">
               <div className="p-3 bg-[#D4AF37]/10 text-[#D4AF37] rounded-xl border border-[#D4AF37]/30">
                 <Activity size={28} />
               </div>
               <div>
                 <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Session Security</p>
-                <p className="text-sm font-bold text-[#D4AF37]">Zero-Persistence Lock</p>
+                <p className="text-sm font-bold text-[#D4AF37] gold-text-glow">Zero-Persistence Lock</p>
               </div>
             </div>
           </div>
@@ -226,9 +226,9 @@ export default function Security() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             
             {/* ১. পাসওয়ার্ড পরিবর্তনের ফর্ম */}
-            <div className="bg-[#1A1A1A] p-6 sm:p-8 rounded-2xl border border-[#D4AF37]/20 shadow-xl space-y-6">
+            <div className="bg-[#1A1A1A] p-6 sm:p-8 rounded-3xl border border-[#D4AF37]/30 shadow-2xl space-y-6 glass-3d-panel">
               <div className="border-b border-gray-800 pb-4 flex items-center justify-between">
-                <h2 className="text-lg font-serif font-bold text-[#D4AF37] uppercase flex items-center">
+                <h2 className="text-lg font-serif font-bold text-[#D4AF37] uppercase flex items-center gold-text-glow">
                   <Key size={20} className="mr-2" /> Change Admin Passcode
                 </h2>
                 <span className="text-[10px] bg-green-500/10 text-green-400 px-2.5 py-1 rounded border border-green-500/20 font-bold uppercase">
@@ -239,7 +239,7 @@ export default function Security() {
               <form onSubmit={handleChangePasscode} className="space-y-4">
                 
                 <div>
-                  <label className="block text-xs font-bold text-gray-300 mb-2">Current Passcode *</label>
+                  <label className="block text-xs font-bold text-gray-300 mb-2 uppercase">Current Passcode *</label>
                   <div className="relative">
                     <Lock size={16} className="absolute left-3.5 top-3.5 text-gray-500" />
                     <input 
@@ -261,7 +261,7 @@ export default function Security() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-300 mb-2">New Passcode *</label>
+                  <label className="block text-xs font-bold text-gray-300 mb-2 uppercase">New Passcode *</label>
                   <div className="relative">
                     <Key size={16} className="absolute left-3.5 top-3.5 text-[#D4AF37]" />
                     <input 
@@ -284,7 +284,7 @@ export default function Security() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-300 mb-2">Confirm New Passcode *</label>
+                  <label className="block text-xs font-bold text-gray-300 mb-2 uppercase">Confirm New Passcode *</label>
                   <div className="relative">
                     <Key size={16} className="absolute left-3.5 top-3.5 text-[#D4AF37]" />
                     <input 
@@ -292,7 +292,7 @@ export default function Security() {
                       required
                       value={confirmPasscode}
                       onChange={(e) => setConfirmPasscode(e.target.value)}
-                      className="w-full bg-[#111111] border border-gray-700 rounded-lg pl-10 pr-10 py-3 text-white focus:outline-none focus:border-[#D4AF37] text-sm"
+                      className="w-full bg-[#111111] border border-gray-700 rounded-xl pl-10 pr-10 py-3 text-white focus:outline-none focus:border-[#D4AF37] text-sm"
                       placeholder="Confirm new passcode"
                       minLength={4}
                     />
@@ -309,7 +309,7 @@ export default function Security() {
                 <button 
                   type="submit"
                   disabled={isSaving}
-                  className="w-full bg-[#D4AF37] text-black py-3.5 rounded-xl font-bold uppercase tracking-wider hover:bg-white transition-all shadow-md flex items-center justify-center space-x-2 pt-3 disabled:opacity-50"
+                  className="w-full bg-[#D4AF37] text-black py-3.5 rounded-xl font-bold uppercase tracking-wider hover:bg-white transition-all shadow-md flex items-center justify-center space-x-2 pt-3 disabled:opacity-50 text-xs active:scale-95"
                 >
                   <Save size={18} />
                   <span>{isSaving ? 'Updating Passcode...' : 'Save New Passcode'}</span>
@@ -318,18 +318,18 @@ export default function Security() {
             </div>
 
             {/* ২. সিকিউরিটি ইমেইল টেস্ট ও কনফিগারেশন */}
-            <div className="bg-[#1A1A1A] p-6 sm:p-8 rounded-2xl border border-[#D4AF37]/20 shadow-xl space-y-6 flex flex-col justify-between">
+            <div className="bg-[#1A1A1A] p-6 sm:p-8 rounded-3xl border border-[#D4AF37]/30 shadow-2xl space-y-6 flex flex-col justify-between glass-3d-panel">
               <div>
                 <div className="border-b border-gray-800 pb-4 mb-6">
-                  <h2 className="text-lg font-serif font-bold text-[#D4AF37] uppercase flex items-center">
+                  <h2 className="text-lg font-serif font-bold text-[#D4AF37] uppercase flex items-center gold-text-glow">
                     <Mail size={20} className="mr-2" /> Recovery Gmail Service
                   </h2>
-                  <p className="text-xs text-gray-400 mt-1">OTP codes for password resets are sent to this address</p>
+                  <p className="text-xs text-gray-400 mt-1 font-light">OTP codes for password resets are sent to this address</p>
                 </div>
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-gray-300 mb-2">Registered Admin Gmail Address</label>
+                    <label className="block text-xs font-bold text-gray-300 mb-2 uppercase">Registered Admin Gmail Address</label>
                     <div className="relative">
                       <Mail size={18} className="absolute left-3.5 top-3.5 text-gray-500" />
                       <input 
@@ -341,12 +341,12 @@ export default function Security() {
                     </div>
                   </div>
 
-                  <div className="p-4 bg-[#111111] border border-gray-800 rounded-xl space-y-2">
+                  <div className="p-4 bg-[#111111] border border-gray-800 rounded-2xl space-y-2">
                     <div className="flex items-center text-xs font-bold text-[#D4AF37]">
                       <CheckCircle2 size={16} className="mr-2" />
                       <span>Live Gmail OTP Delivery Enabled</span>
                     </div>
-                    <p className="text-[11px] text-gray-400 leading-relaxed">
+                    <p className="text-[11px] text-gray-400 leading-relaxed font-light">
                       Click the test button below to send a live test OTP code to your inbox to ensure the email service is fully operational.
                     </p>
                   </div>
@@ -358,7 +358,7 @@ export default function Security() {
                   type="button"
                   onClick={handleTestEmail}
                   disabled={isTestingEmail}
-                  className="w-full bg-[#111111] border border-[#D4AF37]/40 text-[#D4AF37] py-3.5 rounded-xl hover:bg-[#D4AF37] hover:text-black transition-all font-bold uppercase tracking-wider text-xs flex items-center justify-center space-x-2"
+                  className="w-full bg-[#111111] border border-[#D4AF37]/40 text-[#D4AF37] py-3.5 rounded-xl hover:bg-[#D4AF37] hover:text-black transition-all font-bold uppercase tracking-wider text-xs flex items-center justify-center space-x-2 shadow-md active:scale-95"
                 >
                   <RefreshCw size={16} className={isTestingEmail ? 'animate-spin' : ''} />
                   <span>{isTestingEmail ? 'Sending Test OTP...' : 'Send Test OTP to Gmail Inbox'}</span>
@@ -367,7 +367,7 @@ export default function Security() {
                 <button 
                   type="button"
                   onClick={() => setIsUnlocked(false)}
-                  className="w-full bg-red-500/10 border border-red-500/20 text-red-400 py-2.5 rounded-xl hover:bg-red-500 hover:text-white transition-all font-bold uppercase tracking-wider text-xs"
+                  className="w-full bg-red-500/10 border border-red-500/20 text-red-400 py-2.5 rounded-xl hover:bg-red-500 hover:text-white transition-all font-bold uppercase tracking-wider text-xs active:scale-95"
                 >
                   Lock Security Vault
                 </button>

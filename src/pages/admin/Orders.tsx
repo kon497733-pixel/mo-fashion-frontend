@@ -35,7 +35,7 @@ export default function Orders() {
     return isNaN(num) ? 0 : num;
   };
 
-  // 🛡️ সেফ জেসন পার্সার (ডাবল স্ট্রিং বা করাপ্ট ডাটা ব্লক করার জন্য)
+  // 🛡️ সেফ জেসন পার্সার
   const safeJsonParse = (input: any): any => {
     if (!input) return null;
     if (typeof input === 'object') return input;
@@ -121,7 +121,6 @@ export default function Orders() {
       if (parsed && typeof parsed === 'object') return [parsed];
     }
 
-    // 🚀 স্মার্ট ফলব্যাক (যদি কোনো কারণে ডাটা মিসিং থাকে)
     const totalAmt = parseSafeNumber(order.total || order.orderSummary?.total);
     const subAmt = parseSafeNumber(order.subtotal || order.orderSummary?.subtotal) || totalAmt;
 
@@ -203,7 +202,6 @@ export default function Orders() {
           }
         });
         const merged = Array.from(map.values());
-        // Date sort descending
         merged.sort((a: any, b: any) => {
           const dateA = new Date(a.createdAt || a.created_at || a.date).getTime() || 0;
           const dateB = new Date(b.createdAt || b.created_at || b.date).getTime() || 0;
@@ -226,7 +224,6 @@ export default function Orders() {
   useEffect(() => {
     fetchOrders();
 
-    // 🚀 রিয়েল-টাইম সাবস্ক্রিপশন চ্যানেল (যাতে নতুন অর্ডার আসা মাত্রই এডমিন প্যানেল আপডেট হয়)
     const channel = supabase
       .channel('public:orders:admin:live:v40')
       .on(
@@ -383,23 +380,23 @@ export default function Orders() {
         <title>Admin - Orders Management | MO FASHION</title>
       </Helmet>
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-2xl border border-[#D4AF37]/20 backdrop-blur-md shadow-xl transition-all duration-300 hover:border-[#D4AF37]/40">
+      {/* 🌟 3D GLASSMORPHIC HEADER SECTION */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-3xl border border-[#D4AF37]/30 backdrop-blur-md shadow-2xl transition-all duration-300 hover:border-[#D4AF37]/50 glass-3d-panel">
         <div>
           <div className="flex items-center space-x-3">
-            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase flex items-center">
+            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#D4AF37] uppercase flex items-center tracking-wide gold-text-glow">
               <Package className="mr-3 text-[#D4AF37] animate-bounce" size={28} /> Orders Management
             </h1>
             <span className="bg-[#D4AF37]/10 text-[#D4AF37] text-xs font-bold px-3.5 py-1.5 rounded-full border border-[#D4AF37]/30 flex items-center animate-pulse shadow-sm">
               Worldwide Cloud Live Sync
             </span>
           </div>
-          <p className="text-sm text-gray-400 mt-1">Track, process, and manage live customer orders from Supabase Cloud DB</p>
+          <p className="text-sm text-gray-400 mt-1 font-light">Track, process, and manage live customer orders from Supabase Cloud DB</p>
         </div>
 
         <button 
           onClick={() => fetchOrders(false)}
-          className="p-2.5 bg-[#111111] hover:bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 rounded-xl transition-all duration-200 active:scale-95 flex items-center space-x-2 font-bold text-xs"
+          className="p-2.5 bg-[#111111] hover:bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 rounded-xl transition-all duration-200 active:scale-95 flex items-center space-x-2 font-bold text-xs shadow-md"
           title="Refresh Live Orders"
         >
           <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -407,10 +404,10 @@ export default function Orders() {
         </button>
       </div>
 
-      {/* Bulk Action Bar */}
+      {/* 🚀 3D Bulk Action Bar */}
       {selectedIds.length > 0 && (
-        <div className="bg-[#D4AF37]/10 border border-[#D4AF37]/40 p-4 rounded-2xl mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md">
-          <div className="flex items-center space-x-2 text-[#D4AF37] font-bold text-sm">
+        <div className="bg-[#D4AF37]/10 border border-[#D4AF37]/40 p-4 rounded-2xl mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md glass-3d-panel">
+          <div className="flex items-center space-x-2 text-[#D4AF37] font-bold text-sm gold-text-glow">
             <CheckSquare size={18} />
             <span>{selectedIds.length} Order(s) Selected</span>
           </div>
@@ -433,7 +430,7 @@ export default function Orders() {
 
             <button
               onClick={handleBulkDelete}
-              className="bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/40 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center space-x-1.5 active:scale-95"
+              className="bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/40 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center space-x-1.5 active:scale-95 shadow-md"
             >
               <Trash2 size={14} />
               <span>Delete Selected</span>
@@ -443,14 +440,14 @@ export default function Orders() {
       )}
 
       {/* Search and Filters */}
-      <div className="bg-[#1A1A1A] p-4 rounded-xl border border-[#D4AF37]/20 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center shadow-lg transition-all duration-300">
+      <div className="bg-[#1A1A1A] p-4 rounded-2xl border border-[#D4AF37]/20 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center shadow-lg transition-all duration-300 glass-3d-panel">
         <div className="relative w-full max-w-md">
           <input 
             type="text" 
             placeholder="Search by Order ID, Name or Phone..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl px-10 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]/40 placeholder-gray-500 transition-all duration-200 text-sm"
+            className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl px-10 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]/40 placeholder-gray-500 transition-all duration-200 text-sm shadow-inner"
           />
           <Search className="absolute left-3.5 top-3 text-gray-500" size={18} />
         </div>
@@ -458,7 +455,7 @@ export default function Orders() {
           <select 
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] cursor-pointer text-sm transition-colors font-semibold"
+            className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] cursor-pointer text-xs transition-colors font-bold text-[#D4AF37]"
           >
             <option value="All">All Status ({validOrders.length})</option>
             <option value="Pending">Pending</option>
@@ -470,8 +467,8 @@ export default function Orders() {
         </div>
       </div>
 
-      {/* Orders Table */}
-      <div className="bg-[#1A1A1A] rounded-2xl border border-[#D4AF37]/20 overflow-hidden shadow-2xl transition-all duration-300">
+      {/* 📦 3D Orders Table */}
+      <div className="bg-[#1A1A1A] rounded-3xl border border-[#D4AF37]/20 overflow-hidden shadow-2xl transition-all duration-300 glass-3d-panel">
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left whitespace-nowrap">
             <thead className="bg-[#111111] border-b border-[#D4AF37]/20">
@@ -528,12 +525,12 @@ export default function Orders() {
                           className="w-4 h-4 accent-[#D4AF37] rounded cursor-pointer"
                         />
                       </td>
-                      <td className="px-6 py-4 font-bold text-[#D4AF37] uppercase tracking-wider group-hover:scale-105 transition-transform">
+                      <td className="px-6 py-4 font-bold text-[#D4AF37] uppercase tracking-wider group-hover:scale-105 transition-transform gold-text-glow">
                         {String(displayOrderId).startsWith('#') ? displayOrderId : `#ORD-${String(displayOrderId).slice(-6).toUpperCase()}`}
                       </td>
                       <td className="px-6 py-4">
                         <p className="font-bold text-white group-hover:text-[#D4AF37] transition-colors">{customerName}</p>
-                        <p className="text-xs text-gray-400">{customerPhone ? `Phone: ${customerPhone}` : customerEmail}</p>
+                        <p className="text-xs text-gray-400 font-light">{customerPhone ? `Phone: ${customerPhone}` : customerEmail}</p>
                       </td>
                       <td className="px-6 py-4 text-gray-400 text-xs font-medium">{formattedDateTime}</td>
                       <td className="px-6 py-4 font-bold text-[#D4AF37]">৳{orderTotalNum.toFixed(2)}</td>
@@ -590,15 +587,15 @@ export default function Orders() {
         </div>
       </div>
 
-      {/* 🪟 View Full Order Details Modal */}
+      {/* 🪟 3D GLASSMORPHIC INVOICE/ORDER DETAILS DRAWER MODAL */}
       {isModalOpen && selectedOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md transition-opacity duration-300">
-          <div className="bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200 glass-3d-panel">
             
             <div className="flex justify-between items-center p-6 border-b border-[#D4AF37]/20 bg-[#111111]">
               <div className="flex items-center space-x-2">
                 <Sparkles className="text-[#D4AF37]" size={22} />
-                <h2 className="text-xl font-serif font-bold text-[#D4AF37] uppercase tracking-wide">
+                <h2 className="text-xl font-serif font-bold text-[#D4AF37] uppercase tracking-wide gold-text-glow">
                   Order Details: {selectedOrder.orderId || selectedOrder.id || selectedOrder._id}
                 </h2>
               </div>
@@ -613,9 +610,9 @@ export default function Orders() {
             <div className="overflow-y-auto custom-scrollbar p-6 space-y-6">
               
               {/* 1. Customer Bio & Shipping Info */}
-              <div className="bg-[#111111] p-5 rounded-2xl border border-gray-800/80 shadow-md space-y-3">
+              <div className="bg-[#111111] p-5 rounded-2xl border border-gray-800/80 shadow-md space-y-3 glass-3d-card">
                 <div className="flex justify-between items-center border-b border-gray-800 pb-2">
-                  <h3 className="text-[#D4AF37] font-bold uppercase tracking-wider text-xs flex items-center">
+                  <h3 className="text-[#D4AF37] font-bold uppercase tracking-wider text-xs flex items-center gold-text-glow">
                     <User size={16} className="mr-2 text-[#D4AF37]" /> Customer Bio & Shipping Info
                   </h3>
                   <span className="text-[10px] text-gray-400 flex items-center font-bold">
@@ -660,7 +657,7 @@ export default function Orders() {
                     <MapPin size={20} className="text-[#D4AF37] mt-0.5 shrink-0" />
                     <div>
                       <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Full Delivery Address</p>
-                      <p className="text-white font-medium text-sm mt-1 leading-relaxed">
+                      <p className="text-white font-medium text-sm mt-1 leading-relaxed font-light">
                         {getFullAddress(selectedOrder)}
                       </p>
                     </div>
@@ -669,14 +666,14 @@ export default function Orders() {
               </div>
 
               {/* 2. Itemized Products List */}
-              <div className="bg-[#111111] p-5 rounded-2xl border border-gray-800/80 shadow-md">
-                <h3 className="text-[#D4AF37] font-bold mb-4 uppercase tracking-wider text-xs border-b border-gray-800 pb-2 flex items-center">
+              <div className="bg-[#111111] p-5 rounded-2xl border border-gray-800/80 shadow-md glass-3d-card">
+                <h3 className="text-[#D4AF37] font-bold mb-4 uppercase tracking-wider text-xs border-b border-gray-800 pb-2 flex items-center gold-text-glow">
                   <Package size={16} className="mr-2 text-[#D4AF37]" /> Ordered Items ({getOrderItemsList(selectedOrder).length})
                 </h3>
                 
                 <div className="space-y-3.5 mb-4 max-h-60 overflow-y-auto custom-scrollbar pr-1">
                   {getOrderItemsList(selectedOrder).length === 0 ? (
-                    <p className="text-gray-500 text-xs italic text-center py-4">No product item details recorded.</p>
+                    <p className="text-gray-500 text-xs italic text-center py-4 font-light">No product item details recorded.</p>
                   ) : (
                     getOrderItemsList(selectedOrder).map((item: any, idx: number) => {
                       const itemImg = getItemImage(item);
@@ -697,7 +694,6 @@ export default function Orders() {
                             <div>
                               <p className="font-bold text-white text-sm line-clamp-1">{item.name || 'Ordered Fashion Item'}</p>
                               
-                              {/* 🚀 কাস্টমারের নির্বাচিত সকল রিয়েল ভ্যারিয়েন্ট: Qty, Size, Color, Material, Options */}
                               <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[11px] text-gray-400">
                                 <span className="text-[#D4AF37] font-bold bg-[#D4AF37]/10 px-2 py-0.5 rounded border border-[#D4AF37]/20 shadow-sm">
                                   Qty: x{itemQty}
@@ -785,7 +781,7 @@ export default function Orders() {
 
                       <div className="flex justify-between items-center pt-2.5 border-t border-gray-800 text-sm">
                         <span className="text-white font-bold">Grand Total Amount:</span>
-                        <span className="text-[#D4AF37] font-bold text-2xl tracking-wide">
+                        <span className="text-[#D4AF37] font-bold text-2xl tracking-wide gold-text-glow">
                           ৳{totalNum.toFixed(2)}
                         </span>
                       </div>
@@ -795,7 +791,7 @@ export default function Orders() {
               </div>
 
               {/* Status Update Actions */}
-              <div className="bg-[#111111] p-5 rounded-2xl border border-gray-800">
+              <div className="bg-[#111111] p-5 rounded-2xl border border-gray-800 glass-3d-card">
                 <label className="block text-gray-300 text-xs uppercase tracking-wider mb-3 font-bold">Update Order Status Live</label>
                 <div className="flex flex-wrap gap-2.5">
                   {['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'].map((status) => (

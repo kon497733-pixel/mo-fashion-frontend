@@ -188,7 +188,7 @@ export default function CheckoutPage() {
     setSelectedThana(thanas[0] || '');
   };
 
-  // 🚀 রিয়েল-টাইম সাবটোটাল ও প্রোডাক্ট আইটেম প্রস্তুতি (A to Z Details Preserved)
+  // 🚀 রিয়েল-টাইম সাবটোটাল ও প্রোডাক্ট আইটেম প্রস্তুতি
   let subtotalAfterProductDiscount = 0;
   const formattedOrderItems = items.map((cartItem: any) => {
     const dbProduct = dbProducts.find(p => String(p.id || p._id) === String(cartItem.id));
@@ -302,7 +302,6 @@ export default function CheckoutPage() {
     const fullLocationStr = `${selectedThana}, ${selectedDistrict}, ${selectedDivision}`;
     const fullAddressStr = `${formData.address.trim()}, ${fullLocationStr}${formData.postalCode.trim() ? ' - ' + formData.postalCode.trim() : ''}, Bangladesh`;
 
-    // 🚀 CLEAN OBJECT PAYLOAD (supabase.ts will stringify it safely)
     const orderPayload = {
       id: orderId,
       _id: orderId,
@@ -358,7 +357,6 @@ export default function CheckoutPage() {
       joinDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
     };
 
-    // 🚀 ১. ক্লাউড ডাটাবেসে অর্ডার সেভ (STRICT CLOUD ERROR CATCHING)
     try {
       await saveSupabaseOrder(orderPayload);
     } catch (orderErr: any) {
@@ -368,14 +366,12 @@ export default function CheckoutPage() {
       return; 
     }
 
-    // 🚀 ২. ক্লাউড ডাটাবেসে কাস্টমার সেভ
     try {
       await saveSupabaseCustomer(customerPayload);
     } catch (custErr) {
       console.warn("Cloud Customer Save Warning:", custErr);
     }
 
-    // 🚀 ৩. প্রোডাক্ট স্টক আপডেট
     try {
       const savedProducts = JSON.parse(localStorage.getItem('mo_fashion_products') || '[]');
       for (const p of savedProducts) {
@@ -398,7 +394,6 @@ export default function CheckoutPage() {
       }
     } catch (prodErr) {}
 
-    // 🚀 ৪. কুপন ইউজ কাউন্ট আপডেট
     try {
       if (appliedCoupon) {
         const allCoupons = await getSupabaseCoupons();
@@ -413,7 +408,6 @@ export default function CheckoutPage() {
 
     try { await notifyNewOrder(orderId, customerName, totalAmount); } catch(e){}
 
-    // ইভেন্ট ব্রডকাস্ট
     window.dispatchEvent(new Event('storage'));
     window.dispatchEvent(new Event('orderUpdated'));
 
@@ -438,7 +432,7 @@ export default function CheckoutPage() {
 
         {/* Header */}
         <div className="flex items-center justify-between mb-8 pb-4 border-b border-[#D4AF37]/20">
-          <h1 className="text-3xl md:text-4xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase flex items-center">
+          <h1 className="text-3xl md:text-4xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase flex items-center gold-text-glow">
             <Sparkles className="mr-3 text-[#D4AF37]" size={32} />
             CHECKOUT
           </h1>
@@ -447,14 +441,14 @@ export default function CheckoutPage() {
           </span>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-10">
+        <div className="flex flex-col lg:flex-row gap-10 [perspective:1200px]">
           
           {/* Shipping Form */}
           <div className="lg:w-2/3 space-y-8">
-            <div className="bg-[#1A1A1A] border border-[#D4AF37]/20 rounded-2xl p-6 sm:p-8 shadow-xl hover:border-[#D4AF37]/40 transition-all duration-300 backdrop-blur-md">
-              <div className="flex justify-between items-center border-b border-[#D4AF37]/10 pb-4 mb-6">
+            <div className="bg-[#1A1A1A] border border-[#D4AF37]/30 rounded-3xl p-6 sm:p-8 shadow-2xl hover:border-[#D4AF37]/50 transition-all duration-300 backdrop-blur-md glass-3d-panel">
+              <div className="flex justify-between items-center border-b border-[#D4AF37]/20 pb-4 mb-6">
                 <h2 className="text-xl font-bold text-[#D4AF37] uppercase tracking-wide">Shipping Details</h2>
-                <span className="text-xs bg-[#D4AF37]/10 text-[#D4AF37] px-3 py-1 rounded-full border border-[#D4AF37]/20 flex items-center">
+                <span className="text-xs bg-[#D4AF37]/10 text-[#D4AF37] px-3 py-1 rounded-full border border-[#D4AF37]/30 flex items-center">
                   <MapPin size={12} className="mr-1" /> Delivery within Bangladesh only
                 </span>
               </div>
@@ -488,7 +482,7 @@ export default function CheckoutPage() {
                 </div>
 
                 {/* ৩-ধাপের এলাকা ড্রপডাউন */}
-                <div className="bg-[#111111] p-4 rounded-xl border border-gray-800 space-y-4">
+                <div className="bg-[#111111] p-4 rounded-2xl border border-gray-800 space-y-4">
                   <span className="text-xs text-[#D4AF37] font-bold uppercase tracking-wider flex items-center">
                     <Navigation size={14} className="mr-1.5" /> Select Delivery Location Hierarchy
                   </span>
@@ -548,24 +542,24 @@ export default function CheckoutPage() {
               </form>
             </div>
 
-            {/* Payment Methods */}
-            <div className="bg-[#1A1A1A] border border-[#D4AF37]/20 rounded-2xl p-6 sm:p-8 shadow-xl hover:border-[#D4AF37]/40 transition-all duration-300">
-              <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase tracking-wide border-b border-[#D4AF37]/10 pb-4">Select Payment Method</h2>
+            {/* 🚀 3D GLASSMORPHIC PAYMENT METHODS CARD */}
+            <div className="bg-[#1A1A1A] border border-[#D4AF37]/30 rounded-3xl p-6 sm:p-8 shadow-2xl hover:border-[#D4AF37]/50 transition-all duration-300 glass-3d-panel">
+              <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase tracking-wide border-b border-[#D4AF37]/20 pb-4 gold-text-glow">Select Payment Method</h2>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {safeSettings?.enableBkash !== false && (
-                  <button type="button" onClick={() => setPaymentMethod('bKash')} className={`flex flex-col items-center justify-center p-5 rounded-xl border transition-all duration-300 active:scale-95 ${paymentMethod === 'bKash' ? 'border-[#D4AF37] bg-[#D4AF37]/10 text-[#D4AF37] shadow-lg shadow-[#D4AF37]/10 scale-[1.02]' : 'border-gray-800 text-gray-400 hover:border-[#D4AF37]/50 hover:text-white bg-[#111111]'}`}>
+                  <button type="button" onClick={() => setPaymentMethod('bKash')} className={`flex flex-col items-center justify-center p-5 rounded-2xl border transition-all duration-300 active:scale-95 glass-3d-card ${paymentMethod === 'bKash' ? 'border-[#D4AF37] bg-[#D4AF37]/15 text-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.3)] scale-[1.03]' : 'border-gray-800 text-gray-400 hover:border-[#D4AF37]/50 hover:text-white bg-[#111111]'}`}>
                     <Smartphone size={32} className="mb-2.5 text-[#D4AF37]" />
                     <span className="font-bold text-sm">bKash</span>
                   </button>
                 )}
                 {safeSettings?.enableCard !== false && (
-                  <button type="button" onClick={() => setPaymentMethod('Card')} className={`flex flex-col items-center justify-center p-5 rounded-xl border transition-all duration-300 active:scale-95 ${paymentMethod === 'Card' ? 'border-[#D4AF37] bg-[#D4AF37]/10 text-[#D4AF37] shadow-lg shadow-[#D4AF37]/10 scale-[1.02]' : 'border-gray-800 text-gray-400 hover:border-[#D4AF37]/50 hover:text-white bg-[#111111]'}`}>
+                  <button type="button" onClick={() => setPaymentMethod('Card')} className={`flex flex-col items-center justify-center p-5 rounded-2xl border transition-all duration-300 active:scale-95 glass-3d-card ${paymentMethod === 'Card' ? 'border-[#D4AF37] bg-[#D4AF37]/15 text-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.3)] scale-[1.03]' : 'border-gray-800 text-gray-400 hover:border-[#D4AF37]/50 hover:text-white bg-[#111111]'}`}>
                     <CreditCard size={32} className="mb-2.5 text-[#D4AF37]" />
                     <span className="font-bold text-sm">Credit/Debit Card</span>
                   </button>
                 )}
                 {safeSettings?.enableCOD !== false && (
-                  <button type="button" onClick={() => setPaymentMethod('Cash on Delivery')} className={`flex flex-col items-center justify-center p-5 rounded-xl border transition-all duration-300 active:scale-95 ${paymentMethod === 'Cash on Delivery' ? 'border-[#D4AF37] bg-[#D4AF37]/10 text-[#D4AF37] shadow-lg shadow-[#D4AF37]/10 scale-[1.02]' : 'border-gray-800 text-gray-400 hover:border-[#D4AF37]/50 hover:text-white bg-[#111111]'}`}>
+                  <button type="button" onClick={() => setPaymentMethod('Cash on Delivery')} className={`flex flex-col items-center justify-center p-5 rounded-2xl border transition-all duration-300 active:scale-95 glass-3d-card ${paymentMethod === 'Cash on Delivery' ? 'border-[#D4AF37] bg-[#D4AF37]/15 text-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.3)] scale-[1.03]' : 'border-gray-800 text-gray-400 hover:border-[#D4AF37]/50 hover:text-white bg-[#111111]'}`}>
                     <Banknote size={32} className="mb-2.5 text-[#D4AF37]" />
                     <span className="font-bold text-sm text-center leading-tight">Cash on Delivery</span>
                   </button>
@@ -574,10 +568,10 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* Right Side: Order Summary */}
+          {/* Right Side: 3D Order Summary */}
           <div className="lg:w-1/3">
-            <div className="bg-[#1A1A1A] border border-[#D4AF37]/20 rounded-2xl p-6 sm:p-8 shadow-2xl sticky top-24 transition-all duration-300">
-              <h2 className="text-xl font-serif font-bold text-[#D4AF37] mb-6 uppercase tracking-wide border-b border-[#D4AF37]/10 pb-4">Order Summary</h2>
+            <div className="bg-[#1A1A1A] border border-[#D4AF37]/30 rounded-3xl p-6 sm:p-8 shadow-2xl sticky top-24 transition-all duration-300 glass-3d-panel">
+              <h2 className="text-xl font-serif font-bold text-[#D4AF37] mb-6 uppercase tracking-wide border-b border-[#D4AF37]/20 pb-4 gold-text-glow">Order Summary</h2>
               
               <div className="space-y-4 mb-6 max-h-60 overflow-y-auto custom-scrollbar pr-2">
                 {items.map((item: any, index: number) => (
@@ -598,7 +592,7 @@ export default function CheckoutPage() {
                 ))}
               </div>
 
-              <div className="border-t border-gray-800 pt-4 space-y-3 mb-6 text-sm">
+              <div className="border-t border-gray-800 pt-4 space-y-3 mb-6 text-sm font-medium">
                 <div className="flex justify-between">
                   <span className="text-gray-400">Subtotal</span>
                   <span className="text-white font-medium">{safeSettings?.currency || '৳'} {subtotalAfterProductDiscount.toFixed(2)}</span>
@@ -623,16 +617,17 @@ export default function CheckoutPage() {
 
               <div className="border-t border-[#D4AF37]/30 pt-5 mb-8 flex justify-between items-end">
                 <span className="font-serif font-bold text-lg text-white">Grand Total</span>
-                <span className="font-bold text-3xl text-[#D4AF37] tracking-wider animate-pulse">
+                <span className="font-black text-3xl text-[#D4AF37] tracking-wider gold-text-glow">
                   {safeSettings?.currency || '৳'} {totalAmount.toFixed(2)}
                 </span>
               </div>
 
+              {/* 🚀 3D METALLIC PLACE ORDER BUTTON */}
               <button 
                 type="submit"
                 form="checkout-form"
                 disabled={isSubmitting || items.length === 0 || !paymentMethod}
-                className="w-full bg-gradient-to-r from-[#D4AF37] to-[#f3e5ab] text-black py-4 rounded-xl hover:scale-105 transition-all duration-300 font-bold uppercase tracking-wider text-sm shadow-xl shadow-[#D4AF37]/20 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                className="w-full bg-gradient-to-r from-[#D4AF37] via-[#f3e5ab] to-[#aa8c2c] text-black py-4 rounded-xl hover:brightness-110 transition-all duration-300 font-extrabold uppercase tracking-wider text-sm shadow-[0_10px_30px_rgba(212,175,55,0.35)] hover:shadow-[0_15px_45px_rgba(212,175,55,0.6)] disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transform hover:-translate-y-1"
               >
                 {isSubmitting ? 'Processing Securely...' : 'Place Order Now'}
               </button>

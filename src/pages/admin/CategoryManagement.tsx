@@ -214,7 +214,6 @@ export default function CategoryManagement() {
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           }
           
-          // 🚀 WebP/JPEG Base64 Data URL (Works on Mobile, iPhone, Desktop everywhere!)
           const universalImageDataUrl = canvas.toDataURL('image/jpeg', 0.85); 
           const updatedImages = [...formData.images];
           updatedImages[uploadIndex] = universalImageDataUrl;
@@ -339,8 +338,8 @@ export default function CategoryManagement() {
     <div className="text-white pb-10 transition-all duration-300">
       <Helmet><title>Admin - Categories | {settings?.storeName || 'MO FASHION'}</title></Helmet>
       
-      {/* 🚀 Header Section */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-2xl border border-[#D4AF37]/20 backdrop-blur-md shadow-xl transition-all duration-300 hover:border-[#D4AF37]/40">
+      {/* 🚀 3D GLASSMORPHIC HEADER SECTION */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-3xl border border-[#D4AF37]/30 backdrop-blur-md shadow-2xl transition-all duration-300 hover:border-[#D4AF37]/50 glass-3d-panel">
         <div>
           <div className="flex items-center space-x-3">
             {storeLogoImage ? (
@@ -348,20 +347,20 @@ export default function CategoryManagement() {
             ) : (
               <Folder className="mr-1 text-[#D4AF37]" size={28} />
             )}
-            <h1 className="text-2xl font-serif font-bold text-[#D4AF37] uppercase flex items-center tracking-wide">
+            <h1 className="text-2xl font-serif font-bold text-[#D4AF37] uppercase flex items-center tracking-wide gold-text-glow">
               Category Management
             </h1>
             <span className="bg-[#D4AF37]/10 text-[#D4AF37] text-xs font-bold px-3 py-1 rounded-full border border-[#D4AF37]/30 flex items-center">
               Total: {categories.length} Categories
             </span>
           </div>
-          <p className="text-sm text-gray-400 mt-1">Manage live categories and auto-sliding slideshow images (All-Device Sync)</p>
+          <p className="text-sm text-gray-400 mt-1 font-light">Manage live categories and auto-sliding slideshow images (All-Device Sync)</p>
         </div>
 
         <div className="flex items-center space-x-3">
           <button 
             onClick={fetchCategoriesAndProducts}
-            className="p-2.5 bg-[#111111] hover:bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 rounded-xl transition-all duration-200 active:scale-95"
+            className="p-2.5 bg-[#111111] hover:bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 rounded-xl transition-all duration-200 active:scale-95 shadow-md"
             title="Refresh Categories"
           >
             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
@@ -369,15 +368,15 @@ export default function CategoryManagement() {
 
           <button 
             onClick={handleOpenAdd} 
-            className="bg-gradient-to-r from-[#D4AF37] to-[#f3e5ab] text-black px-5 py-2.5 rounded-xl hover:scale-105 font-bold flex items-center space-x-2 shadow-lg shadow-[#D4AF37]/20 transition-all duration-300 active:scale-95"
+            className="bg-gradient-to-r from-[#D4AF37] via-[#f3e5ab] to-[#aa8c2c] text-black px-5 py-2.5 rounded-xl hover:scale-105 font-bold flex items-center space-x-2 shadow-lg shadow-[#D4AF37]/20 transition-all duration-300 active:scale-95 text-xs uppercase tracking-wider"
           >
             <Plus size={20} /> <span>Add Category</span>
           </button>
         </div>
       </div>
 
-      {/* 📦 Categories Grid */}
-      <div className="bg-[#1A1A1A] rounded-2xl border border-[#D4AF37]/20 p-6 shadow-2xl transition-all duration-300">
+      {/* 📦 3D Categories Grid */}
+      <div className="bg-[#1A1A1A] rounded-3xl border border-[#D4AF37]/20 p-6 shadow-2xl transition-all duration-300 glass-3d-panel">
         {loading && categories.length === 0 ? (
           <div className="text-center text-[#D4AF37] animate-pulse py-16 flex flex-col items-center justify-center space-y-3">
             <RefreshCw className="animate-spin w-8 h-8 text-[#D4AF37]" />
@@ -390,7 +389,7 @@ export default function CategoryManagement() {
             <p className="text-xs text-gray-600">Please click "Add Category" to create your first item.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 [perspective:1200px]">
             {categories.map((cat: any) => {
               const catProducts = products.filter(p => 
                 String(p.category || '').trim().toLowerCase() === String(cat.name || '').trim().toLowerCase()
@@ -403,7 +402,7 @@ export default function CategoryManagement() {
               return (
                 <div 
                   key={cat._id || cat.id} 
-                  className="group bg-[#111111] p-4 rounded-2xl border border-gray-800 hover:border-[#D4AF37]/40 space-y-3 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden"
+                  className="group bg-[#111111] p-4 rounded-2xl border border-gray-800 hover:border-[#D4AF37]/50 space-y-3 shadow-md hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden glass-3d-card"
                 >
                   <div className="space-y-3">
                     
@@ -425,7 +424,7 @@ export default function CategoryManagement() {
                       </span>
                     </div>
 
-                    <p className="text-xs text-gray-400 line-clamp-2">{cat.description || 'No description provided'}</p>
+                    <p className="text-xs text-gray-400 line-clamp-2 font-light">{cat.description || 'No description provided'}</p>
                   </div>
 
                   <div className="flex justify-end space-x-2 pt-3 border-t border-gray-800/80 mt-2">
@@ -458,18 +457,18 @@ export default function CategoryManagement() {
         )}
       </div>
 
-      {/* 🚀 ক্যাটাগরির প্রোডাক্ট দেখার মোডাল */}
+      {/* 🚀 3D GLASSMORPHIC CATEGORY PRODUCT VIEW MODAL */}
       {isViewModalOpen && selectedCategoryForView && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md transition-opacity duration-300">
-          <div className="bg-[#1A1A1A] border border-[#D4AF37]/30 rounded-2xl w-full max-w-3xl p-6 space-y-4 shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-3xl w-full max-w-3xl p-6 space-y-4 shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200 glass-3d-panel">
             
             <div className="flex justify-between items-center border-b border-gray-800 pb-3">
               <div>
-                <h2 className="text-xl font-serif font-bold text-[#D4AF37] uppercase flex items-center">
+                <h2 className="text-xl font-serif font-bold text-[#D4AF37] uppercase flex items-center gold-text-glow">
                   <Package className="mr-2 text-[#D4AF37]" size={22} />
                   Products in "{selectedCategoryForView.name}"
                 </h2>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-gray-400 mt-1 font-light">
                   Total Items: {products.filter(p => String(p.category || '').trim().toLowerCase() === String(selectedCategoryForView.name || '').trim().toLowerCase()).length}
                 </p>
               </div>
@@ -500,7 +499,7 @@ export default function CategoryManagement() {
                     const isOutOfStock = stockVal <= 0 || p.status === 'Out of Stock';
 
                     return (
-                      <div key={p._id || idx} className="bg-[#111111] p-4 rounded-xl border border-gray-800 hover:border-gray-700 transition-colors flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <div key={p._id || idx} className="bg-[#111111] p-4 rounded-2xl border border-gray-800 hover:border-gray-700 transition-colors flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div className="flex items-center space-x-3">
                           <div className="w-12 h-12 bg-[#1A1A1A] rounded-xl overflow-hidden border border-gray-700 shrink-0 flex items-center justify-center">
                             {p.images && p.images[0] && !p.images[0].includes('No+Image') ? (
@@ -534,7 +533,7 @@ export default function CategoryManagement() {
                         </div>
 
                         <div className="flex items-center space-x-3 text-xs w-full sm:w-auto justify-between sm:justify-end">
-                          <div className="bg-[#1A1A1A] px-3 py-1.5 rounded-lg border border-gray-800 text-gray-300">
+                          <div className="bg-[#1A1A1A] px-3 py-1.5 rounded-lg border border-gray-800 text-gray-300 font-medium">
                             Sold: <span className="text-[#D4AF37] font-bold">{soldVal}</span>
                           </div>
 
@@ -566,12 +565,12 @@ export default function CategoryManagement() {
         </div>
       )}
 
-      {/* 🪟 Add / Edit Modal */}
+      {/* 🪟 3D ADD / EDIT MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md transition-opacity duration-300">
-          <div className="bg-[#1A1A1A] border border-[#D4AF37]/30 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-3xl w-full max-w-lg p-6 space-y-4 shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200 glass-3d-panel">
             <div className="flex justify-between items-center border-b border-gray-800 pb-3">
-              <h2 className="text-xl font-bold text-[#D4AF37] uppercase flex items-center">
+              <h2 className="text-xl font-bold text-[#D4AF37] uppercase flex items-center gold-text-glow">
                 {modalMode === 'add' ? 'ADD CATEGORY' : 'EDIT CATEGORY'}
               </h2>
               <button 

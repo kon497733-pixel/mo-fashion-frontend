@@ -21,6 +21,7 @@ export default function CartPage() {
   const [couponInput, setCouponInput] = useState('');
   const [deliveryArea, setDeliveryArea] = useState<'inside' | 'outside'>('inside');
   const [isVerifyingCoupon, setIsVerifyingCoupon] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   // 🚀 লাইভ ক্লাউড সেটিং ডাটা
   const [siteSettings, setSiteSettings] = useState<any>({
@@ -36,7 +37,11 @@ export default function CartPage() {
     if (typeof removeCoupon === 'function') removeCoupon();
 
     const loadCartData = async () => {
-      // ১. লোকাল স্টোরেজ থেকে ইনস্ট্যান্ট ডাটা (০ms লোড)
+      try {
+        const savedUser = localStorage.getItem('currentUser');
+        if (savedUser) setCurrentUser(JSON.parse(savedUser));
+      } catch (e) {}
+
       const savedProducts = localStorage.getItem('mo_fashion_products');
       if (savedProducts) {
         try { setDbProducts(JSON.parse(savedProducts)); } catch (e) {}
@@ -47,7 +52,6 @@ export default function CartPage() {
         try { setSiteSettings(JSON.parse(savedSettings)); } catch (e) {}
       }
 
-      // ২. সরাসরি Supabase Cloud Database থেকে রিয়েল-টাইম সিঙ্ক
       try {
         const [cloudProds, cloudSet] = await Promise.all([
           getSupabaseProducts().catch(() => []),
@@ -94,7 +98,6 @@ export default function CartPage() {
         cartStore.removeItem(id, size, color);
       }
 
-      // লোকাল স্টোরেজ সিঙ্ক
       const savedCart = localStorage.getItem('mo_fashion_cart_storage');
       if (savedCart) {
         const parsed = JSON.parse(savedCart);
@@ -171,7 +174,7 @@ export default function CartPage() {
   
   const grandTotal = Math.max(0, subtotalAfterCoupon + shipping + taxAmount);
 
-  // 🚀 ২. সরাসরি Supabase Cloud Database থেকে কুপন ভ্যালিডেট ও স্ট্রিক্ট তারিখ চেকিং (Strict Expiry Date Validation)
+  // 🚀 ২. কুপন ভ্যালিডেট ও তারিখ চেকিং
   const handleApplyCoupon = async () => {
     if (!couponInput.trim()) {
       toast.error('Please enter a coupon code!');
@@ -183,7 +186,6 @@ export default function CartPage() {
     const toastId = toast.loading("Verifying coupon code live on Cloud Database...");
 
     try {
-      // 🚀 ১. সরাসরি Supabase Cloud coupons টেবিল থেকে লাইভ কুয়েরি
       const { data: cloudCoupons, error } = await supabase
         .from('coupons')
         .select('*');
@@ -195,7 +197,6 @@ export default function CartPage() {
       }
 
       if (Array.isArray(allCoupons) && allCoupons.length > 0) {
-        // ১. কুপন কোড ম্যাচিং
         const validCoupon = allCoupons.find((c: any) => 
           c.code && String(c.code).trim().toUpperCase() === inputCode
         );
@@ -205,13 +206,11 @@ export default function CartPage() {
           return;
         }
 
-        // ২. স্ট্যাটাস চেক
         if (validCoupon.status !== 'Active') {
           toast.error(`Coupon "${inputCode}" is currently inactive or disabled!`, { id: toastId });
           return;
         }
 
-        // ৩. ইউসেজ লিমিট চেক
         const usedCount = Number(validCoupon.used) || 0;
         const limitCount = Number(validCoupon.usageLimit) || 100;
         if (usedCount >= limitCount) {
@@ -219,10 +218,9 @@ export default function CartPage() {
           return;
         }
 
-        // 🚀 ৪. স্ট্রিক্ট তারিখ অনুযায়ী মেয়াদী চেকিং (Strict Expiry Date Checking)
         if (validCoupon.expiryDate) {
           const expiry = new Date(validCoupon.expiryDate);
-          expiry.setHours(23, 59, 59, 999); // দিনের শেষ সেকেন্ড পর্যন্ত মেয়াদ গণ্য হবে
+          expiry.setHours(23, 59, 59, 999);
           const now = new Date();
 
           if (expiry.getTime() < now.getTime()) {
@@ -232,7 +230,6 @@ export default function CartPage() {
           }
         }
 
-        // 🚀 ৫. কুপন সফলভাবে কার্টে অ্যাপ্লাই করা
         const discountValue = Number(validCoupon.discountValue || validCoupon.discount || 0);
         const discountType = (validCoupon.type || 'percentage').toLowerCase() === 'percentage' ? 'percentage' : 'fixed';
 
@@ -267,31 +264,39 @@ export default function CartPage() {
 
       <div className="container mx-auto px-4 max-w-7xl">
         <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-800">
-          <h1 className="text-3xl md:text-4xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase">
+          <h1 className="text-3xl md:text-4xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase gold-text-glow">
             Your Shopping Cart
           </h1>
-          <div className="hidden sm:flex items-center space-x-2 text-gray-500 text-sm">
+          <div className="hidden sm:flex items-center space-x-2 text-gray-500 text-sm font-semibold">
             <ShieldCheck size={18} className="text-green-500" />
             <span>Secure 256-bit SSL Checkout</span>
           </div>
         </div>
 
+        {/* 🚀 3D GLASSMORPHIC GUEST CART WARNING BANNER */}
+        {!currentUser && enrichedCartItems.length > 0 && (
+          <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-2xl mb-6 text-center text-xs sm:text-sm text-amber-200 glass-3d-panel">
+            💡 You are currently shopping as a <strong className="text-[#D4AF37]">Guest</strong>. Your cart items are temporarily saved on this device. To save them permanently and access them from any device, please{' '}
+            <Link to="/login" className="underline font-bold text-[#D4AF37] hover:text-white">Sign In</Link> now.
+          </div>
+        )}
+
         {enrichedCartItems.length === 0 ? (
-          <div className="text-center py-24 bg-[#111111] rounded-2xl border border-gray-800 shadow-2xl max-w-3xl mx-auto relative overflow-hidden group">
+          <div className="text-center py-24 bg-[#111111] rounded-3xl border border-gray-800 shadow-2xl max-w-3xl mx-auto relative overflow-hidden group glass-3d-panel">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent opacity-50 group-hover:opacity-100 transition-opacity"></div>
             <ShoppingBag size={80} className="mx-auto text-gray-700 mb-6 group-hover:text-[#D4AF37] transition-colors duration-500" strokeWidth={1} />
-            <h2 className="text-3xl font-serif font-bold text-white mb-4">Your MO Cart is Empty</h2>
-            <p className="text-gray-400 mb-10 text-lg">Indulge in luxury. Discover our premium collections and elevate your style.</p>
+            <h2 className="text-3xl font-serif font-bold text-white mb-4 gold-text-glow">Your MO Cart is Empty</h2>
+            <p className="text-gray-400 mb-10 text-lg font-light">Indulge in luxury. Discover our premium collections and elevate your style.</p>
             <Link to="/categories" className="inline-block bg-transparent border-2 border-[#D4AF37] text-[#D4AF37] px-10 py-3.5 rounded-full hover:bg-[#D4AF37] hover:text-black transition-all duration-300 font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(212,175,55,0.15)] hover:shadow-[0_0_30px_rgba(212,175,55,0.4)]">
               Explore Collections
             </Link>
           </div>
         ) : (
-          <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+          <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 [perspective:1200px]">
             
             <div className="lg:w-2/3 space-y-6">
               
-              <div className="bg-[#111111] border border-gray-800 rounded-xl p-4 flex items-center justify-around text-xs sm:text-sm text-gray-400">
+              <div className="bg-[#111111] border border-gray-800 rounded-2xl p-4 flex items-center justify-around text-xs sm:text-sm text-gray-400 glass-3d-panel">
                 <span className="flex items-center"><RotateCcw size={16} className="mr-2 text-[#D4AF37]"/> Free 14-Day Returns</span>
                 <span className="flex items-center"><Truck size={16} className="mr-2 text-[#D4AF37]"/> Fast Delivery</span>
                 <span className="flex items-center"><ShieldCheck size={16} className="mr-2 text-[#D4AF37]"/> 100% Authentic</span>
@@ -299,7 +304,7 @@ export default function CartPage() {
 
               <div className="space-y-4">
                 {enrichedCartItems.map((item: any, index: number) => (
-                  <div key={index} className="bg-[#111111] p-5 sm:p-6 rounded-2xl border border-gray-800 flex flex-col sm:flex-row items-center gap-6 shadow-xl hover:border-[#D4AF37]/40 transition-colors relative overflow-hidden group">
+                  <div key={index} className="bg-[#111111] p-5 sm:p-6 rounded-2xl border border-gray-800 flex flex-col sm:flex-row items-center gap-6 shadow-xl hover:border-[#D4AF37]/50 transition-all relative overflow-hidden group glass-3d-card">
                     
                     <div className="absolute inset-0 bg-gradient-to-r from-[#D4AF37]/0 via-[#D4AF37]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
 
@@ -336,7 +341,6 @@ export default function CartPage() {
                       </div>
                     </div>
 
-                    {/* 🚀 ফিক্সড রাইট সাইড কন্ট্রোলস (ডিলিট বাটন ও ফিক্সড সাবটোটাল লেআউট) */}
                     <div className="flex sm:flex-col items-center justify-between w-full sm:w-auto sm:items-end gap-3 py-1 z-10 shrink-0">
                       <button 
                         onClick={() => safeRemove(item.id, item.size, item.color)}
@@ -364,7 +368,6 @@ export default function CartPage() {
                         </button>
                       </div>
 
-                      {/* 🚀 ফিক্সড সাবটোটাল ডিসপ্লে */}
                       <div className="text-right hidden sm:block mt-1">
                         <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Subtotal</p>
                         <p className="font-bold text-[#D4AF37] tracking-wide text-sm">{siteSettings.currency} {item.itemSubtotal.toFixed(2)}</p>
@@ -376,11 +379,12 @@ export default function CartPage() {
               </div>
             </div>
 
+            {/* 🚀 3D GLASSMORPHIC ORDER SUMMARY CARD */}
             <div className="lg:w-1/3">
-              <div className="bg-[#111111] p-8 rounded-2xl border border-[#D4AF37]/30 sticky top-24 shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+              <div className="bg-[#111111] p-8 rounded-3xl border border-[#D4AF37]/30 sticky top-24 shadow-[0_20px_50px_rgba(0,0,0,0.9)] glass-3d-panel">
                 
-                <h2 className="text-xl font-serif font-bold text-white mb-6 uppercase tracking-widest flex items-center">
-                  <span className="w-1.5 h-6 bg-[#D4AF37] mr-3 rounded-full"></span>
+                <h2 className="text-xl font-serif font-bold text-white mb-6 uppercase tracking-widest flex items-center gold-text-glow">
+                  <span className="w-1.5 h-6 bg-[#D4AF37] mr-3 rounded-full shadow-[0_0_10px_#D4AF37]"></span>
                   Order Summary
                 </h2>
                 
@@ -403,14 +407,14 @@ export default function CartPage() {
                     </p>
                     <div className="space-y-3">
                       <label className="flex items-center space-x-3 cursor-pointer group">
-                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${deliveryArea === 'inside' ? 'border-[#D4AF37] bg-[#D4AF37]/20' : 'border-gray-600'}`}>
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${deliveryArea === 'inside' ? 'border-[#D4AF37] bg-[#D4AF37]/20 shadow-[0_0_8px_#D4AF37]' : 'border-gray-600'}`}>
                           {deliveryArea === 'inside' && <div className="w-2 h-2 rounded-full bg-[#D4AF37]"></div>}
                         </div>
                         <input type="radio" name="area" value="inside" className="hidden" checked={deliveryArea === 'inside'} onChange={() => setDeliveryArea('inside')} />
                         <span className="text-gray-300 group-hover:text-white transition-colors">Inside Chattogram ({siteSettings.currency} {shippingInside})</span>
                       </label>
                       <label className="flex items-center space-x-3 cursor-pointer group">
-                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${deliveryArea === 'outside' ? 'border-[#D4AF37] bg-[#D4AF37]/20' : 'border-gray-600'}`}>
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${deliveryArea === 'outside' ? 'border-[#D4AF37] bg-[#D4AF37]/20 shadow-[0_0_8px_#D4AF37]' : 'border-gray-600'}`}>
                           {deliveryArea === 'outside' && <div className="w-2 h-2 rounded-full bg-[#D4AF37]"></div>}
                         </div>
                         <input type="radio" name="area" value="outside" className="hidden" checked={deliveryArea === 'outside'} onChange={() => setDeliveryArea('outside')} />
@@ -445,7 +449,7 @@ export default function CartPage() {
                 <div className="border-t-2 border-gray-800 pt-5 mb-8">
                   <div className="flex justify-between items-end">
                     <span className="font-serif font-bold text-lg text-gray-300 uppercase tracking-widest">Total Amount</span>
-                    <span className="font-black text-3xl text-[#D4AF37]">{siteSettings.currency} {grandTotal.toFixed(2)}</span>
+                    <span className="font-black text-3xl text-[#D4AF37] gold-text-glow">{siteSettings.currency} {grandTotal.toFixed(2)}</span>
                   </div>
                   <p className="text-[10px] text-right text-gray-500 mt-1">Inclusive of all taxes & fees</p>
                 </div>
@@ -475,12 +479,18 @@ export default function CartPage() {
                   </div>
                 )}
 
+                {/* 🚀 3D METALLIC CHECKOUT BUTTON WITH LOGIN GATE */}
                 <button 
                   onClick={() => {
+                    if (!currentUser) {
+                      toast.error("Please sign in to proceed to checkout! 🔐");
+                      navigate('/login', { state: { from: { pathname: '/checkout' } } });
+                      return;
+                    }
                     localStorage.setItem('mo_selected_delivery_area', deliveryArea);
                     navigate('/checkout');
                   }}
-                  className="w-full bg-[#D4AF37] text-black h-14 rounded-lg flex items-center justify-center space-x-3 hover:bg-white transition-all duration-300 font-black uppercase tracking-widest shadow-[0_10px_30px_rgba(212,175,55,0.3)] hover:shadow-[0_15px_40px_rgba(212,175,55,0.5)] transform hover:-translate-y-1"
+                  className="w-full bg-gradient-to-r from-[#D4AF37] via-[#f3e5ab] to-[#aa8c2c] text-black h-14 rounded-xl flex items-center justify-center space-x-3 hover:brightness-110 transition-all duration-300 font-black uppercase tracking-widest shadow-[0_10px_30px_rgba(212,175,55,0.35)] hover:shadow-[0_15px_45px_rgba(212,175,55,0.6)] transform hover:-translate-y-1 active:scale-95"
                 >
                   <span>Proceed to Checkout</span>
                   <ArrowRight size={20} strokeWidth={3} />

@@ -33,7 +33,7 @@ export default function Coupons() {
     status: 'Active'
   });
 
-  // 🚀 ১. সরাসরি Supabase Cloud Database থেকে রিয়েল-টাইম কুপন ডাটা ফেচ করা (All-Device Live)
+  // 🚀 ১. সরাসরি Supabase Cloud Database থেকে রিয়েল-টাইম কুপন ডাটা ফেচ করা
   const fetchCoupons = async () => {
     setLoading(true);
 
@@ -70,7 +70,6 @@ export default function Coupons() {
   useEffect(() => {
     fetchCoupons();
 
-    // 🚀 ২. Supabase Realtime WebSocket Listener (সব ডিভাইসে ১ সেকেন্ডে সিঙ্ক হবে)
     const channel = supabase
       .channel('public:coupons:admin:live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'coupons' }, () => {
@@ -132,7 +131,7 @@ export default function Coupons() {
     setIsModalOpen(true);
   };
 
-  // 🚀 ৩. কুপন ডিলিট লজিক (Supabase Cloud থেকে পার্মানেন্ট মুছে ফেলা)
+  // 🚀 ৩. কুপন ডিলিট লজিক
   const handleDelete = async (id: string, code: string) => {
     const targetId = String(id);
     if (window.confirm(`Are you sure you want to delete the coupon "${code}"?`)) {
@@ -156,7 +155,7 @@ export default function Coupons() {
     toast.success(`Coupon code "${code}" copied to clipboard! 📋`);
   };
 
-  // 🚀 ৪. সেভ কুপন লজিক (Supabase Cloud Direct Save for All Devices)
+  // 🚀 ৪. সেভ কুপন লজিক
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -188,7 +187,6 @@ export default function Coupons() {
       status: formData.status
     };
 
-    // ১. লোকাল স্টোরেজে সেভ
     const currentList = JSON.parse(localStorage.getItem('mo_fashion_coupons') || '[]');
     let updatedList = [];
     if (modalMode === 'add') {
@@ -204,7 +202,6 @@ export default function Coupons() {
     setIsModalOpen(false);
     const toastId = toast.loading("Saving coupon LIVE to Supabase Cloud Database...");
 
-    // ২. ক্লাউড ডাটাবেসে সেভ (All-Device Live Broadcast)
     try {
       await saveSupabaseCoupon(couponPayload);
 
@@ -230,24 +227,24 @@ export default function Coupons() {
         <title>Admin - Coupons Management | MO FASHION</title>
       </Helmet>
 
-      {/* 🚀 Header Section */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-2xl border border-[#D4AF37]/20 backdrop-blur-md shadow-xl transition-all duration-300 hover:border-[#D4AF37]/40">
+      {/* 🌟 3D GLASSMORPHIC HEADER SECTION */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-3xl border border-[#D4AF37]/30 backdrop-blur-md shadow-2xl transition-all duration-300 hover:border-[#D4AF37]/50 glass-3d-panel">
         <div>
           <div className="flex items-center space-x-3">
-            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase flex items-center">
+            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase flex items-center gold-text-glow">
               <Ticket className="mr-3 text-[#D4AF37] animate-bounce" size={28} /> Coupons Management
             </h1>
             <span className="bg-[#D4AF37]/10 text-[#D4AF37] text-xs font-bold px-3 py-1 rounded-full border border-[#D4AF37]/30 flex items-center">
               Total: {coupons.length} Active Codes
             </span>
           </div>
-          <p className="text-sm text-gray-400 mt-1">Create, track, and manage promotional discount codes (Supabase Cloud Live)</p>
+          <p className="text-sm text-gray-400 mt-1 font-light">Create, track, and manage promotional discount codes (Supabase Cloud Live)</p>
         </div>
 
         <div className="flex items-center space-x-3 w-full sm:w-auto">
           <button 
             onClick={fetchCoupons}
-            className="p-2.5 bg-[#111111] hover:bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 rounded-xl transition-all duration-200 active:scale-95"
+            className="p-2.5 bg-[#111111] hover:bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 rounded-xl transition-all duration-200 active:scale-95 shadow-md"
             title="Refresh Coupons"
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -255,7 +252,7 @@ export default function Coupons() {
 
           <button 
             onClick={handleOpenAdd}
-            className="bg-gradient-to-r from-[#D4AF37] to-[#f3e5ab] text-black px-6 py-2.5 rounded-xl hover:scale-105 transition-all duration-300 font-bold flex items-center space-x-2 shadow-lg shadow-[#D4AF37]/20 w-full sm:w-auto justify-center active:scale-95"
+            className="bg-gradient-to-r from-[#D4AF37] via-[#f3e5ab] to-[#aa8c2c] text-black px-6 py-2.5 rounded-xl hover:scale-105 transition-all duration-300 font-bold flex items-center space-x-2 shadow-lg shadow-[#D4AF37]/20 w-full sm:w-auto justify-center active:scale-95 text-xs uppercase tracking-wider"
           >
             <Plus size={20} />
             <span>Create New Coupon</span>
@@ -263,22 +260,22 @@ export default function Coupons() {
         </div>
       </div>
 
-      {/* 🔎 Search Section */}
-      <div className="bg-[#1A1A1A] p-4 rounded-xl border border-[#D4AF37]/20 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center shadow-lg transition-all duration-300">
+      {/* 🔎 3D Search Section */}
+      <div className="bg-[#1A1A1A] p-4 rounded-2xl border border-[#D4AF37]/20 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center shadow-lg transition-all duration-300 glass-3d-panel">
         <div className="relative w-full max-w-md">
           <input 
             type="text" 
             placeholder="Search coupons by code..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#111111] border border-gray-700 rounded-xl px-10 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]/40 placeholder-gray-500 transition-all duration-200 uppercase tracking-wider text-sm font-semibold"
+            className="w-full bg-[#111111] border border-gray-700 rounded-xl px-10 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]/40 placeholder-gray-500 transition-all duration-200 uppercase tracking-wider text-sm font-semibold shadow-inner"
           />
           <Search className="absolute left-3.5 top-3 text-gray-500" size={18} />
         </div>
       </div>
 
-      {/* 📦 Coupons Table */}
-      <div className="bg-[#1A1A1A] rounded-2xl border border-[#D4AF37]/20 overflow-hidden shadow-2xl transition-all duration-300">
+      {/* 📦 3D Coupons Table */}
+      <div className="bg-[#1A1A1A] rounded-3xl border border-[#D4AF37]/20 overflow-hidden shadow-2xl transition-all duration-300 glass-3d-panel">
         <div className="overflow-x-auto custom-scrollbar">
           {loading && coupons.length === 0 ? (
             <div className="text-center py-20 text-[#D4AF37] animate-pulse flex flex-col items-center justify-center space-y-3">
@@ -310,7 +307,7 @@ export default function Coupons() {
                             <Ticket size={18} />
                           </div>
                           <div className="flex items-center space-x-2">
-                            <span className="font-bold text-white tracking-widest text-lg group-hover:text-[#D4AF37] transition-colors">{coupon.code}</span>
+                            <span className="font-bold text-white tracking-widest text-lg group-hover:text-[#D4AF37] transition-colors gold-text-glow">{coupon.code}</span>
                             <button 
                               onClick={() => handleCopyCode(coupon.code)}
                               className="text-gray-500 hover:text-[#D4AF37] p-1.5 hover:bg-[#D4AF37]/10 rounded-lg transition-all active:scale-95"
@@ -322,7 +319,7 @@ export default function Coupons() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="font-bold text-[#D4AF37] text-lg">
+                        <span className="font-bold text-[#D4AF37] text-lg gold-text-glow">
                           {coupon.type === 'percentage' ? `${coupon.discountValue}% OFF` : `৳${coupon.discountValue} OFF`}
                         </span>
                       </td>
@@ -341,7 +338,7 @@ export default function Coupons() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-gray-300 font-medium text-sm">
+                        <span className="text-gray-300 font-light text-sm">
                           {coupon.expiryDate ? new Date(coupon.expiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No Expiry'}
                         </span>
                       </td>
@@ -393,13 +390,13 @@ export default function Coupons() {
         </div>
       </div>
 
-      {/* 🪟 Add/Edit Coupon Modal */}
+      {/* 🪟 3D Add/Edit Coupon Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md transition-opacity duration-300">
-          <div className="bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-[#1A1A1A] border border-[#D4AF37]/40 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 glass-3d-panel">
             
             <div className="flex justify-between items-center p-6 border-b border-[#D4AF37]/20 bg-[#111111]">
-              <h2 className="text-xl font-serif font-bold text-[#D4AF37] uppercase flex items-center tracking-wide">
+              <h2 className="text-xl font-serif font-bold text-[#D4AF37] uppercase flex items-center tracking-wide gold-text-glow">
                 <Sparkles className="mr-2 text-[#D4AF37]" size={22} />
                 {modalMode === 'add' ? 'Create New Coupon' : 'Edit Coupon Settings'}
               </h2>
@@ -443,7 +440,7 @@ export default function Coupons() {
                   <select 
                     value={formData.type}
                     onChange={(e) => setFormData({...formData, type: e.target.value as 'percentage' | 'fixed'})}
-                    className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#D4AF37] transition-colors cursor-pointer text-sm font-semibold"
+                    className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#D4AF37] transition-colors cursor-pointer text-xs font-bold text-[#D4AF37]"
                   >
                     <option value="percentage">Percentage (%)</option>
                     <option value="fixed">Fixed Amount (৳)</option>
@@ -488,7 +485,7 @@ export default function Coupons() {
                     required
                     value={formData.expiryDate}
                     onChange={(e) => setFormData({...formData, expiryDate: e.target.value})}
-                    className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#D4AF37] transition-colors text-sm"
+                    className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#D4AF37] transition-colors text-sm font-bold text-gray-300"
                     style={{ colorScheme: 'dark' }}
                   />
                 </div>
@@ -499,7 +496,7 @@ export default function Coupons() {
                 <select 
                   value={formData.status}
                   onChange={(e) => setFormData({...formData, status: e.target.value})}
-                  className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#D4AF37] transition-colors cursor-pointer font-bold text-sm"
+                  className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#D4AF37] transition-colors cursor-pointer font-bold text-xs"
                 >
                   <option value="Active" className="text-green-500">🟢 Active</option>
                   <option value="Disabled" className="text-yellow-500">🟡 Disabled</option>
@@ -513,7 +510,7 @@ export default function Coupons() {
               <button 
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="px-6 py-2.5 rounded-xl border border-gray-700 text-gray-300 hover:bg-[#1A1A1A] hover:text-white transition-colors font-medium text-sm"
+                className="px-6 py-2.5 rounded-xl border border-gray-700 text-gray-300 hover:bg-[#1A1A1A] hover:text-white transition-colors font-medium text-xs uppercase"
               >
                 Cancel
               </button>
@@ -521,7 +518,7 @@ export default function Coupons() {
                 form="couponForm"
                 type="submit"
                 disabled={isSaving}
-                className="bg-[#D4AF37] text-black px-8 py-2.5 rounded-xl hover:bg-white transition-all duration-300 font-bold shadow-lg shadow-[#D4AF37]/20 uppercase tracking-wider text-sm active:scale-95 disabled:opacity-50"
+                className="bg-[#D4AF37] text-black px-8 py-2.5 rounded-xl hover:bg-white transition-all duration-300 font-extrabold shadow-lg shadow-[#D4AF37]/20 uppercase tracking-wider text-xs active:scale-95 disabled:opacity-50"
               >
                 {isSaving ? 'Saving to Cloud...' : (modalMode === 'add' ? 'Save Coupon & Push Live' : 'Update Coupon')}
               </button>

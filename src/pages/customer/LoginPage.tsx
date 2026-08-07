@@ -4,13 +4,13 @@ import { Helmet } from 'react-helmet-async';
 import { 
   Mail, Lock, Eye, EyeOff, X, Shield, 
   RefreshCw, CheckCircle2, Clock, Save, 
-  ArrowRight
+  ArrowRight, Sparkles
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/useAuthStore'; 
 import { getSupabaseSettings, saveSupabaseCustomer } from '../../lib/supabase';
 
-// 🚀 আপনার নিজস্ব গুগল ক্লায়েন্ট আইডি সরাসরি এখানে বসানো হয়েছে
+// 🚀 আপনার নিজস্ব গুগল ক্লায়েন্ট আইডি
 const REAL_GOOGLE_CLIENT_ID = '277902353308-thjup151jhqo126u5an7orc2lg4o9b1i.apps.googleusercontent.com';
 
 // 🚀 গুগল JWT টোকেন ডিকোড করার হেল্পার
@@ -60,7 +60,10 @@ export default function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSendingCode, setIsSendingCode] = useState(false);
 
-  // 🚀 স্টোর সেটিংস লোড করা
+  // 🚀 প্রথমবার ভিজিটে কাস্টমার মোডাল গেট স্টেট
+  const [showFirstVisitModal, setShowFirstVisitModal] = useState(false);
+
+  // 🚀 স্টোর সেটিংস লোড করা এবং ফার্স্ট ভিজিট প্রম্পট চেক
   useEffect(() => {
     const loadSettings = async () => {
       const cached = localStorage.getItem('mo_fashion_settings');
@@ -74,6 +77,15 @@ export default function LoginPage() {
     };
 
     loadSettings();
+
+    const currentUser = localStorage.getItem('currentUser');
+    const dismissed = localStorage.getItem('mo_dismissed_first_visit');
+    if (!currentUser && !dismissed) {
+      const timer = setTimeout(() => {
+        setShowFirstVisitModal(true);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   // 🚀 গুগলের অফিশিয়াল Identity Services SDK ইনিশিয়ালাইজেশন
@@ -171,26 +183,26 @@ export default function LoginPage() {
     }));
   };
 
-  // ১. ইমেইল ও পাসওয়ার্ড দিয়ে সাধারণ কাস্টমার লগইন
+  // ১. ইমেইল বা মোবাইল নম্বর এবং পাসওয়ার্ড দিয়ে সাধারণ কাস্টমার লগইন
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.email.trim() || !formData.password.trim()) {
-      toast.error("Please fill in both Email Address and Password!");
+      toast.error("Please enter Email/Mobile Number and Password!");
       return;
     }
 
     setIsSubmitting(true);
     const toastId = toast.loading("Authenticating customer account...");
 
-    const loginEmail = formData.email.trim().toLowerCase();
+    const loginInput = formData.email.trim().toLowerCase();
 
     try {
       const response = await fetch('http://localhost:5000/api/users/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: loginEmail,
+          email: loginInput,
           password: formData.password
         })
       });
@@ -222,13 +234,13 @@ export default function LoginPage() {
         setTimeout(() => navigate(from, { replace: true }), 1000);
         return;
       } else {
-        toast.error(data.message || "Invalid email or password!", { id: toastId });
+        toast.error(data.message || "Invalid credentials!", { id: toastId });
       }
 
     } catch (error) {
       const savedUsers = JSON.parse(localStorage.getItem('mo_fashion_users') || '[]');
       
-      if (loginEmail === 'admin@mofashion.com' && formData.password === 'admin123') {
+      if (loginInput === 'admin@mofashion.com' && formData.password === 'admin123') {
         const adminUser = {
           uid: 'ADMIN-001', id: 'ADMIN-001', _id: 'ADMIN-001',
           name: 'Admin User', displayName: 'Admin User',
@@ -242,15 +254,18 @@ export default function LoginPage() {
         return;
       }
 
-      const existingUser = savedUsers.find((user: any) => user.email?.toLowerCase().trim() === loginEmail);
+      const existingUser = savedUsers.find((user: any) => 
+        user.email?.toLowerCase().trim() === loginInput || 
+        user.phone?.trim() === loginInput
+      );
 
       if (!existingUser) {
-        toast.error("No account found with this email! Please register first.", { id: toastId });
+        toast.error("No account found with this Email/Mobile Number!", { id: toastId });
         return;
       }
 
       if (existingUser.password !== formData.password) {
-        toast.error("Incorrect email or password!", { id: toastId });
+        toast.error("Incorrect password!", { id: toastId });
         return;
       }
 
@@ -266,6 +281,7 @@ export default function LoginPage() {
         displayName: existingUser.displayName || existingUser.name || 'User',
         name: existingUser.displayName || existingUser.name || 'User',
         email: existingUser.email,
+        phone: existingUser.phone || '',
         role: existingUser.role || 'customer',
         photoURL: existingUser.photoURL || null
       };
@@ -385,6 +401,11 @@ export default function LoginPage() {
     setConfirmPassword('');
   };
 
+  const dismissFirstVisitModal = () => {
+    localStorage.setItem('mo_dismissed_first_visit', 'true');
+    setShowFirstVisitModal(false);
+  };
+
   const storeLogoImage = settings?.logoUrl || settings?.logo || settings?.storeLogo || '';
   const storeBrandTitle = settings?.storeName || 'MO FASHION';
 
@@ -400,12 +421,12 @@ export default function LoginPage() {
       </div>
 
       {/* 🚀 3D GLASSMORPHIC LOGIN CARD */}
-      <div className="w-full max-w-md bg-[#1A1A1A]/95 backdrop-blur-xl border border-[#D4AF37]/40 rounded-3xl p-8 shadow-[0_0_50px_rgba(0,0,0,0.8)] relative z-10 animate-in fade-in zoom-in-95 duration-500">
+      <div className="w-full max-w-md bg-[#1A1A1A]/95 backdrop-blur-2xl border border-[#D4AF37]/40 rounded-3xl p-8 shadow-[0_20px_50px_rgba(0,0,0,0.9),0_0_30px_rgba(212,175,55,0.15)] relative z-10 animate-in fade-in zoom-in-95 duration-500 glass-3d-panel">
         
         {/* Header & Website Store Logo */}
         <div className="text-center mb-8">
           
-          {/* 🚀 DYNAMIC STORE LOGO */}
+          {/* 🚀 DYNAMIC 3D STORE LOGO */}
           <div className="w-16 h-16 bg-[#111111] border border-[#D4AF37] rounded-2xl flex items-center justify-center mx-auto mb-4 text-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.3)] overflow-hidden">
             {storeLogoImage ? (
               <img src={storeLogoImage} alt={storeBrandTitle} className="w-full h-full object-cover" />
@@ -416,27 +437,27 @@ export default function LoginPage() {
             )}
           </div>
 
-          <h1 className="text-3xl font-serif font-bold text-[#D4AF37] mb-2 tracking-wider uppercase">
+          <h1 className="text-3xl font-serif font-bold text-[#D4AF37] mb-2 tracking-wider uppercase gold-text-glow">
             Welcome Back
           </h1>
           <p className="text-gray-400 text-xs">Sign in to your account to continue</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Email Input */}
+          {/* Email / Mobile Input */}
           <div>
-            <label className="block text-gray-300 text-xs font-bold mb-2 uppercase tracking-wider">Email Address</label>
+            <label className="block text-gray-300 text-xs font-bold mb-2 uppercase tracking-wider">Email or Mobile Number</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                 <Mail size={18} className="text-[#D4AF37]" />
               </div>
               <input
-                type="email"
+                type="text"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
                 className="w-full bg-[#111111] border border-gray-700 rounded-xl pl-10 pr-4 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-all text-sm"
-                placeholder="e.g. mail@example.com"
+                placeholder="e.g. mail@example.com or 017xxxxxxxx"
                 required
               />
             </div>
@@ -484,7 +505,7 @@ export default function LoginPage() {
             <button 
               type="button"
               onClick={() => {
-                setResetEmailInput(formData.email || '');
+                setResetEmailInput(formData.email.includes('@') ? formData.email : '');
                 setForgotStep('email_input');
                 setShowForgotModal(true);
               }}
@@ -498,7 +519,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-[#D4AF37] text-black font-bold uppercase tracking-wider py-3.5 rounded-xl hover:bg-white transition-all duration-300 shadow-[0_0_20px_rgba(212,175,55,0.3)] active:scale-95 disabled:opacity-50 flex items-center justify-center space-x-2"
+            className="w-full bg-gradient-to-r from-[#D4AF37] via-[#f3e5ab] to-[#aa8c2c] text-black font-extrabold uppercase tracking-wider py-3.5 rounded-xl hover:brightness-110 transition-all duration-300 shadow-[0_10px_25px_rgba(212,175,55,0.35)] active:scale-95 disabled:opacity-50 flex items-center justify-center space-x-2"
           >
             <span>{isSubmitting ? 'Signing In...' : 'Sign In'}</span>
             <ArrowRight size={16} />
@@ -529,10 +550,50 @@ export default function LoginPage() {
         </p>
       </div>
 
+      {/* 🚀 প্রথমবার ভিজিটে কাস্টমার ৩ডি ওয়েলকাম মোডাল গেট */}
+      {showFirstVisitModal && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-[#1A1A1A] text-white rounded-3xl w-full max-w-md p-6 sm:p-8 border border-[#D4AF37]/40 shadow-2xl relative text-center space-y-6 glass-3d-panel">
+            <button 
+              onClick={dismissFirstVisitModal}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-800"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="w-16 h-16 bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/30 rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-[#D4AF37]/10 animate-bounce">
+              <Sparkles size={32} />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="font-serif font-bold text-xl text-[#D4AF37] uppercase tracking-wide gold-text-glow">Exclusive Member Access</h3>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Sign in to your account to synchronize your luxury shopping cart, track premium orders, and access members-only collections.
+              </p>
+            </div>
+
+            <div className="space-y-3 pt-2">
+              <button 
+                onClick={() => setShowFirstVisitModal(false)}
+                className="w-full bg-[#D4AF37] text-black py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-white transition-all"
+              >
+                Sign In Now
+              </button>
+              <button 
+                onClick={dismissFirstVisitModal}
+                className="w-full bg-transparent text-gray-500 hover:text-white py-2 text-xs font-bold uppercase tracking-widest transition-colors"
+              >
+                Continue as Guest
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 🚀 ইমেইল OTP পাসওয়ার্ড রিসেট মোডাল */}
       {showForgotModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-[#1A1A1A] text-white rounded-3xl w-full max-w-md p-6 sm:p-8 border border-[#D4AF37]/40 shadow-2xl relative text-left">
+          <div className="bg-[#1A1A1A] text-white rounded-3xl w-full max-w-md p-6 sm:p-8 border border-[#D4AF37]/40 shadow-2xl relative text-left glass-3d-panel">
             <button 
               onClick={() => setShowForgotModal(false)}
               className="absolute top-4 right-4 text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-800"

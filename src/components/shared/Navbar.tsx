@@ -49,7 +49,6 @@ export default function Navbar() {
   // 🚀 অল-ডিভাইস রিয়েল-টাইম সেটিংস সিঙ্ক (Supabase Realtime Channel)
   useEffect(() => {
     const loadNavbarData = async () => {
-      // Check customer user auth
       try {
         const user = localStorage.getItem('mo_fashion_customer_user') || localStorage.getItem('mo_fashion_user');
         setIsCustomerLoggedIn(!!user);
@@ -126,7 +125,7 @@ export default function Navbar() {
     };
   }, []);
 
-  // 🚀 ১ম অক্ষর (1st Letter) টাইপ করা মাত্রই [Product] ও [Category] লাইভ সার্চ
+  // 🚀 ১ম অক্ষর টাইপ করা মাত্রই [Product] ও [Category] লাইভ সার্চ
   const searchResults = (() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return [];
@@ -177,7 +176,6 @@ export default function Navbar() {
     setSearchQueryOpen(false);
   };
 
-  // 🚀 কাস্টমারদের জন্য সাইন-ইন/প্রোফাইল নেভিগেশন লিংক
   const customerProfilePath = isCustomerLoggedIn ? '/profile' : '/login';
 
   const bottomNavItems = [
@@ -194,10 +192,10 @@ export default function Navbar() {
 
   return (
     <>
-      {/* 🚀 PURE CSS 3D LUXURY TOP NAVBAR */}
+      {/* 🚀 3D GLASSMORPHIC TOP NAVBAR */}
       <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         isScrolled 
-          ? 'bg-[#111111]/90 backdrop-blur-xl border-b border-[#D4AF37]/30 shadow-[0_10px_30px_rgba(0,0,0,0.85)] py-3' 
+          ? 'bg-[#111111]/90 backdrop-blur-2xl border-b border-[#D4AF37]/40 shadow-[0_15px_40px_rgba(0,0,0,0.9)] py-3 glass-3d-panel' 
           : 'bg-gradient-to-b from-[#111111] via-[#111111]/80 to-transparent py-5'
       }`}>
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl flex items-center justify-between">
@@ -261,7 +259,7 @@ export default function Navbar() {
               }`} />
             </Link>
 
-            {/* CATEGORIES WITH MOUSE HOVER DROPDOWN BOX */}
+            {/* CATEGORIES WITH 3D HOVER DROPDOWN BOX */}
             <div 
               className="relative py-2"
               onMouseEnter={() => setIsCategoriesHovered(true)}
@@ -277,9 +275,9 @@ export default function Navbar() {
                 <ChevronDown size={14} className={`transition-transform duration-300 ${isCategoriesHovered ? 'rotate-180 text-[#D4AF37]' : ''}`} />
               </Link>
 
-              {/* HOVER DROPDOWN BOX */}
+              {/* 3D HOVER DROPDOWN BOX */}
               {isCategoriesHovered && categoriesList.length > 0 && (
-                <div className="absolute top-full left-0 w-64 bg-[#1A1A1A]/95 border border-[#D4AF37]/40 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.9),0_0_20px_rgba(212,175,55,0.2)] p-3 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-200 z-50">
+                <div className="absolute top-full left-0 w-64 bg-[#1A1A1A]/95 border border-[#D4AF37]/40 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.95),0_0_25px_rgba(212,175,55,0.25)] p-3 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-200 z-50 glass-3d-panel">
                   <div className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest px-3 py-1.5 border-b border-gray-800 mb-1 flex justify-between items-center">
                     <span>EXPLORE CATEGORIES</span>
                     <Folder size={12} />
@@ -319,7 +317,7 @@ export default function Navbar() {
           {/* 🚀 SEARCH & ACTIONS */}
           <div className="flex items-center space-x-3 sm:space-x-4">
             
-            {/* SEARCH INPUT BAR WITH LIVE AUTOCOMPLETE DROPDOWN */}
+            {/* SEARCH INPUT BAR WITH 3D AUTOCOMPLETE DROPDOWN */}
             <div ref={searchContainerRef} className="relative hidden sm:block w-44 md:w-64">
               <div className="relative">
                 <input
@@ -338,9 +336,9 @@ export default function Navbar() {
                 <Search className="absolute left-3 top-2.5 text-gray-400" size={14} />
               </div>
 
-              {/* LIVE SEARCH AUTOCOMPLETE DROPDOWN BOX */}
+              {/* 3D SEARCH DROPDOWN BOX */}
               {searchDropdownOpen && searchResults.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-[#1A1A1A]/95 border border-[#D4AF37]/40 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.95)] p-2 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-200 z-[100] max-h-80 overflow-y-auto custom-scrollbar">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-[#1A1A1A]/95 border border-[#D4AF37]/40 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.95)] p-2 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-200 z-[100] max-h-80 overflow-y-auto custom-scrollbar glass-3d-panel">
                   <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 py-1 border-b border-gray-800 mb-1 flex justify-between items-center">
                     <span>SUGGESTED RESULTS</span>
                     <span className="text-[#D4AF37]">{searchResults.length} Matches</span>
@@ -400,7 +398,7 @@ export default function Navbar() {
               )}
             </Link>
 
-            {/* 🚀 CLASSIC USER PROFILE ICON (FIXED: ALWAYS USER ICON FOR CUSTOMERS) */}
+            {/* USER PROFILE ICON */}
             <Link
               to={customerProfilePath}
               className={`hidden sm:flex p-2.5 rounded-xl border transition-all duration-300 active:scale-95 shadow-md ${

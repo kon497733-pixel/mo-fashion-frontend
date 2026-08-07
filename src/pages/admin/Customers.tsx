@@ -17,7 +17,45 @@ export default function Customers() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // 🚀 ১. সরাসরি Supabase Cloud Database থেকে রিয়েল-টাইম কাস্টমার ও তাদের অর্ডার ডাটা ফেচিং (All-Device Sync)
+  // 🚀 ডুপ্লিকেট কাস্টমার মার্জ করার মার্জিং লজিক (Deduplication Logic)
+  const mergeDuplicateCustomers = (list: any[]) => {
+    if (!Array.isArray(list)) return [];
+    const mergedMap = new Map<string, any>();
+
+    list.forEach((cust: any) => {
+      const email = (cust.email || '').toLowerCase().trim();
+      const phone = (cust.phone || '').trim();
+
+      const hasEmail = email && email !== 'n/a' && email !== 'undefined' && email !== 'null';
+      const hasPhone = phone && phone !== 'n/a' && phone !== 'undefined' && phone !== 'null';
+
+      let key = '';
+      if (hasEmail) {
+        key = `email-${email}`;
+      } else if (hasPhone) {
+        key = `phone-${phone}`;
+      } else {
+        key = `id-${cust.id || cust._id}`;
+      }
+
+      if (mergedMap.has(key)) {
+        const existing = mergedMap.get(key);
+        mergedMap.set(key, {
+          ...existing,
+          name: (existing.name && existing.name !== 'Anonymous Customer') ? existing.name : (cust.name || 'Anonymous Customer'),
+          email: (existing.email && existing.email !== 'N/A') ? existing.email : (cust.email || 'N/A'),
+          phone: (existing.phone && existing.phone !== 'N/A') ? existing.phone : (cust.phone || 'N/A'),
+          status: existing.status === 'Blocked' || cust.status === 'Blocked' ? 'Blocked' : 'Active'
+        });
+      } else {
+        mergedMap.set(key, { ...cust });
+      }
+    });
+
+    return Array.from(mergedMap.values());
+  };
+
+  // 🚀 ১. সরাসরি Supabase Cloud Database থেকে রিয়েল-টাইম কাস্টমার ডাটা ফেচিং
   const fetchCustomersAndOrders = async () => {
     setLoading(true);
 
@@ -33,19 +71,21 @@ export default function Customers() {
         getSupabaseOrders()
       ]);
 
-      if (Array.isArray(cloudCustomers) && cloudCustomers.length > 0) {
-        // কাস্টমারের মোট কেনাকাটা (Total Spent) এবং মোট অর্ডার সংখ্যা (Total Orders) হিসাব করা
-        const enrichedList = cloudCustomers.map((cust: any) => {
+      const customersArray = Array.isArray(cloudCustomers) ? cloudCustomers : [];
+      const ordersArray = Array.isArray(cloudOrders) ? cloudOrders : [];
+
+      if (customersArray.length > 0) {
+        const cleanMergedCustomers = mergeDuplicateCustomers(customersArray);
+
+        const enrichedList = cleanMergedCustomers.map((cust: any) => {
           const custEmail = (cust.email || '').toLowerCase().trim();
           const custPhone = (cust.phone || '').trim();
 
-          const userOrders = Array.isArray(cloudOrders) 
-            ? cloudOrders.filter((o: any) => {
-                const orderEmail = (o.email || o.customerInfo?.email || '').toLowerCase().trim();
-                const orderPhone = (o.phone || o.customerInfo?.phone || '').trim();
-                return (custEmail && orderEmail === custEmail) || (custPhone && orderPhone === custPhone);
-              })
-            : [];
+          const userOrders = ordersArray.filter((o: any) => {
+            const orderEmail = (o.email || o.customerInfo?.email || '').toLowerCase().trim();
+            const orderPhone = (o.phone || o.customerInfo?.phone || o.customerInfo?.phoneNo || '').trim();
+            return (custEmail && orderEmail === custEmail) || (custPhone && orderPhone === custPhone);
+          });
 
           const totalSpent = userOrders.reduce((sum: number, o: any) => 
             sum + (Number(o.total || o.orderSummary?.total) || 0), 0
@@ -57,8 +97,8 @@ export default function Customers() {
             name: cust.name || 'Anonymous Customer',
             email: cust.email || 'N/A',
             phone: cust.phone || 'N/A',
-            orders: userOrders.length || cust.orders || 0,
-            spent: totalSpent || cust.spent || 0,
+            orders: userOrders.length,
+            spent: totalSpent,
             status: cust.status || 'Active',
             joinDate: cust.joinDate || (cust.created_at ? new Date(cust.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recent')
           };
@@ -80,7 +120,6 @@ export default function Customers() {
   useEffect(() => {
     fetchCustomersAndOrders();
 
-    // 🚀 ২. Supabase Realtime WebSocket Listener (সব ডিভাইসে ১ সেকেন্ডে লাইভ সিঙ্ক)
     const channel = supabase
       .channel('public:customers:admin:live:guaranteed')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, () => {
@@ -102,7 +141,7 @@ export default function Customers() {
     };
   }, []);
 
-  // 🚀 ৩. কাস্টমার ব্লক / আনব্লক করার লজিক (Supabase Cloud-এ পার্মানেন্ট সেভ)
+  // 🚀 ৩. কাস্টমার ব্লক / আনব্লক করার লজিক
   const handleToggleStatus = async (customer: any) => {
     const targetId = String(customer.id || customer._id);
     const isCurrentlyActive = customer.status === 'Active';
@@ -146,7 +185,6 @@ export default function Customers() {
     }
   };
 
-  // সার্চ ফিল্টার লজিক
   const filteredCustomers = customers.filter(customer => {
     const searchLower = searchQuery.toLowerCase();
     return (
@@ -162,23 +200,23 @@ export default function Customers() {
         <title>Admin - Customers Management | MO FASHION</title>
       </Helmet>
 
-      {/* 🚀 Header Section */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-2xl border border-[#D4AF37]/20 backdrop-blur-md shadow-xl transition-all duration-300 hover:border-[#D4AF37]/40">
+      {/* 🌟 3D GLASSMORPHIC HEADER SECTION */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-3xl border border-[#D4AF37]/30 backdrop-blur-md shadow-2xl transition-all duration-300 hover:border-[#D4AF37]/50 glass-3d-panel">
         <div>
           <div className="flex items-center space-x-3">
-            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase flex items-center">
+            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase flex items-center gold-text-glow">
               <User className="mr-3 text-[#D4AF37] animate-pulse" size={28} /> Customers Management
             </h1>
-            <span className="bg-[#D4AF37]/10 text-[#D4AF37] text-xs font-bold px-3 py-1 rounded-full border border-[#D4AF37]/30 flex items-center">
+            <span className="bg-[#D4AF37]/10 text-[#D4AF37] text-xs font-bold px-3.5 py-1.5 rounded-full border border-[#D4AF37]/30 flex items-center">
               Total: {customers.length} Customers
             </span>
           </div>
-          <p className="text-sm text-gray-400 mt-1">View and manage live customers from Supabase Cloud DB</p>
+          <p className="text-sm text-gray-400 mt-1 font-light">View and manage live customers from Supabase Cloud DB</p>
         </div>
 
         <button 
           onClick={fetchCustomersAndOrders}
-          className="p-2.5 bg-[#111111] hover:bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 rounded-xl transition-all duration-200 active:scale-95 flex items-center space-x-2 font-bold text-xs"
+          className="p-2.5 bg-[#111111] hover:bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 rounded-xl transition-all duration-200 active:scale-95 flex items-center space-x-2 font-bold text-xs shadow-md"
           title="Refresh Customer Data"
         >
           <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -186,22 +224,22 @@ export default function Customers() {
         </button>
       </div>
 
-      {/* 🔎 Search Bar */}
-      <div className="bg-[#1A1A1A] p-4 rounded-xl border border-[#D4AF37]/20 mb-6 shadow-lg transition-all duration-300">
+      {/* 🔎 3D Search Bar */}
+      <div className="bg-[#1A1A1A] p-4 rounded-2xl border border-[#D4AF37]/20 mb-6 shadow-lg transition-all duration-300 glass-3d-panel">
         <div className="relative w-full max-w-md">
           <input 
             type="text" 
             placeholder="Search by name, email or phone..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl px-10 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]/40 placeholder-gray-500 transition-all duration-200 text-sm"
+            className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl px-10 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]/40 placeholder-gray-500 transition-all duration-200 text-sm shadow-inner"
           />
           <Search className="absolute left-3.5 top-3 text-gray-500" size={18} />
         </div>
       </div>
 
-      {/* 📦 Customers Table with Live Supabase Sync */}
-      <div className="bg-[#1A1A1A] rounded-2xl border border-[#D4AF37]/20 overflow-hidden shadow-2xl transition-all duration-300">
+      {/* 📦 3D Customers Table */}
+      <div className="bg-[#1A1A1A] rounded-3xl border border-[#D4AF37]/20 overflow-hidden shadow-2xl transition-all duration-300 glass-3d-panel">
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left whitespace-nowrap">
             <thead className="bg-[#111111] border-b border-[#D4AF37]/20">
@@ -234,18 +272,18 @@ export default function Customers() {
                         </div>
                         <div>
                           <p className="font-bold text-white group-hover:text-[#D4AF37] transition-colors">{customer.name}</p>
-                          <p className="text-xs text-gray-500">Joined: {customer.joinDate}</p>
+                          <p className="text-xs text-gray-500 font-light">Joined: {customer.joinDate}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="space-y-1">
-                        <div className="flex items-center text-sm text-gray-300">
-                          <Mail size={14} className="text-[#D4AF37] mr-2 shrink-0" />
+                        <div className="flex items-center text-xs text-gray-300 font-light">
+                          <Mail size={13} className="text-[#D4AF37] mr-2 shrink-0" />
                           <span>{customer.email || 'N/A'}</span>
                         </div>
-                        <div className="flex items-center text-sm text-gray-300">
-                          <Phone size={14} className="text-[#D4AF37] mr-2 shrink-0" />
+                        <div className="flex items-center text-xs text-gray-300 font-light">
+                          <Phone size={13} className="text-[#D4AF37] mr-2 shrink-0" />
                           <span>{customer.phone || 'N/A'}</span>
                         </div>
                       </div>
@@ -255,7 +293,7 @@ export default function Customers() {
                         {customer.orders}
                       </span>
                     </td>
-                    <td className="px-6 py-4 font-bold text-[#D4AF37]">
+                    <td className="px-6 py-4 font-bold text-[#D4AF37] gold-text-glow">
                       ৳{Number(customer.spent || 0).toFixed(2)}
                     </td>
                     <td className="px-6 py-4">
@@ -269,7 +307,6 @@ export default function Customers() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end space-x-2">
-                        {/* Block / Unblock Button */}
                         <button 
                           onClick={() => handleToggleStatus(customer)}
                           className={`p-2.5 rounded-xl transition-all duration-200 border active:scale-95 ${
@@ -282,7 +319,6 @@ export default function Customers() {
                           {customer.status === 'Active' ? <Ban size={16} /> : <CheckCircle size={16} />}
                         </button>
                         
-                        {/* Delete Button */}
                         <button 
                           onClick={() => handleDelete(customer.id || customer._id, customer.name)}
                           className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-all duration-200 bg-[#111111] border border-gray-800 hover:border-red-500/50 rounded-xl active:scale-95"

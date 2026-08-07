@@ -53,36 +53,36 @@ export default function PolicyPage() {
   const Icon = policyContent.icon;
 
   return (
-    <main className="min-h-screen py-12 text-white bg-[#111111]">
+    <main className="min-h-screen py-12 text-white bg-[#111111] transition-all duration-300">
       <Helmet>
         <title>MO Fashion | {policyContent.title}</title>
       </Helmet>
 
       <div className="container mx-auto px-4 max-w-4xl">
         
-        {/* Page Header */}
+        {/* 🚀 3D Page Header */}
         <div className="text-center mb-12 border-b border-[#D4AF37]/20 pb-10">
-          <div className="w-16 h-16 bg-[#D4AF37]/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-[#D4AF37]/30 shadow-[0_0_15px_rgba(212,175,55,0.15)]">
+          <div className="w-16 h-16 bg-[#D4AF37]/10 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-[#D4AF37]/30 shadow-[0_0_20px_rgba(212,175,55,0.25)] animate-bounce">
             <Icon size={32} className="text-[#D4AF37]" />
           </div>
-          <h1 className="text-3xl md:text-5xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase mb-4">
+          <h1 className="text-3xl md:text-5xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase mb-4 gold-text-glow">
             {policyContent.title}
           </h1>
-          <p className="text-gray-400 text-sm">
-            Last Updated: <span className="text-gray-300 font-medium">{policyContent.lastUpdated}</span>
+          <p className="text-gray-400 text-sm font-light">
+            Last Updated: <span className="text-[#D4AF37] font-bold">{policyContent.lastUpdated}</span>
           </p>
         </div>
 
-        {/* Policy Content */}
-        <div className="bg-[#1A1A1A] border border-[#D4AF37]/20 rounded-2xl p-8 md:p-12 shadow-xl">
+        {/* 🚀 3D GLASSMORPHIC DOCUMENT READER CARD */}
+        <div className="bg-[#1A1A1A] border border-[#D4AF37]/30 rounded-3xl p-8 md:p-12 shadow-[0_20px_50px_rgba(0,0,0,0.9)] glass-3d-panel">
           <div className="space-y-10">
             {policyContent.sections.map((section, index) => (
               <section key={index}>
                 <h2 className="text-xl md:text-2xl font-serif font-bold text-white mb-4 flex items-center">
-                  <span className="text-[#D4AF37] mr-3 font-sans opacity-50">0{index + 1}</span>
+                  <span className="text-[#D4AF37] mr-3 font-sans opacity-70 gold-text-glow">0{index + 1}</span>
                   {section.heading}
                 </h2>
-                <p className="text-gray-400 leading-relaxed text-justify md:text-left">
+                <p className="text-gray-300 leading-relaxed text-justify md:text-left font-light text-sm">
                   {section.text}
                 </p>
               </section>
@@ -90,8 +90,8 @@ export default function PolicyPage() {
           </div>
 
           <div className="mt-12 pt-8 border-t border-gray-800 text-center">
-            <p className="text-gray-500 text-sm">
-              If you have any questions regarding our {policyContent.title.toLowerCase()}, please contact us at <a href="mailto:kon497733@gmail.com" className="text-[#D4AF37] hover:underline">kon497733@gmail.com</a>.
+            <p className="text-gray-500 text-sm font-light">
+              If you have any questions regarding our {policyContent.title.toLowerCase()}, please contact us at <a href="mailto:kon497733@gmail.com" className="text-[#D4AF37] hover:underline font-bold">kon497733@gmail.com</a>.
             </p>
           </div>
         </div>

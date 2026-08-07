@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import {
   Save, Store, Mail, Phone, Globe,
   MapPin, Percent, Truck, 
-  Settings as SettingsIcon, CreditCard, HelpCircle, Plus, Trash2, Image as ImageIcon, Upload, Type, RefreshCw, Sparkles, Layout
+  Settings as SettingsIcon, CreditCard, HelpCircle, Plus, Trash2, Image as ImageIcon, Upload, Type, RefreshCw, Sparkles, Layout, Box
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSettingsStore } from '../../store/useSettingsStore';
@@ -14,7 +14,7 @@ export default function Settings() {
 
   const { settings, fetchSettings, updateSettings } = useSettingsStore();
 
-  // 🚀 জিরো ডিফল্ট স্ট্রাকচার (সব ফিল্ড পারফেক্টলি যুক্ত করা হয়েছে)
+  // 🚀 জিরো ডিফল্ট স্ট্রাকচার (৩ডি কন্ট্রোল সহ সব ফিল্ড পারফেক্টলি যুক্ত করা হয়েছে)
   const emptySettings = {
     storeName: '',
     logoUrl: '', 
@@ -39,6 +39,9 @@ export default function Settings() {
     enableBkash: true,
     enableCard: true,
     enableCOD: true,
+    enable3DEffects: true, // 🚀 ৩ডি ক্যানভাস ও এনিমেশন টগল
+    enable3DParticles: true,
+    enableScrollReveal: true,
     facebook: '',
     instagram: '',
     twitter: '',
@@ -186,6 +189,7 @@ export default function Settings() {
 
   const menuItems = [
     { name: 'General', icon: Store },
+    { name: '3D Visual Mode', icon: Box },
     { name: 'Homepage 3D', icon: Layout },
     { name: 'Operations', icon: Truck },
     { name: 'Payment', icon: CreditCard },
@@ -197,27 +201,27 @@ export default function Settings() {
     <div className="text-white pb-10 transition-all duration-300">
       <Helmet><title>Admin - Advanced Settings | MO FASHION</title></Helmet>
 
-      {/* Top-Notch Animated Glassmorphic Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-2xl border border-[#D4AF37]/20 backdrop-blur-md shadow-xl transition-all duration-300 hover:border-[#D4AF37]/40">
+      {/* 🌟 3D GLASSMORPHIC HEADER */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-3xl border border-[#D4AF37]/30 backdrop-blur-md shadow-2xl transition-all duration-300 hover:border-[#D4AF37]/50 glass-3d-panel">
         <div>
           <div className="flex items-center space-x-3">
-            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase flex items-center">
-              <SettingsIcon className="mr-3 text-[#D4AF37]" size={28} />
+            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase flex items-center gold-text-glow">
+              <SettingsIcon className="mr-3 text-[#D4AF37] animate-bounce" size={28} />
               Advanced Store Settings
             </h1>
             <span className="bg-[#D4AF37]/10 text-[#D4AF37] text-xs font-bold px-3 py-1 rounded-full border border-[#D4AF37]/30 flex items-center">
               Global Cloud Hub
             </span>
           </div>
-          <p className="text-sm text-gray-400 mt-1">Manage global store settings, logo, tagline, hero text, and live cloud database</p>
+          <p className="text-sm text-gray-400 mt-1 font-light">Manage global store settings, logo, tagline, 3D controls, and live cloud database</p>
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-8">
+      <div className="flex flex-col lg:flex-row gap-8 [perspective:1200px]">
         
         {/* Left Sidebar Menu */}
         <div className="lg:w-1/4">
-          <div className="bg-[#1A1A1A] rounded-2xl border border-[#D4AF37]/20 p-4 sticky top-24 shadow-xl backdrop-blur-md">
+          <div className="bg-[#1A1A1A] rounded-3xl border border-[#D4AF37]/30 p-4 sticky top-24 shadow-2xl backdrop-blur-md glass-3d-panel">
             <nav className="space-y-2">
               {menuItems.map((item) => {
                 const Icon = item.icon;
@@ -227,9 +231,9 @@ export default function Settings() {
                     key={item.name}
                     type="button"
                     onClick={() => setActiveTab(item.name)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 font-bold text-sm active:scale-95 ${
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 font-bold text-xs uppercase tracking-wider active:scale-95 ${
                       isActive 
-                      ? 'bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/40 shadow-lg shadow-[#D4AF37]/10 scale-[1.02]' 
+                      ? 'bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/40 shadow-lg shadow-[#D4AF37]/10 scale-[1.02]' 
                       : 'text-gray-400 hover:bg-[#111111] hover:text-white border border-transparent'
                     }`}
                   >
@@ -245,22 +249,22 @@ export default function Settings() {
         {/* Right Content Area */}
         <div className="lg:w-3/4">
           {loading ? (
-            <div className="bg-[#1A1A1A] p-16 rounded-2xl text-center text-[#D4AF37] border border-[#D4AF37]/20 flex flex-col items-center justify-center space-y-3 shadow-xl">
+            <div className="bg-[#1A1A1A] p-16 rounded-3xl text-center text-[#D4AF37] border border-[#D4AF37]/20 flex flex-col items-center justify-center space-y-3 shadow-2xl glass-3d-panel">
               <RefreshCw className="animate-spin w-8 h-8 text-[#D4AF37]" />
               <p className="font-medium animate-pulse">Loading Cloud Settings...</p>
             </div>
           ) : (
-            <form onSubmit={handleSaveSettings} className="bg-[#1A1A1A] p-6 sm:p-8 rounded-2xl border border-[#D4AF37]/20 shadow-2xl relative min-h-[400px] transition-all duration-300">
+            <form onSubmit={handleSaveSettings} className="bg-[#1A1A1A] p-6 sm:p-8 rounded-3xl border border-[#D4AF37]/30 shadow-2xl relative min-h-[400px] transition-all duration-300 glass-3d-panel">
               
               {/* 1. General Settings */}
               {activeTab === 'General' && (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
-                  <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center">
+                  <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center gold-text-glow">
                     <Sparkles size={20} className="mr-2 text-[#D4AF37]" /> General Information
                   </h2>
                   
                   {/* ওয়েবসাইট লোগো সেকশন */}
-                  <div className="bg-[#111111] p-5 rounded-2xl border border-[#D4AF37]/20 space-y-4 hover:border-[#D4AF37]/40 transition-colors">
+                  <div className="bg-[#111111] p-5 rounded-2xl border border-[#D4AF37]/20 space-y-4 hover:border-[#D4AF37]/40 transition-colors glass-3d-card">
                     <label className="block text-[#D4AF37] font-bold text-sm">Website Logo Management</label>
 
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 pt-2">
@@ -314,7 +318,7 @@ export default function Settings() {
                   </div>
 
                   {/* এবাউট পেজের টিম ছবি সেকশন */}
-                  <div className="bg-[#111111] p-5 rounded-2xl border border-[#D4AF37]/20 space-y-4 hover:border-[#D4AF37]/40 transition-colors">
+                  <div className="bg-[#111111] p-5 rounded-2xl border border-[#D4AF37]/20 space-y-4 hover:border-[#D4AF37]/40 transition-colors glass-3d-card">
                     <label className="block text-[#D4AF37] font-bold text-sm">About Page Image ("The Fashion Team" Box)</label>
 
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 pt-2">
@@ -419,15 +423,49 @@ export default function Settings() {
                 </div>
               )}
 
-              {/* 🚀 Homepage & Special Offer 3D Banner Controls */}
+              {/* 🚀 3D Visual Engine Controls */}
+              {activeTab === '3D Visual Mode' && (
+                <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
+                  <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center gold-text-glow">
+                    <Box size={20} className="mr-2 text-[#D4AF37]" /> 3D Engine & Motion Controls
+                  </h2>
+
+                  <div className="space-y-4">
+                    <label className="flex items-center justify-between p-4 bg-[#111111] border border-[#D4AF37]/20 rounded-2xl cursor-pointer hover:border-[#D4AF37]/50 transition-colors glass-3d-card">
+                      <div className="space-y-0.5">
+                        <span className="text-white font-bold text-sm block">Enable 3D Perspective Effects</span>
+                        <span className="text-gray-400 text-xs font-light">Applies 3D perspective depth tilt and GPU acceleration across cards</span>
+                      </div>
+                      <input type="checkbox" checked={localSettings.enable3DEffects ?? true} onChange={() => handleToggle('enable3DEffects')} className="w-5 h-5 accent-[#D4AF37] rounded cursor-pointer" />
+                    </label>
+
+                    <label className="flex items-center justify-between p-4 bg-[#111111] border border-[#D4AF37]/20 rounded-2xl cursor-pointer hover:border-[#D4AF37]/50 transition-colors glass-3d-card">
+                      <div className="space-y-0.5">
+                        <span className="text-white font-bold text-sm block">Enable 3D Ambient Background Particles</span>
+                        <span className="text-gray-400 text-xs font-light">Renders golden 3D particles on layout background canvas</span>
+                      </div>
+                      <input type="checkbox" checked={localSettings.enable3DParticles ?? true} onChange={() => handleToggle('enable3DParticles')} className="w-5 h-5 accent-[#D4AF37] rounded cursor-pointer" />
+                    </label>
+
+                    <label className="flex items-center justify-between p-4 bg-[#111111] border border-[#D4AF37]/20 rounded-2xl cursor-pointer hover:border-[#D4AF37]/50 transition-colors glass-3d-card">
+                      <div className="space-y-0.5">
+                        <span className="text-white font-bold text-sm block">Enable Apple-Style 3D Scroll Reveal</span>
+                        <span className="text-gray-400 text-xs font-light">Triggers perspective tilt and scale reveal when scrolling pages</span>
+                      </div>
+                      <input type="checkbox" checked={localSettings.enableScrollReveal ?? true} onChange={() => handleToggle('enableScrollReveal')} className="w-5 h-5 accent-[#D4AF37] rounded cursor-pointer" />
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* Homepage 3D Controls */}
               {activeTab === 'Homepage 3D' && (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
-                  <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center">
+                  <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center gold-text-glow">
                     <Layout size={20} className="mr-2 text-[#D4AF37]" /> Dynamic Homepage & Offer Banner Controls
                   </h2>
 
-                  {/* Hero Section Banner */}
-                  <div className="bg-[#111111] p-5 rounded-2xl border border-[#D4AF37]/20 space-y-4">
+                  <div className="bg-[#111111] p-5 rounded-2xl border border-[#D4AF37]/20 space-y-4 glass-3d-card">
                     <h3 className="text-sm font-bold text-[#D4AF37] uppercase tracking-wider border-b border-gray-800 pb-2">
                       1. Hero Banner Section Controls
                     </h3>
@@ -495,8 +533,7 @@ export default function Settings() {
                     </div>
                   </div>
 
-                  {/* Special Offer Banner */}
-                  <div className="bg-[#111111] p-5 rounded-2xl border border-[#D4AF37]/20 space-y-4">
+                  <div className="bg-[#111111] p-5 rounded-2xl border border-[#D4AF37]/20 space-y-4 glass-3d-card">
                     <h3 className="text-sm font-bold text-[#D4AF37] uppercase tracking-wider border-b border-gray-800 pb-2">
                       2. Special Offer Banner Controls
                     </h3>
@@ -543,16 +580,16 @@ export default function Settings() {
                 </div>
               )}
 
-              {/* 2. Operations Settings */}
+              {/* Operations Settings */}
               {activeTab === 'Operations' && (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
-                  <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center">
+                  <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center gold-text-glow">
                     <Truck size={20} className="mr-2 text-[#D4AF37]" /> Operations & Shipping
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
                       <label className="block text-gray-300 text-xs font-bold uppercase tracking-wider mb-2">Default Currency</label>
-                      <select name="currency" value={localSettings.currency || '৳'} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] cursor-pointer text-sm font-semibold">
+                      <select name="currency" value={localSettings.currency || '৳'} onChange={handleChange} className="w-full bg-[#111111] border border-[#D4AF37]/30 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#D4AF37] cursor-pointer text-xs font-bold text-[#D4AF37]">
                         <option value="৳">৳ (BDT)</option>
                         <option value="$">$ (USD)</option>
                         <option value="€">€ (EUR)</option>
@@ -584,22 +621,22 @@ export default function Settings() {
                 </div>
               )}
 
-              {/* 3. Payment Settings */}
+              {/* Payment Settings */}
               {activeTab === 'Payment' && (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
-                  <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center">
+                  <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center gold-text-glow">
                     <CreditCard size={20} className="mr-2 text-[#D4AF37]" /> Payment Methods
                   </h2>
                   <div className="space-y-4">
-                    <label className="flex items-center space-x-3 p-4 bg-[#111111] border border-[#D4AF37]/20 rounded-xl cursor-pointer hover:border-[#D4AF37]/50 transition-colors">
+                    <label className="flex items-center space-x-3 p-4 bg-[#111111] border border-[#D4AF37]/20 rounded-xl cursor-pointer hover:border-[#D4AF37]/50 transition-colors glass-3d-card">
                       <input type="checkbox" checked={localSettings.enableBkash ?? true} onChange={() => handleToggle('enableBkash')} className="w-5 h-5 accent-[#D4AF37] rounded" />
                       <span className="text-white font-medium text-base">Enable bKash Payment</span>
                     </label>
-                    <label className="flex items-center space-x-3 p-4 bg-[#111111] border border-[#D4AF37]/20 rounded-xl cursor-pointer hover:border-[#D4AF37]/50 transition-colors">
+                    <label className="flex items-center space-x-3 p-4 bg-[#111111] border border-[#D4AF37]/20 rounded-xl cursor-pointer hover:border-[#D4AF37]/50 transition-colors glass-3d-card">
                       <input type="checkbox" checked={localSettings.enableCard ?? true} onChange={() => handleToggle('enableCard')} className="w-5 h-5 accent-[#D4AF37] rounded" />
                       <span className="text-white font-medium text-base">Enable Credit/Debit Card</span>
                     </label>
-                    <label className="flex items-center space-x-3 p-4 bg-[#111111] border border-[#D4AF37]/20 rounded-xl cursor-pointer hover:border-[#D4AF37]/50 transition-colors">
+                    <label className="flex items-center space-x-3 p-4 bg-[#111111] border border-[#D4AF37]/20 rounded-xl cursor-pointer hover:border-[#D4AF37]/50 transition-colors glass-3d-card">
                       <input type="checkbox" checked={localSettings.enableCOD ?? true} onChange={() => handleToggle('enableCOD')} className="w-5 h-5 accent-[#D4AF37] rounded" />
                       <span className="text-white font-medium text-base">Enable Cash on Delivery (COD)</span>
                     </label>
@@ -607,10 +644,10 @@ export default function Settings() {
                 </div>
               )}
 
-              {/* 4. Social Links */}
+              {/* Social Links */}
               {activeTab === 'Social Links' && (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
-                  <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center">
+                  <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center gold-text-glow">
                     <Globe size={20} className="mr-2 text-[#D4AF37]" /> Social Media URLs
                   </h2>
                   <div className="space-y-4">
@@ -621,11 +658,11 @@ export default function Settings() {
                 </div>
               )}
 
-              {/* 5. FAQs */}
+              {/* FAQs */}
               {activeTab === 'FAQs' && (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
                   <div className="flex justify-between items-center mb-6 border-b border-[#D4AF37]/20 pb-3">
-                    <h2 className="text-xl font-bold text-[#D4AF37] uppercase flex items-center">
+                    <h2 className="text-xl font-bold text-[#D4AF37] uppercase flex items-center gold-text-glow">
                       <HelpCircle size={20} className="mr-2 text-[#D4AF37]" /> Manage FAQs
                     </h2>
                     <button type="button" onClick={addFaq} className="flex items-center text-xs bg-[#D4AF37]/10 text-[#D4AF37] px-3.5 py-2 rounded-xl border border-[#D4AF37]/30 hover:bg-[#D4AF37] hover:text-black font-bold transition-all active:scale-95">
@@ -633,7 +670,7 @@ export default function Settings() {
                     </button>
                   </div>
                   {(localSettings.faqs || []).map((faq: any, index: number) => (
-                    <div key={index} className="bg-[#111111] p-4 rounded-xl border border-[#D4AF37]/20 space-y-3 relative group hover:border-[#D4AF37]/40 transition-colors">
+                    <div key={index} className="bg-[#111111] p-4 rounded-xl border border-[#D4AF37]/20 space-y-3 relative group hover:border-[#D4AF37]/40 transition-colors glass-3d-card">
                       <button type="button" onClick={() => removeFaq(index)} className="absolute top-3 right-3 text-gray-500 hover:text-red-500 p-1 rounded-lg transition-colors"><Trash2 size={18} /></button>
                       <input type="text" value={faq.question || ''} onChange={(e) => handleFaqChange(index, 'question', e.target.value)} className="w-full bg-[#1A1A1A] border border-gray-700 rounded-lg p-2.5 text-white text-sm focus:border-[#D4AF37] focus:outline-none" placeholder="Enter Question..." />
                       <input type="text" value={faq.answer || ''} onChange={(e) => handleFaqChange(index, 'answer', e.target.value)} className="w-full bg-[#1A1A1A] border border-gray-700 rounded-lg p-2.5 text-white text-sm focus:border-[#D4AF37] focus:outline-none" placeholder="Enter Answer..." />
@@ -646,7 +683,7 @@ export default function Settings() {
               <div className="mt-10 pt-6 border-t border-[#D4AF37]/20 flex justify-end">
                 <button 
                   type="submit"
-                  className="bg-gradient-to-r from-[#D4AF37] to-[#f3e5ab] text-black px-8 py-3 rounded-xl hover:scale-105 transition-all duration-300 font-bold flex items-center space-x-2 shadow-lg shadow-[#D4AF37]/20 active:scale-95 uppercase tracking-wider text-sm"
+                  className="bg-gradient-to-r from-[#D4AF37] via-[#f3e5ab] to-[#aa8c2c] text-black px-8 py-3 rounded-xl hover:brightness-110 transition-all duration-300 font-extrabold flex items-center space-x-2 shadow-lg shadow-[#D4AF37]/20 active:scale-95 uppercase tracking-wider text-xs"
                 >
                   <Save size={18} />
                   <span>Save All Settings to Cloud</span>
