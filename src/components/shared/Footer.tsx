@@ -27,7 +27,10 @@ export default function Footer() {
     twitter: 'https://twitter.com'
   });
 
-  // 🚀 ১. সেন্ট্রাল এপিআই দিয়ে ক্লাউড ডাটাবেস (MongoDB API) থেকে রিয়েল-টাইম সেটিংস লোড করা
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   useEffect(() => {
     const fetchFooterSettings = async () => {
       const savedSettings = localStorage.getItem('mo_fashion_settings');
@@ -62,7 +65,6 @@ export default function Footer() {
     };
   }, []);
 
-  // 🚀 Apple-Style 3D Scroll Tilt Interaction Effect for Footer
   useEffect(() => {
     const handleScroll = () => {
       if (footerRef.current) {
@@ -90,17 +92,14 @@ export default function Footer() {
       className="bg-[#0A0A0A] border-t border-[#D4AF37]/30 pt-16 pb-12 text-gray-400 mt-auto relative overflow-hidden transition-all duration-300 ease-out origin-bottom glass-3d-panel"
       style={{ transformStyle: 'preserve-3d' }}
     >
-      {/* 🚀 3D Background Glow Effects */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#D4AF37]/5 rounded-full blur-[140px] pointer-events-none"></div>
 
       <div className="container mx-auto px-4 max-w-7xl relative z-10">
         
-        {/* ৪ কলামের সম্পূর্ণ বিস্তারিত ফুটার সেকশন (3D Card Grid) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 pb-12 border-b border-gray-800/80">
           
-          {/* Column 1: Brand Info & Admin Uploaded Logo */}
           <div className="space-y-4">
-            <Link to="/" className="flex items-center space-x-3 group">
+            <Link to="/" onClick={scrollToTop} className="flex items-center space-x-3 group">
               {active?.logoUrl && active.logoUrl.trim() !== '' && (
                 <img 
                   src={active.logoUrl} 
@@ -122,7 +121,6 @@ export default function Footer() {
               <span>100% Authentic & Secure Shopping</span>
             </div>
 
-            {/* 3D Floating Social Media Links */}
             <div className="flex items-center space-x-3 pt-2">
               {active?.facebook && (
                 <a 
@@ -157,21 +155,19 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Column 2: Quick Links */}
           <div>
             <h3 className="text-white font-serif font-bold text-base mb-4 uppercase tracking-wider border-b border-[#D4AF37]/30 pb-2 inline-block">
               Quick Links
             </h3>
             <ul className="space-y-2.5 text-sm font-medium">
-              <li><Link to="/" className="hover:text-[#D4AF37] transition-colors">Home</Link></li>
-              <li><Link to="/categories" className="hover:text-[#D4AF37] transition-colors">Categories</Link></li>
-              <li><Link to="/about" className="hover:text-[#D4AF37] transition-colors">About Us</Link></li>
-              <li><Link to="/cart" className="hover:text-[#D4AF37] transition-colors">Shopping Cart</Link></li>
-              <li><Link to="/profile" className="hover:text-[#D4AF37] transition-colors">My Profile / Account</Link></li>
+              <li><Link to="/" onClick={scrollToTop} className="hover:text-[#D4AF37] transition-colors">Home</Link></li>
+              <li><Link to="/categories" onClick={scrollToTop} className="hover:text-[#D4AF37] transition-colors">Categories</Link></li>
+              <li><Link to="/about" onClick={scrollToTop} className="hover:text-[#D4AF37] transition-colors">About Us</Link></li>
+              <li><Link to="/cart" onClick={scrollToTop} className="hover:text-[#D4AF37] transition-colors">Shopping Cart</Link></li>
+              <li><Link to="/profile" onClick={scrollToTop} className="hover:text-[#D4AF37] transition-colors">My Profile / Account</Link></li>
             </ul>
           </div>
 
-          {/* Column 3: Customer Care & Shipping Info */}
           <div>
             <h3 className="text-white font-serif font-bold text-base mb-4 uppercase tracking-wider border-b border-[#D4AF37]/30 pb-2 inline-block">
               Customer Care
@@ -187,12 +183,11 @@ export default function Footer() {
               </li>
               <li className="flex items-center space-x-2 pt-1">
                 <HelpCircle size={16} className="text-[#D4AF37]" />
-                <Link to="/about" className="hover:text-[#D4AF37] transition-colors">FAQs & Support</Link>
+                <Link to="/about" onClick={scrollToTop} className="hover:text-[#D4AF37] transition-colors">FAQs & Support</Link>
               </li>
             </ul>
           </div>
 
-          {/* Column 4: Store Contact Information */}
           <div>
             <h3 className="text-white font-serif font-bold text-base mb-4 uppercase tracking-wider border-b border-[#D4AF37]/30 pb-2 inline-block">
               Contact Us
@@ -215,11 +210,9 @@ export default function Footer() {
 
         </div>
 
-        {/* Bottom Bar: Payment Options & Copyright */}
         <div className="pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-medium">
           <p>&copy; {new Date().getFullYear()} {active?.storeName || 'MO FASHION'}. All rights reserved.</p>
 
-          {/* Accepted Payment Badges */}
           <div className="flex items-center space-x-4">
             <span className="text-gray-500 uppercase text-[10px] tracking-widest font-bold">Payment Methods:</span>
             <div className="flex items-center space-x-2">

@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { User, Mail, Lock, Eye, EyeOff, ShieldCheck, ArrowRight } from 'lucide-react';
+import { User, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/useAuthStore'; 
 
@@ -11,6 +11,7 @@ export default function RegisterPage() {
   
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [storeLogo, setStoreLogo] = useState<string>('');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -18,7 +19,19 @@ export default function RegisterPage() {
     confirmPassword: ''
   });
 
-  // 🚀 ১০০% রিয়েল ক্লাউড রেজিস্ট্রেশন লজিক
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    try {
+      const settings = JSON.parse(localStorage.getItem('mo_fashion_settings') || '{}');
+      if (settings.logoUrl || settings.logo) {
+        setStoreLogo(settings.logoUrl || settings.logo);
+      }
+    } catch (e) {}
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -47,7 +60,6 @@ export default function RegisterPage() {
     };
 
     try {
-      // 🚀 ১. ক্লাউড ডাটাবেসে নতুন অ্যাকাউন্ট সেভ করা (MongoDB POST API)
       const response = await fetch('http://localhost:5000/api/users/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -80,6 +92,7 @@ export default function RegisterPage() {
         toast.success("Account created successfully LIVE on Cloud!", { id: toastId });
         
         setTimeout(() => {
+          scrollToTop();
           if (newUser.role === 'admin') {
             navigate('/admin');
           } else {
@@ -124,6 +137,7 @@ export default function RegisterPage() {
       toast.success("Account created successfully!", { id: toastId });
       
       setTimeout(() => {
+        scrollToTop();
         if (localNewUser.role === 'admin') {
           navigate('/admin');
         } else {
@@ -141,11 +155,14 @@ export default function RegisterPage() {
         <title>Create Account | MO FASHION</title>
       </Helmet>
 
-      {/* 🚀 3D GLASSMORPHIC REGISTRATION CARD */}
       <div className="w-full max-w-md bg-[#1A1A1A]/95 backdrop-blur-2xl border border-[#D4AF37]/40 rounded-3xl p-8 shadow-[0_20px_50px_rgba(0,0,0,0.9),0_0_30px_rgba(212,175,55,0.15)] relative z-10 animate-in fade-in zoom-in-95 duration-500 glass-3d-panel">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-[#111111] border border-[#D4AF37] rounded-2xl flex items-center justify-center mx-auto mb-4 text-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.3)]">
-            <ShieldCheck size={32} />
+          <div className="w-20 h-20 bg-[#111111] border border-[#D4AF37] rounded-2xl flex items-center justify-center mx-auto mb-4 p-2 shadow-[0_0_20px_rgba(212,175,55,0.3)] overflow-hidden">
+            {storeLogo ? (
+              <img src={storeLogo} alt="MO FASHION Logo" className="w-full h-full object-contain rounded-xl" />
+            ) : (
+              <span className="font-serif font-bold text-[#D4AF37] text-xl tracking-widest">MO</span>
+            )}
           </div>
           <h1 className="text-3xl font-serif font-bold text-[#D4AF37] mb-2 tracking-wider uppercase gold-text-glow">
             Create Account
@@ -232,7 +249,7 @@ export default function RegisterPage() {
           <div className="flex items-start text-xs pt-1">
             <label className="flex items-center text-gray-400 cursor-pointer hover:text-white transition-colors">
               <input type="checkbox" className="mr-2 accent-[#D4AF37] w-4 h-4 rounded" required />
-              <span>I agree to the <Link to="/policy" className="text-[#D4AF37] hover:underline font-bold">Terms & Privacy Policy</Link></span>
+              <span>I agree to the <Link to="/policy" onClick={scrollToTop} className="text-[#D4AF37] hover:underline font-bold">Terms & Privacy Policy</Link></span>
             </label>
           </div>
 
@@ -248,7 +265,7 @@ export default function RegisterPage() {
 
         <p className="text-center text-gray-400 mt-6 text-xs">
           Already have an account?{' '}
-          <Link to="/login" className="text-[#D4AF37] font-bold hover:text-white transition-colors">
+          <Link to="/login" onClick={scrollToTop} className="text-[#D4AF37] font-bold hover:text-white transition-colors">
             Sign in now
           </Link>
         </p>

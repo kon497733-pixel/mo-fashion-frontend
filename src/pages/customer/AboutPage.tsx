@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { 
-  Users, Sparkles, Award, ShieldCheck, Truck, 
+  Sparkles, Award, ShieldCheck, Truck, 
   Headphones, Lock, CheckCircle2, RotateCcw 
 } from 'lucide-react';
 import { getLiveSettings } from '../../config/api';
@@ -9,13 +9,12 @@ import { getLiveSettings } from '../../config/api';
 export default function About() {
   const [siteSettings, setSiteSettings] = useState<any>({
     storeName: 'MO FASHION',
+    logoUrl: '',
     aboutImageUrl: ''
   });
 
-  // Apple-Style 3D Scroll Reveal Reference
   const revealContainerRef = useRef<HTMLDivElement>(null);
 
-  // 🚀 ১. সেন্ট্রাল এপিআই দিয়ে ক্লাউড ডাটাবেস (MongoDB API) থেকে রিয়েল-টাইম এবাউট সেটিং লোড করা
   useEffect(() => {
     const fetchAboutSettings = async () => {
       const savedSettings = localStorage.getItem('mo_fashion_settings');
@@ -50,7 +49,6 @@ export default function About() {
     };
   }, []);
 
-  // Apple-Style 3D Scroll Interaction Effect
   useEffect(() => {
     const handleScroll = () => {
       if (revealContainerRef.current) {
@@ -70,7 +68,6 @@ export default function About() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // 🚀 ৮টি প্রিমিয়াম ফিচার কার্ডের ডাটা
   const features = [
     {
       icon: Award,
@@ -114,6 +111,8 @@ export default function About() {
     }
   ];
 
+  const storeLogoImage = siteSettings?.logoUrl || siteSettings?.logo || siteSettings?.storeLogo || '';
+
   return (
     <main className="min-h-screen bg-[#111111] text-white py-12">
       <Helmet>
@@ -122,8 +121,10 @@ export default function About() {
 
       <div className="container mx-auto px-4 max-w-7xl">
         
-        {/* Header Section */}
-        <div className="text-center mb-16 border-b border-[#D4AF37]/20 pb-10">
+        <div className="text-center mb-16 border-b border-[#D4AF37]/20 pb-10 flex flex-col items-center">
+          {storeLogoImage && (
+            <img src={storeLogoImage} alt="" className="w-16 h-16 object-contain mb-4 rounded-full border border-[#D4AF37]/50 p-1 shadow-lg shadow-[#D4AF37]/20" />
+          )}
           <h1 className="text-4xl md:text-6xl font-serif font-bold text-[#D4AF37] mb-4 uppercase tracking-widest gold-text-glow">
             About {siteSettings?.storeName || 'MO FASHION'}
           </h1>
@@ -132,16 +133,16 @@ export default function About() {
           </p>
         </div>
 
-        {/* 🚀 APPLE-STYLE 3D STORY & TEAM SECTION */}
         <div 
           ref={revealContainerRef}
           className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center mb-20 transition-all duration-300 ease-out origin-top"
           style={{ transformStyle: 'preserve-3d' }}
         >
-          {/* Left Text */}
           <div className="space-y-6">
             <h2 className="text-3xl font-serif font-bold text-[#D4AF37] flex items-center gold-text-glow">
-              <Sparkles size={24} className="mr-3 text-[#D4AF37] animate-pulse" />
+              {storeLogoImage ? (
+                <img src={storeLogoImage} alt="" className="w-8 h-8 mr-3 object-contain rounded-full border border-[#D4AF37]/40" />
+              ) : null}
               Our Story
             </h2>
             <p className="text-gray-300 leading-relaxed text-base font-light">
@@ -152,7 +153,6 @@ export default function About() {
             </p>
           </div>
 
-          {/* Right Box: "The Fashion Team" (3D Glassmorphic Photo Frame) */}
           <div className="bg-[#1A1A1A] border-2 border-[#D4AF37]/40 rounded-3xl p-3 flex items-center justify-center overflow-hidden shadow-2xl relative min-h-[300px] md:min-h-[360px] glass-3d-panel">
             {siteSettings?.aboutImageUrl ? (
               <img 
@@ -162,16 +162,17 @@ export default function About() {
               />
             ) : (
               <div className="text-center p-8 border border-dashed border-[#D4AF37]/30 rounded-2xl w-full h-full flex flex-col items-center justify-center bg-[#111111]/50">
-                <Users size={56} className="text-[#D4AF37] mb-4 opacity-80 animate-pulse" />
-                <h3 className="text-2xl font-serif text-[#D4AF37] font-bold tracking-wider">The Fashion Team</h3>
-                <p className="text-gray-500 text-xs mt-2">Upload a photo from Settings to show your team here</p>
+                {storeLogoImage ? (
+                  <img src={storeLogoImage} alt="" className="w-20 h-20 object-contain mb-4 rounded-full border border-[#D4AF37]/50 p-2 shadow-xl shadow-[#D4AF37]/20" />
+                ) : null}
+                <h3 className="text-2xl font-serif text-[#D4AF37] font-bold tracking-wider">{siteSettings?.storeName || 'MO FASHION'} Team</h3>
+                <p className="text-gray-500 text-xs mt-2">Crafting Luxury Collections for Fashion Enthusiasts</p>
               </div>
             )}
           </div>
 
         </div>
 
-        {/* 🚀 3D FEATURE CARDS SECTION */}
         <div className="pt-12 border-t border-[#D4AF37]/20">
           
           <div className="text-center mb-12">

@@ -22,13 +22,12 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchDropdownOpen, setSearchQueryOpen] = useState(false);
-  const [isCategoriesHovered, setIsCategoriesHovered] = useState(false);
+  const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
   const [logoTilt, setLogoTilt] = useState({ x: 0, y: 0 });
 
-  // 🚀 কাস্টমার লগইন স্ট্যাটাস চেক (Customer Auth Check)
   const [isCustomerLoggedIn, setIsCustomerLoggedIn] = useState<boolean>(() => {
     try {
-      const user = localStorage.getItem('mo_fashion_customer_user') || localStorage.getItem('mo_fashion_user');
+      const user = localStorage.getItem('mo_fashion_customer_user') || localStorage.getItem('mo_fashion_user') || localStorage.getItem('currentUser');
       return !!user;
     } catch (e) {
       return false;
@@ -43,14 +42,16 @@ export default function Navbar() {
     logoUrl: ''
   });
 
-  // 🚀 মোট কার্ট আইটেম সংখ্যা হিসাব
   const totalCartCount = items.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0);
 
-  // 🚀 অল-ডিভাইস রিয়েল-টাইম সেটিংস সিঙ্ক (Supabase Realtime Channel)
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   useEffect(() => {
     const loadNavbarData = async () => {
       try {
-        const user = localStorage.getItem('mo_fashion_customer_user') || localStorage.getItem('mo_fashion_user');
+        const user = localStorage.getItem('mo_fashion_customer_user') || localStorage.getItem('mo_fashion_user') || localStorage.getItem('currentUser');
         setIsCustomerLoggedIn(!!user);
       } catch (e) {}
 
@@ -78,9 +79,8 @@ export default function Navbar() {
 
     loadNavbarData();
 
-    // 🚀 ALL-DEVICE REALTIME LISTENERS
     const channel = supabase
-      .channel('public:navbar:live:sync:v120')
+      .channel('public:navbar:live:sync:v121')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'settings' },
@@ -125,7 +125,6 @@ export default function Navbar() {
     };
   }, []);
 
-  // 🚀 ১ম অক্ষর টাইপ করা মাত্রই [Product] ও [Category] লাইভ সার্চ
   const searchResults = (() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return [];
@@ -172,6 +171,7 @@ export default function Navbar() {
 
   const handleSelectSearchResult = (url: string) => {
     navigate(url);
+    scrollToTop();
     setSearchQuery('');
     setSearchQueryOpen(false);
   };
@@ -192,7 +192,6 @@ export default function Navbar() {
 
   return (
     <>
-      {/* 🚀 3D GLASSMORPHIC TOP NAVBAR */}
       <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         isScrolled 
           ? 'bg-[#111111]/90 backdrop-blur-2xl border-b border-[#D4AF37]/40 shadow-[0_15px_40px_rgba(0,0,0,0.9)] py-3 glass-3d-panel' 
@@ -200,7 +199,6 @@ export default function Navbar() {
       }`}>
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl flex items-center justify-between">
           
-          {/* Mobile Menu Hamburger Toggle */}
           <button 
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="lg:hidden text-gray-300 hover:text-[#D4AF37] p-2 rounded-xl border border-gray-800 bg-[#1A1A1A]/90 backdrop-blur-md active:scale-95 transition-all shadow-md"
@@ -209,12 +207,14 @@ export default function Navbar() {
             {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
 
-          {/* 🚀 3D STORE LOGO & DYNAMIC BRAND TITLE */}
           <div 
             className="[perspective:1000px] cursor-pointer group py-1"
             onMouseMove={handleLogoMouseMove}
             onMouseLeave={handleLogoMouseLeave}
-            onClick={() => navigate('/')}
+            onClick={() => {
+              navigate('/');
+              scrollToTop();
+            }}
           >
             <div 
               className="flex items-center space-x-3 transition-transform duration-200 ease-out [transform-style:preserve-3d] will-change-transform"
@@ -245,10 +245,10 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* 🚀 DESKTOP NAV LINKS */}
           <nav className="hidden lg:flex items-center space-x-8">
             <Link
               to="/"
+              onClick={scrollToTop}
               className={`relative text-xs font-bold tracking-[0.2em] transition-all duration-300 py-2 group ${
                 location.pathname === '/' ? 'text-[#D4AF37]' : 'text-gray-300 hover:text-[#D4AF37]'
               }`}
@@ -259,24 +259,18 @@ export default function Navbar() {
               }`} />
             </Link>
 
-            {/* CATEGORIES WITH 3D HOVER DROPDOWN BOX */}
-            <div 
-              className="relative py-2"
-              onMouseEnter={() => setIsCategoriesHovered(true)}
-              onMouseLeave={() => setIsCategoriesHovered(false)}
-            >
-              <Link
-                to="/categories"
+            <div className="relative py-2">
+              <button
+                onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
                 className={`flex items-center space-x-1 text-xs font-bold tracking-[0.2em] transition-all duration-300 group ${
                   location.pathname === '/categories' ? 'text-[#D4AF37]' : 'text-gray-300 hover:text-[#D4AF37]'
                 }`}
               >
                 <span>CATEGORIES</span>
-                <ChevronDown size={14} className={`transition-transform duration-300 ${isCategoriesHovered ? 'rotate-180 text-[#D4AF37]' : ''}`} />
-              </Link>
+                <ChevronDown size={14} className={`transition-transform duration-300 ${isCategoriesOpen ? 'rotate-180 text-[#D4AF37]' : ''}`} />
+              </button>
 
-              {/* 3D HOVER DROPDOWN BOX */}
-              {isCategoriesHovered && categoriesList.length > 0 && (
+              {isCategoriesOpen && categoriesList.length > 0 && (
                 <div className="absolute top-full left-0 w-64 bg-[#1A1A1A]/95 border border-[#D4AF37]/40 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.95),0_0_25px_rgba(212,175,55,0.25)] p-3 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-200 z-50 glass-3d-panel">
                   <div className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest px-3 py-1.5 border-b border-gray-800 mb-1 flex justify-between items-center">
                     <span>EXPLORE CATEGORIES</span>
@@ -288,7 +282,8 @@ export default function Navbar() {
                         key={idx}
                         onClick={() => {
                           navigate(`/products?category=${encodeURIComponent(cat.name)}`);
-                          setIsCategoriesHovered(false);
+                          scrollToTop();
+                          setIsCategoriesOpen(false);
                         }}
                         className="flex items-center justify-between p-2.5 rounded-xl hover:bg-[#111111] hover:text-[#D4AF37] text-gray-300 text-xs font-bold transition-all cursor-pointer group"
                       >
@@ -303,6 +298,7 @@ export default function Navbar() {
 
             <Link
               to="/about"
+              onClick={scrollToTop}
               className={`relative text-xs font-bold tracking-[0.2em] transition-all duration-300 py-2 group ${
                 location.pathname === '/about' ? 'text-[#D4AF37]' : 'text-gray-300 hover:text-[#D4AF37]'
               }`}
@@ -314,10 +310,8 @@ export default function Navbar() {
             </Link>
           </nav>
 
-          {/* 🚀 SEARCH & ACTIONS */}
           <div className="flex items-center space-x-3 sm:space-x-4">
             
-            {/* SEARCH INPUT BAR WITH 3D AUTOCOMPLETE DROPDOWN */}
             <div ref={searchContainerRef} className="relative hidden sm:block w-44 md:w-64">
               <div className="relative">
                 <input
@@ -336,7 +330,6 @@ export default function Navbar() {
                 <Search className="absolute left-3 top-2.5 text-gray-400" size={14} />
               </div>
 
-              {/* 3D SEARCH DROPDOWN BOX */}
               {searchDropdownOpen && searchResults.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-[#1A1A1A]/95 border border-[#D4AF37]/40 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.95)] p-2 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-200 z-[100] max-h-80 overflow-y-auto custom-scrollbar glass-3d-panel">
                   <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 py-1 border-b border-gray-800 mb-1 flex justify-between items-center">
@@ -384,9 +377,9 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* 3D Cart Icon Button */}
             <Link
               to="/cart"
+              onClick={scrollToTop}
               className="relative p-2.5 bg-[#1A1A1A]/90 hover:bg-[#D4AF37]/20 text-white hover:text-[#D4AF37] border border-[#D4AF37]/30 rounded-xl transition-all duration-300 group shadow-[0_5px_15px_rgba(0,0,0,0.5)] hover:scale-105 active:scale-95 flex items-center justify-center [transform-style:preserve-3d]"
               aria-label="View Shopping Cart"
             >
@@ -398,9 +391,9 @@ export default function Navbar() {
               )}
             </Link>
 
-            {/* USER PROFILE ICON */}
             <Link
               to={customerProfilePath}
+              onClick={scrollToTop}
               className={`hidden sm:flex p-2.5 rounded-xl border transition-all duration-300 active:scale-95 shadow-md ${
                 isCustomerLoggedIn 
                   ? 'bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/40 hover:bg-[#D4AF37] hover:text-black' 
@@ -413,7 +406,6 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile Dropdown Drawer */}
         {mobileMenuOpen && (
           <div className="lg:hidden bg-[#111111]/95 border-b border-[#D4AF37]/30 backdrop-blur-2xl animate-in slide-in-from-top-5 duration-300">
             <div className="px-6 py-6 space-y-4">
@@ -452,16 +444,16 @@ export default function Navbar() {
               </div>
 
               <div className="flex flex-col space-y-3 pt-2">
-                <Link to="/" onClick={() => setMobileMenuOpen(false)} className="text-sm font-bold tracking-wider py-2.5 px-4 rounded-xl text-gray-300 hover:bg-gray-800">
+                <Link to="/" onClick={() => { scrollToTop(); setMobileMenuOpen(false); }} className="text-sm font-bold tracking-wider py-2.5 px-4 rounded-xl text-gray-300 hover:bg-gray-800">
                   HOME
                 </Link>
-                <Link to="/categories" onClick={() => setMobileMenuOpen(false)} className="text-sm font-bold tracking-wider py-2.5 px-4 rounded-xl text-gray-300 hover:bg-gray-800">
+                <Link to="/categories" onClick={() => { scrollToTop(); setMobileMenuOpen(false); }} className="text-sm font-bold tracking-wider py-2.5 px-4 rounded-xl text-gray-300 hover:bg-gray-800">
                   CATEGORIES
                 </Link>
-                <Link to="/about" onClick={() => setMobileMenuOpen(false)} className="text-sm font-bold tracking-wider py-2.5 px-4 rounded-xl text-gray-300 hover:bg-gray-800">
+                <Link to="/about" onClick={() => { scrollToTop(); setMobileMenuOpen(false); }} className="text-sm font-bold tracking-wider py-2.5 px-4 rounded-xl text-gray-300 hover:bg-gray-800">
                   ABOUT
                 </Link>
-                <Link to={customerProfilePath} onClick={() => setMobileMenuOpen(false)} className="text-sm font-bold tracking-wider py-2.5 px-4 rounded-xl text-[#D4AF37] bg-[#D4AF37]/10 border border-[#D4AF37]/30 flex items-center justify-between">
+                <Link to={customerProfilePath} onClick={() => { scrollToTop(); setMobileMenuOpen(false); }} className="text-sm font-bold tracking-wider py-2.5 px-4 rounded-xl text-[#D4AF37] bg-[#D4AF37]/10 border border-[#D4AF37]/30 flex items-center justify-between">
                   <span>{isCustomerLoggedIn ? 'CUSTOMER PROFILE' : 'CUSTOMER SIGN IN / SIGN UP'}</span>
                   <User size={16} />
                 </Link>
@@ -471,9 +463,8 @@ export default function Navbar() {
         )}
       </header>
 
-      {/* 🚀 3D FLOATING LUXURY MOBILE BOTTOM NAVIGATION BAR */}
       <div className="lg:hidden fixed bottom-4 left-4 right-4 z-50 [perspective:1000px]">
-        <nav className="bg-[#1A1A1A]/85 backdrop-blur-2xl border border-[#D4AF37]/40 rounded-2xl p-2 shadow-[0_15px_35px_rgba(0,0,0,0.95),0_0_25px_rgba(212,175,55,0.25)] flex items-center justify-around [transform-style:preserve-3d] transition-all duration-300 [transform:translateZ(15px)]">
+        <nav className="bg-[#1A1A1A]/90 backdrop-blur-2xl border border-[#D4AF37]/40 rounded-2xl p-2 shadow-[0_15px_35px_rgba(0,0,0,0.95),0_0_25px_rgba(212,175,55,0.25)] flex items-center justify-around [transform-style:preserve-3d] transition-all duration-300 [transform:translateZ(15px)]">
           {bottomNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -482,6 +473,7 @@ export default function Navbar() {
               <Link
                 key={item.path}
                 to={item.path}
+                onClick={scrollToTop}
                 className={`relative flex flex-col items-center justify-center py-1.5 px-3 rounded-xl transition-all duration-300 active:scale-90 [transform-style:preserve-3d] ${
                   isActive 
                     ? 'text-[#D4AF37] scale-105 [transform:translateZ(10px)]' 
@@ -501,7 +493,7 @@ export default function Navbar() {
                       </span>
                     )}
                   </div>
-                  <span className="text-[10px] font-bold tracking-wider mt-1 font-serif">
+                  <span className="text-[11px] font-bold tracking-wide mt-1 font-sans">
                     {item.name}
                   </span>
                 </div>

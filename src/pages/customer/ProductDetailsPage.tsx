@@ -22,7 +22,6 @@ export default function ProductDetailsPage() {
   const navigate = useNavigate();
   const cartStore = useCartStore();
 
-  // 🚀 বর্তমান লগইন থাকা কাস্টমার তথ্য
   const [currentUser, setCurrentUser] = useState<any>(() => {
     try {
       const savedUser = localStorage.getItem('currentUser') || localStorage.getItem('user');
@@ -32,7 +31,6 @@ export default function ProductDetailsPage() {
     }
   });
 
-  // 🚀 INSTANT SYNCHRONOUS LOAD FROM LOCAL STORAGE (ZERO DELAY <50MS)
   const [product, setProduct] = useState<any>(() => {
     try {
       const localProds = JSON.parse(localStorage.getItem('mo_fashion_products') || '[]');
@@ -83,7 +81,6 @@ export default function ProductDetailsPage() {
   const [quantity, setQuantity] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(!product);
 
-  // 🚀 প্রিমিয়াম ফটো রিভিউ ফর্ম স্টেট
   const [reviewForm, setReviewForm] = useState({
     rating: 5,
     comment: '',
@@ -92,19 +89,18 @@ export default function ProductDetailsPage() {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [previewModalImage, setPreviewModalImage] = useState<string | null>(null);
   
-  // মাউস ও হাতের স্পর্শে ইমেজ জুম স্টেট
   const [mainZoomScale, setMainZoomScale] = useState(1);
   const [mainZoomPos, setMainZoomPos] = useState({ x: 50, y: 50 });
   const [isHovered, setIsHovered] = useState(false);
   const [touchStartDist, setTouchStartDist] = useState<number | null>(null);
 
-  // লাইটবক্স প্রিভিউ জুম স্টেট
   const [zoomScale, setZoomScale] = useState(1);
-
-  // Apple-Style 3D Scroll Reveal Reference
   const revealContainerRef = useRef<HTMLDivElement>(null);
 
-  // 🚀 BACKGROUND CLOUD DB RE-SYNC (NON-BLOCKING ALL-DEVICE SYNC)
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   useEffect(() => {
     const syncCloudData = async () => {
       try {
@@ -156,7 +152,6 @@ export default function ProductDetailsPage() {
     };
   }, [id, selectedImage, selectedSize, selectedColor]);
 
-  // Apple-Style 3D Scroll Interaction Effect
   useEffect(() => {
     const handleScroll = () => {
       if (revealContainerRef.current) {
@@ -176,7 +171,6 @@ export default function ProductDetailsPage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // মাউস পজিশন ট্র্যাকিং
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - left) / width) * 100;
@@ -184,14 +178,12 @@ export default function ProductDetailsPage() {
     setMainZoomPos({ x, y });
   };
 
-  // মাউস স্ক্রোল (Wheel) দিয়ে জুম ইন/আউট কন্ট্রোল
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     e.preventDefault();
     const scaleChange = e.deltaY < 0 ? 0.2 : -0.2;
     setMainZoomScale(prev => Math.min(3.5, Math.max(1, prev + scaleChange)));
   };
 
-  // হাতের স্পর্শ (Touch/Pinch) দিয়ে জুম ও প্যান ট্র্যাকিং
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     if (e.touches.length === 2) {
       const dist = Math.hypot(
@@ -234,7 +226,6 @@ export default function ProductDetailsPage() {
     setTouchStartDist(null);
   };
 
-  // 🚀 কাস্টমার ফটো আপলোড হ্যান্ডলার (Base64 Encoding)
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -251,13 +242,13 @@ export default function ProductDetailsPage() {
     }
   };
 
-  // 🚀 রিয়াল-টাইম কাস্টমার রিভিউ সাবমিট (বাধ্যতামূলক লগইন গেট সহ)
   const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!currentUser) {
       toast.error("You must be logged in to submit a review!");
       navigate('/login');
+      scrollToTop();
       return;
     }
 
@@ -267,7 +258,7 @@ export default function ProductDetailsPage() {
     }
 
     setIsSubmittingReview(true);
-    const toastId = toast.loading("Submitting your review to Cloud Database...");
+    const toastId = toast.loading("Submitting your review...");
 
     try {
       const reviewPayload = {
@@ -296,7 +287,7 @@ export default function ProductDetailsPage() {
       setReviews(updatedRevs);
 
       window.dispatchEvent(new Event('reviewUpdated'));
-      toast.success("Review submitted LIVE on all devices! 🎉", { id: toastId });
+      toast.success("Review submitted LIVE! 🎉", { id: toastId });
     } catch (err: any) {
       toast.error("Failed to submit review!", { id: toastId });
     } finally {
@@ -304,11 +295,11 @@ export default function ProductDetailsPage() {
     }
   };
 
-  // 🚀 ১-ভোট সীমাবদ্ধতা সহ Love (❤️) ও Dislike (👎) রিয়্যাকশন মেকানিজম (Facebook/Instagram Style)
   const handleReaction = async (reviewId: string, actionType: 'love' | 'dislike') => {
     if (!currentUser) {
       toast.error("You must be logged in to react to reviews!");
       navigate('/login');
+      scrollToTop();
       return;
     }
 
@@ -366,15 +357,12 @@ export default function ProductDetailsPage() {
     }
   };
 
-  // 🚀 কন্সট্যান্টস ও এড-টু-কার্ট হ্যান্ডলার (Early Returns এর পূর্বে স্থাপন)
   const origPrice = Number(product?.price) || 0;
   const discountPercent = Number(product?.discount) || 0;
   const finalPrice = discountPercent > 0 ? origPrice - (origPrice * discountPercent) / 100 : origPrice;
   const stockCount = Number(product?.stock) || 0;
   const isOutOfStock = stockCount <= 0 || product?.status === 'Out of Stock';
-  const isLowStock = stockCount > 0 && stockCount <= 3;
 
-  // 🚀 ডাইনামিক ওভারঅল প্রোডাক্ট রেটিং ক্যালকুলেটর (Dynamic Overall Rating)
   const avgRating = reviews.length > 0 
     ? (reviews.reduce((acc, r) => acc + (Number(r.rating) || 5), 0) / reviews.length).toFixed(1)
     : '0.0';
@@ -385,8 +373,9 @@ export default function ProductDetailsPage() {
 
   const handleAddToCart = (isBuyNow = false) => {
     if (!currentUser) {
-      toast.error("Please sign in to place an order or add items to cart! 🔐");
+      toast.error("Please sign in to place an order! 🔐");
       navigate('/login');
+      scrollToTop();
       return;
     }
 
@@ -425,6 +414,7 @@ export default function ProductDetailsPage() {
 
     if (isBuyNow) {
       navigate('/checkout');
+      scrollToTop();
     } else {
       toast.success(`${product.name} added to cart! 🛒`);
     }
@@ -451,7 +441,7 @@ export default function ProductDetailsPage() {
           <ShoppingBag size={48} className="mx-auto text-gray-600 mb-4" />
           <h2 className="text-2xl font-serif font-bold text-[#D4AF37] mb-2">Product Not Found</h2>
           <p className="text-xs text-gray-400 mb-6">The product you are looking for does not exist or has been removed.</p>
-          <Link to="/products" className="px-6 py-3 bg-[#D4AF37] text-black font-bold text-xs uppercase rounded-xl inline-block">
+          <Link to="/products" onClick={scrollToTop} className="px-6 py-3 bg-[#D4AF37] text-black font-bold text-xs uppercase rounded-xl inline-block">
             Back to Collection
           </Link>
         </div>
@@ -467,25 +457,22 @@ export default function ProductDetailsPage() {
 
       <div className="container mx-auto px-3 sm:px-4 max-w-6xl">
         
-        {/* Back Button */}
         <button 
-          onClick={() => navigate(-1)}
+          onClick={() => { navigate(-1); scrollToTop(); }}
           className="inline-flex items-center text-[10px] sm:text-xs font-bold text-gray-400 hover:text-[#D4AF37] transition-all duration-200 mb-6 hover:-translate-x-1"
         >
           <ArrowLeft size={14} className="mr-1" />
           <span>BACK TO PREVIOUS PAGE</span>
         </button>
 
-        {/* 🚀 APPLE-STYLE 3D CINEMATIC REVEAL GRID */}
         <div 
           ref={revealContainerRef}
           className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-10 items-start transition-all duration-300 ease-out origin-top"
           style={{ transformStyle: 'preserve-3d' }}
         >
-          {/* Left Column: Image Gallery with Touch/Mouse Scroll Zoom */}
           <div className="space-y-3">
             <div 
-              className="relative aspect-square w-full rounded-2xl bg-[#1A1A1A] border border-gray-800 shadow-[0_15px_40px_rgba(0,0,0,0.8)] overflow-hidden group glass-3d-card"
+              className="relative w-full max-h-[400px] sm:max-h-[480px] aspect-square rounded-2xl bg-[#1A1A1A] border border-gray-800 shadow-[0_15px_40px_rgba(0,0,0,0.8)] overflow-hidden group glass-3d-card flex items-center justify-center"
               style={{ touchAction: 'none' }}
               onMouseEnter={() => {
                 setIsHovered(true);
@@ -510,7 +497,7 @@ export default function ProductDetailsPage() {
                 <img 
                   src={selectedImage} 
                   alt={product.name} 
-                  className="w-full h-full object-cover transition-transform duration-75 ease-out select-none pointer-events-none" 
+                  className="max-h-full max-w-full object-contain transition-transform duration-75 ease-out select-none pointer-events-none" 
                   style={{
                     transform: isHovered ? `scale(${mainZoomScale})` : 'scale(1)',
                     transformOrigin: `${mainZoomPos.x}% ${mainZoomPos.y}%`
@@ -522,12 +509,10 @@ export default function ProductDetailsPage() {
                 </div>
               )}
 
-              {/* জুম নির্দেশক ব্যাজ */}
               <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-md px-2 py-1.5 rounded-lg border border-gray-800 text-[9px] text-gray-400 font-bold pointer-events-none transition-opacity duration-300 opacity-0 group-hover:opacity-100 hidden sm:block">
                 Scroll / Pinch to Zoom
               </div>
 
-              {/* Floating Badges */}
               <div className="absolute top-3 left-3 right-3 flex justify-between items-start z-10 pointer-events-none">
                 {discountPercent > 0 ? (
                   <span className="bg-red-600/90 text-white font-bold text-[10px] px-2.5 py-1 rounded-lg">
@@ -545,7 +530,6 @@ export default function ProductDetailsPage() {
               </div>
             </div>
 
-            {/* Thumbnail Row */}
             {allImages.length > 1 && (
               <div className="flex items-center space-x-2 overflow-x-auto custom-scrollbar pb-1">
                 {allImages.map((img: string, idx: number) => (
@@ -563,7 +547,6 @@ export default function ProductDetailsPage() {
             )}
           </div>
 
-          {/* Right Column: Product Details & Order Actions */}
           <div className="space-y-4 sm:space-y-6">
             
             <div className="flex justify-between items-center text-[10px] sm:text-xs">
@@ -571,7 +554,6 @@ export default function ProductDetailsPage() {
                 {product.category || 'Luxury Collection'}
               </span>
 
-              {/* Real-Time Customer Average Rating */}
               <div className="flex items-center space-x-1 bg-[#1A1A1A] px-3 py-1 rounded-full border border-gray-800 text-[10px] sm:text-xs">
                 <Star size={12} className="fill-yellow-400 text-yellow-400" />
                 <span className="font-bold text-white ml-0.5">{avgRating}</span>
@@ -588,7 +570,6 @@ export default function ProductDetailsPage() {
               </p>
             </div>
 
-            {/* Price Card */}
             <div className="p-3 sm:p-4 bg-[#1A1A1A] border border-gray-800 rounded-xl flex items-center justify-between glass-3d-panel">
               <div className="flex items-baseline space-x-2">
                 <span className="text-lg sm:text-2xl font-bold text-[#D4AF37]">
@@ -614,7 +595,6 @@ export default function ProductDetailsPage() {
               </div>
             )}
 
-            {/* Size Selector */}
             {Array.isArray(product.sizes) && product.sizes.length > 0 && (
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-300">
@@ -638,7 +618,6 @@ export default function ProductDetailsPage() {
               </div>
             )}
 
-            {/* Color Selector */}
             {Array.isArray(product.colors) && product.colors.length > 0 && (
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-300">
@@ -662,7 +641,6 @@ export default function ProductDetailsPage() {
               </div>
             )}
 
-            {/* Quantity Selector */}
             <div className="space-y-1.5">
               <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-300">Quantity</label>
               <div className="inline-flex items-center bg-[#1A1A1A] border border-gray-800 rounded-lg p-0.5">
@@ -682,7 +660,6 @@ export default function ProductDetailsPage() {
               </div>
             </div>
 
-            {/* Action Buttons */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
               <button
                 onClick={() => handleAddToCart(false)}
@@ -706,23 +683,20 @@ export default function ProductDetailsPage() {
           </div>
         </div>
 
-        {/* 🚀 CUSTOMER REVIEWS & RATING SECTION */}
         <section className="mt-20 pt-10 border-t border-gray-800">
           <div className="max-w-4xl mx-auto space-y-10">
             
-            {/* Reviews Section Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-800 pb-4 gap-4">
               <div>
                 <h2 className="text-2xl font-serif font-bold text-[#D4AF37] uppercase tracking-wider flex items-center gold-text-glow">
                   {storeLogoImage ? (
-                    <img src={storeLogoImage} alt="" className="w-5 h-5 mr-2 object-cover rounded-full" />
+                    <img src={storeLogoImage} alt="" className="w-6 h-6 mr-2 object-cover rounded-full border border-[#D4AF37]/50" />
                   ) : null}
                   CUSTOMER REVIEWS ({reviews.length})
                 </h2>
                 <p className="text-xs text-gray-400 mt-1">Real feedback from verified buyers with photo uploads</p>
               </div>
 
-              {/* Overall Score Badge */}
               <div className="flex items-center space-x-3 bg-[#1A1A1A] p-3 rounded-2xl border border-gray-800 glass-3d-panel">
                 <span className="text-2xl font-serif font-bold text-[#D4AF37]">{avgRating}</span>
                 <div>
@@ -736,7 +710,6 @@ export default function ProductDetailsPage() {
               </div>
             </div>
 
-            {/* 🚀 REVIEW SUBMISSION FORM / LOGIN GATE */}
             <div className="bg-[#1A1A1A] border border-[#D4AF37]/30 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 glass-3d-panel">
               <h3 className="text-lg font-serif font-bold text-white uppercase tracking-wide">
                 Write a Customer Review
@@ -776,7 +749,6 @@ export default function ProductDetailsPage() {
                     />
                   </div>
 
-                  {/* 📸 PHOTO ATTACHMENT INPUT */}
                   <div>
                     <label className="block text-xs font-bold uppercase text-gray-400 mb-1.5">
                       Attach Product Photo <span className="text-[10px] text-[#D4AF37] font-normal">(Optional)</span>
@@ -813,7 +785,6 @@ export default function ProductDetailsPage() {
                   </button>
                 </form>
               ) : (
-                /* 🔒 MANDATORY LOGIN GATE FOR REVIEWS */
                 <div className="p-6 bg-[#111111] border border-gray-800 rounded-2xl text-center space-y-4">
                   <div className="w-12 h-12 bg-[#D4AF37]/10 text-[#D4AF37] rounded-full flex items-center justify-center mx-auto border border-[#D4AF37]/30">
                     <User size={24} />
@@ -824,6 +795,7 @@ export default function ProductDetailsPage() {
                   </div>
                   <Link 
                     to="/login" 
+                    onClick={scrollToTop}
                     className="inline-flex items-center space-x-2 bg-[#D4AF37] text-black px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-white transition-all shadow-md active:scale-95"
                   >
                     <LogIn size={16} />
@@ -833,7 +805,6 @@ export default function ProductDetailsPage() {
               )}
             </div>
 
-            {/* REVIEWS LISTING DISPLAY */}
             <div className="space-y-4">
               {reviews.length === 0 ? (
                 <div className="text-center py-12 bg-[#1A1A1A]/40 rounded-3xl border border-gray-800/80 p-6 glass-3d-panel">
@@ -882,7 +853,6 @@ export default function ProductDetailsPage() {
                         {rev.comment}
                       </p>
 
-                      {/* PHOTO THUMBNAIL WITH ZOOM PREVIEW */}
                       {rev.photoUrl && (
                         <div className="pt-2">
                           <p className="text-[10px] text-gray-500 font-bold mb-1 uppercase">Customer Photo:</p>
@@ -898,9 +868,7 @@ export default function ProductDetailsPage() {
                         </div>
                       )}
 
-                      {/* 🚀 ❤️ LOVE & 👎 DISLIKE REACTIONS WITH STRICT 1-VOTE PER ACCOUNT LIMIT */}
                       <div className="pt-2 flex items-center space-x-3 text-xs border-t border-gray-800/80">
-                        {/* Love Reaction Button */}
                         <button
                           onClick={() => handleReaction(rev.id, 'love')}
                           className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-all ${
@@ -913,7 +881,6 @@ export default function ProductDetailsPage() {
                           <span>Love ({likedBy.length})</span>
                         </button>
 
-                        {/* Dislike Reaction Button */}
                         <button
                           onClick={() => handleReaction(rev.id, 'dislike')}
                           className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-all ${
@@ -937,7 +904,6 @@ export default function ProductDetailsPage() {
 
       </div>
 
-      {/* 🪟 PHOTO ZOOM PREVIEW MODAL */}
       {previewModalImage && (
         <div 
           onClick={() => {
@@ -959,7 +925,6 @@ export default function ProductDetailsPage() {
               />
             </div>
             
-            {/* Interactive Zoom Controls */}
             <div className="flex items-center space-x-4 mt-4 bg-[#1A1A1A] px-4 py-2 rounded-xl border border-gray-800 z-50">
               <button 
                 onClick={(e) => { 
