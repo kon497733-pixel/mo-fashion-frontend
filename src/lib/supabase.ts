@@ -89,7 +89,6 @@ export const updateSupabaseSettings = async (newSettings: Record<string, any>) =
     const payload = { id: targetId, ...cleanPayload, updated_at: new Date().toISOString() };
     localStorage.setItem('mo_fashion_settings', JSON.stringify(payload));
     
-    // উইন্ডো রিয়েল-টাইম ব্রডকাস্ট
     window.dispatchEvent(new Event('settingsUpdated'));
     window.dispatchEvent(new Event('storage'));
 
@@ -250,7 +249,7 @@ export const deleteSupabaseCoupon = async (id: string) => {
 };
 
 // =========================================================
-// 📦 5. ORDERS SERVICES (UNSTOPPABLE SILENT FALLBACK)
+// 📦 5. ORDERS SERVICES
 // =========================================================
 
 export const getSupabaseOrders = async () => {
@@ -311,7 +310,6 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
     ? cleanOrder.orderSummary
     : JSON.stringify(cleanOrder.orderSummary || {});
 
-  // Full Payload
   const fullPayload: Record<string, any> = {
     id: targetId,
     orderId: String(cleanOrder.orderId || targetId),
@@ -335,7 +333,6 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
     itemsCount: Number(cleanOrder.itemsCount || itemsArray.length || 1)
   };
 
-  // Local storage optimistic save
   try {
     const existing = JSON.parse(localStorage.getItem('mo_fashion_orders') || '[]');
     const filtered = Array.isArray(existing) ? existing.filter((o: any) => String(o.id || o.orderId || o._id) !== targetId) : [];
@@ -366,7 +363,6 @@ export const saveSupabaseOrder = async (orderData: Record<string, any>) => {
     primaryError = error;
   }
 
-  // SILENT FALLBACK
   if (primaryError) {
     console.warn('Primary Payload Error, executing Silent Core Fallback:', primaryError.message);
     const corePayload = {
@@ -411,7 +407,7 @@ export const deleteSupabaseOrder = async (id: string) => {
 };
 
 // =========================================================
-// 📦 6. CUSTOMERS SERVICES
+// 📦 6. CUSTOMERS SERVICES (PERMANENT DELETE FIXED)
 // =========================================================
 
 export const getSupabaseCustomers = async () => {
@@ -449,6 +445,20 @@ export const saveSupabaseCustomer = async (customerData: Record<string, any>) =>
   }
 
   return payload;
+};
+
+// 🗑️ কাস্টমার স্থায়ী অপসারণ সার্ভিস
+export const deleteSupabaseCustomer = async (id: string) => {
+  const targetId = String(id);
+  try {
+    await supabase.from('customers').delete().eq('id', targetId);
+    const existing = JSON.parse(localStorage.getItem('mo_fashion_customers') || '[]');
+    const filtered = existing.filter((c: any) => String(c.id || c._id) !== targetId);
+    localStorage.setItem('mo_fashion_customers', JSON.stringify(filtered));
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('customerUpdated'));
+    return true;
+  } catch (err: any) { return true; }
 };
 
 // =========================================================
@@ -516,20 +526,6 @@ export const deleteSupabaseReview = async (id: string) => {
   } catch (err) { return true; }
 };
 
-export const likeSupabaseReview = async (id: string, currentLikes: number) => {
-  const newLikes = currentLikes + 1;
-  try {
-    const existing = JSON.parse(localStorage.getItem('mo_fashion_reviews') || '[]');
-    const updated = existing.map((r: any) => String(r.id) === String(id) ? { ...r, likes: newLikes } : r);
-    localStorage.setItem('mo_fashion_reviews', JSON.stringify(updated));
-    window.dispatchEvent(new Event('storage'));
-    window.dispatchEvent(new Event('reviewUpdated'));
-
-    await supabase.from('reviews').update({ likes: newLikes }).eq('id', String(id));
-  } catch (e) {}
-  return newLikes;
-};
-
 // =========================================================
 // 📦 8. UNIVERSAL RECYCLE BIN SERVICES
 // =========================================================
@@ -546,7 +542,7 @@ export const getSupabaseRecycleBin = async () => {
   return cached ? JSON.parse(cached) : [];
 };
 
-export const moveToRecycleBin = async (originalTable: 'products' | 'categories' | 'orders' | 'coupons', item: Record<string, any>) => {
+export const moveToRecycleBin = async (originalTable: 'products' | 'categories' | 'orders' | 'coupons' | 'customers', item: Record<string, any>) => {
   const itemId = String(item.id || item._id || Date.now());
   const trashId = `TRASH-${Date.now()}`;
   const deletedAtStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -564,55 +560,20 @@ export const moveToRecycleBin = async (originalTable: 'products' | 'categories' 
     await supabase.from('recycle_bin').insert([trashPayload]);
     await supabase.from(originalTable).delete().eq('id', itemId);
 
-    const binKey = originalTable === 'categories' ? 'mo_fashion_recycle_bin_categories' : 'mo_fashion_recycle_bin_products';
+    const binKey = `mo_fashion_recycle_bin_${originalTable}`;
     const existingBin = JSON.parse(localStorage.getItem(binKey) || '[]');
     const cleanBin = existingBin.filter((i: any) => String(i.id || i._id) !== itemId);
     localStorage.setItem(binKey, JSON.stringify([{ ...item, trashId, deletedAt: deletedAtStr }, ...cleanBin]));
 
-    const activeKey = originalTable === 'categories' ? 'mo_fashion_categories' : 'mo_fashion_products';
+    const activeKey = `mo_fashion_${originalTable}`;
     const activeItems = JSON.parse(localStorage.getItem(activeKey) || '[]');
     const remainingActive = activeItems.filter((i: any) => String(i.id || i._id) !== itemId);
     localStorage.setItem(activeKey, JSON.stringify(remainingActive));
 
     window.dispatchEvent(new Event('storage'));
-    window.dispatchEvent(new Event('productUpdated'));
-    window.dispatchEvent(new Event('categoryUpdated'));
-
     return trashPayload;
   } catch (err: any) {
     return trashPayload;
-  }
-};
-
-export const restoreFromRecycleBin = async (trashRecord: Record<string, any>) => {
-  const { originalTable, data: originalData, id: trashId, itemId } = trashRecord;
-  const targetId = String(itemId || originalData?.id || originalData?._id);
-
-  try {
-    if (originalTable && originalData) {
-      const { _id, imageUrl, updated_at, trashId: tId, deletedAt, ...cleanData } = originalData;
-      await supabase.from(originalTable).upsert([{ ...cleanData, id: targetId }], { onConflict: 'id' });
-    }
-    if (trashId) {
-      await supabase.from('recycle_bin').delete().eq('id', trashId);
-    }
-
-    const activeKey = originalTable === 'categories' ? 'mo_fashion_categories' : 'mo_fashion_products';
-    const activeItems = JSON.parse(localStorage.getItem(activeKey) || '[]');
-    const cleanActive = activeItems.filter((i: any) => String(i.id || i._id) !== targetId);
-    localStorage.setItem(activeKey, JSON.stringify([originalData, ...cleanActive]));
-
-    const binKey = originalTable === 'categories' ? 'mo_fashion_categories' : 'mo_fashion_recycle_bin_products';
-    const existingBin = JSON.parse(localStorage.getItem(binKey) || '[]');
-    localStorage.setItem(binKey, JSON.stringify(existingBin.filter((i: any) => String(i.id || i._id) !== targetId)));
-
-    window.dispatchEvent(new Event('storage'));
-    window.dispatchEvent(new Event('productUpdated'));
-    window.dispatchEvent(new Event('categoryUpdated'));
-
-    return true;
-  } catch (err: any) {
-    return false;
   }
 };
 
@@ -625,23 +586,20 @@ export const permanentDeleteFromRecycleBin = async (trashId: string, itemId?: st
       await supabase.from(originalTable).delete().eq('id', String(itemId));
     }
 
-    ['mo_fashion_recycle_bin', 'mo_fashion_recycle_bin_categories', 'mo_fashion_recycle_bin_products'].forEach(key => {
+    ['mo_fashion_recycle_bin', 'mo_fashion_recycle_bin_categories', 'mo_fashion_recycle_bin_products', 'mo_fashion_recycle_bin_customers'].forEach(key => {
       const items = JSON.parse(localStorage.getItem(key) || '[]');
       const filtered = items.filter((i: any) => String(i.trashId || i.id || i._id) !== String(trashId) && String(i.id || i._id) !== String(itemId));
       localStorage.setItem(key, JSON.stringify(filtered));
     });
 
     if (originalTable) {
-      const activeKey = originalTable === 'categories' ? 'mo_fashion_categories' : 'mo_fashion_products';
+      const activeKey = `mo_fashion_${originalTable}`;
       const items = JSON.parse(localStorage.getItem(activeKey) || '[]');
       const filtered = items.filter((i: any) => String(i.id || i._id) !== String(itemId));
       localStorage.setItem(activeKey, JSON.stringify(filtered));
     }
 
     window.dispatchEvent(new Event('storage'));
-    window.dispatchEvent(new Event('productUpdated'));
-    window.dispatchEvent(new Event('categoryUpdated'));
-
     return true;
   } catch (err: any) {
     return true;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronLeft, CreditCard, Smartphone, Banknote, Tag, MapPin, Sparkles, ShieldCheck, Navigation } from 'lucide-react';
+import { ChevronLeft, CreditCard, Smartphone, Banknote, Tag, MapPin, Sparkles, ShieldCheck, Navigation, Plus, Trash2, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Helmet } from 'react-helmet-async';
 
@@ -108,12 +108,31 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 🚀 ৩-ধাপের এলাকা নির্বাচন স্টেট
+  // 🚀 বর্তমান লগইন ইউজার
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    try {
+      const savedUser = localStorage.getItem('currentUser') || localStorage.getItem('user');
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  // 🚀 ইউজারের নিজস্ব সেভ করা পেমেন্ট কার্ড লিস্ট (Strict Logout Isolation)
+  const [userSavedCards, setUserSavedCards] = useState<any[]>([]);
+  const [selectedCardId, setSelectedCardId] = useState<string>('');
+  const [newCardForm, setNewCardForm] = useState({
+    cardNumber: '',
+    cardHolder: '',
+    expiry: '',
+    cvv: ''
+  });
+  const [showAddCardModal, setShowAddCardModal] = useState(false);
+
   const [selectedDivision, setSelectedDivision] = useState<string>('Dhaka');
   const [selectedDistrict, setSelectedDistrict] = useState<string>('Dhaka');
   const [selectedThana, setSelectedThana] = useState<string>('Dhanmondi');
 
-  // 🚀 লাইভ ক্লাউড সেটিং ডাটা
   const [safeSettings, setSafeSettings] = useState<any>({
     storeName: 'MO FASHION',
     currency: '৳',
@@ -125,8 +144,27 @@ export default function CheckoutPage() {
     enableCOD: true
   });
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   useEffect(() => {
     const loadCheckoutData = async () => {
+      const savedUser = localStorage.getItem('currentUser') || localStorage.getItem('user');
+      const user = savedUser ? JSON.parse(savedUser) : null;
+      setCurrentUser(user);
+
+      // 🔒 ইউজার লগইন থাকলে কেবল তার নিজের সেভ করা কার্ড লোড হবে
+      if (user) {
+        const userEmail = user.email || user.uid || user.id;
+        const savedCardsKey = `mo_fashion_cards_${userEmail}`;
+        const userCards = JSON.parse(localStorage.getItem(savedCardsKey) || '[]');
+        setUserSavedCards(userCards);
+        if (userCards.length > 0) setSelectedCardId(userCards[0].id);
+      } else {
+        setUserSavedCards([]); // 🔒 লগআউট থাকলে শূন্য কার্ড
+      }
+
       const savedProducts = localStorage.getItem('mo_fashion_products');
       if (savedProducts) setDbProducts(JSON.parse(savedProducts));
 
@@ -163,11 +201,11 @@ export default function CheckoutPage() {
   }, [safeSettings, paymentMethod]);
 
   const [formData, setFormData] = useState({
-    firstName: '', 
-    lastName: '', 
-    email: '', 
-    phone: '',
-    address: '', 
+    firstName: currentUser?.name?.split(' ')[0] || '', 
+    lastName: currentUser?.name?.split(' ')[1] || '', 
+    email: currentUser?.email || '', 
+    phone: currentUser?.phone || '',
+    address: currentUser?.address || '', 
     postalCode: '', 
     country: 'Bangladesh' 
   });
@@ -188,7 +226,59 @@ export default function CheckoutPage() {
     setSelectedThana(thanas[0] || '');
   };
 
-  // 🚀 রিয়েল-টাইম সাবটোটাল ও প্রোডাক্ট আইটেম প্রস্তুতি
+  // 🚀 ১. নির্দিষ্ট অকাউন্টে নতুন পেমেন্ট কার্ড সেভ করা
+  const handleSaveCardForUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) {
+      toast.error("Please log in to save a payment card!");
+      navigate('/login');
+      scrollToTop();
+      return;
+    }
+
+    if (!newCardForm.cardNumber || !newCardForm.cardHolder || !newCardForm.expiry) {
+      toast.error("Please fill all card details!");
+      return;
+    }
+
+    const cardId = `CARD-${Date.now()}`;
+    const cardRecord = {
+      id: cardId,
+      cardNumber: `**** **** **** ${newCardForm.cardNumber.slice(-4)}`,
+      cardHolder: newCardForm.cardHolder.toUpperCase(),
+      expiry: newCardForm.expiry,
+      addedAt: new Date().toISOString()
+    };
+
+    const userEmail = currentUser.email || currentUser.uid || currentUser.id;
+    const savedCardsKey = `mo_fashion_cards_${userEmail}`;
+    const existingCards = JSON.parse(localStorage.getItem(savedCardsKey) || '[]');
+    const updatedCards = [cardRecord, ...existingCards];
+
+    localStorage.setItem(savedCardsKey, JSON.stringify(updatedCards));
+    setUserSavedCards(updatedCards);
+    setSelectedCardId(cardId);
+    setShowAddCardModal(false);
+    setNewCardForm({ cardNumber: '', cardHolder: '', expiry: '', cvv: '' });
+
+    toast.success("Card saved securely for your account!");
+  };
+
+  // 🚀 ২. ইউজারের সেভ করা কার্ড ডিলিট করা
+  const handleDeleteCard = (cardId: string) => {
+    if (!currentUser) return;
+    const userEmail = currentUser.email || currentUser.uid || currentUser.id;
+    const savedCardsKey = `mo_fashion_cards_${userEmail}`;
+    const updated = userSavedCards.filter(c => c.id !== cardId);
+    
+    localStorage.setItem(savedCardsKey, JSON.stringify(updated));
+    setUserSavedCards(updated);
+    if (selectedCardId === cardId) {
+      setSelectedCardId(updated[0]?.id || '');
+    }
+    toast.success("Saved card removed!");
+  };
+
   let subtotalAfterProductDiscount = 0;
   const formattedOrderItems = items.map((cartItem: any) => {
     const dbProduct = dbProducts.find(p => String(p.id || p._id) === String(cartItem.id));
@@ -225,7 +315,6 @@ export default function CheckoutPage() {
     };
   });
 
-  // 🚀 শিপিং চার্জ হিসাব
   const isInsideChattogram = selectedDistrict.toLowerCase().includes('chattogram') || selectedDistrict.toLowerCase().includes('chittagong') || selectedDivision.toLowerCase().includes('chattogram');
   const shippingInside = safeSettings.shippingInside !== undefined ? Number(safeSettings.shippingInside) : 60;
   const shippingOutside = safeSettings.shippingOutside !== undefined ? Number(safeSettings.shippingOutside) : 150;
@@ -264,10 +353,16 @@ export default function CheckoutPage() {
     return emailRegex.test(email.trim());
   };
 
-  // 🚀 প্লেস অর্ডার লজিক
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault(); 
     
+    if (!currentUser) {
+      toast.error("Please sign in to place your order securely!");
+      navigate('/login');
+      scrollToTop();
+      return;
+    }
+
     if (items.length === 0) {
       toast.error("Your cart is empty!");
       return;
@@ -302,6 +397,8 @@ export default function CheckoutPage() {
     const fullLocationStr = `${selectedThana}, ${selectedDistrict}, ${selectedDivision}`;
     const fullAddressStr = `${formData.address.trim()}, ${fullLocationStr}${formData.postalCode.trim() ? ' - ' + formData.postalCode.trim() : ''}, Bangladesh`;
 
+    const selectedCardObj = userSavedCards.find(c => c.id === selectedCardId);
+
     const orderPayload = {
       id: orderId,
       _id: orderId,
@@ -331,7 +428,11 @@ export default function CheckoutPage() {
       status: 'Pending',
       itemsCount: items.length,
       paymentMethod: paymentMethod,
-      paymentDetails: { method: paymentMethod, status: 'Pending' },
+      paymentDetails: { 
+        method: paymentMethod, 
+        status: 'Pending',
+        savedCard: selectedCardObj ? selectedCardObj.cardNumber : null
+      },
       orderItems: formattedOrderItems,
       items: formattedOrderItems,
       orderSummary: {
@@ -414,7 +515,10 @@ export default function CheckoutPage() {
     toast.success(`Order ${orderId} placed successfully! 🎉`, { id: toastId });
     clearCart();
     setIsSubmitting(false);
-    setTimeout(() => navigate('/'), 2000);
+    setTimeout(() => {
+      scrollToTop();
+      navigate('/');
+    }, 2000);
   };
 
   const availableDistricts = Object.keys(bdLocations[selectedDivision] || {});
@@ -425,12 +529,11 @@ export default function CheckoutPage() {
       <Helmet><title>Checkout | {safeSettings?.storeName || 'MO FASHION'}</title></Helmet>
 
       <div className="container mx-auto px-4 max-w-7xl">
-        <Link to="/cart" className="inline-flex items-center text-gray-400 hover:text-[#D4AF37] transition-all duration-200 mb-8 hover:-translate-x-1">
+        <Link to="/cart" onClick={scrollToTop} className="inline-flex items-center text-gray-400 hover:text-[#D4AF37] transition-all duration-200 mb-8 hover:-translate-x-1">
           <ChevronLeft size={20} className="mr-1" />
           <span>Back to Cart</span>
         </Link>
 
-        {/* Header */}
         <div className="flex items-center justify-between mb-8 pb-4 border-b border-[#D4AF37]/20">
           <h1 className="text-3xl md:text-4xl font-serif font-bold text-[#D4AF37] tracking-wider uppercase flex items-center gold-text-glow">
             <Sparkles className="mr-3 text-[#D4AF37]" size={32} />
@@ -443,7 +546,6 @@ export default function CheckoutPage() {
 
         <div className="flex flex-col lg:flex-row gap-10 [perspective:1200px]">
           
-          {/* Shipping Form */}
           <div className="lg:w-2/3 space-y-8">
             <div className="bg-[#1A1A1A] border border-[#D4AF37]/30 rounded-3xl p-6 sm:p-8 shadow-2xl hover:border-[#D4AF37]/50 transition-all duration-300 backdrop-blur-md glass-3d-panel">
               <div className="flex justify-between items-center border-b border-[#D4AF37]/20 pb-4 mb-6">
@@ -481,7 +583,6 @@ export default function CheckoutPage() {
                   <input type="text" name="address" required value={formData.address} onChange={handleChange} className="w-full bg-[#111111] border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-[#D4AF37] focus:outline-none transition-colors text-sm" placeholder="e.g. House #12, Road #5, Block C" />
                 </div>
 
-                {/* ৩-ধাপের এলাকা ড্রপডাউন */}
                 <div className="bg-[#111111] p-4 rounded-2xl border border-gray-800 space-y-4">
                   <span className="text-xs text-[#D4AF37] font-bold uppercase tracking-wider flex items-center">
                     <Navigation size={14} className="mr-1.5" /> Select Delivery Location Hierarchy
@@ -542,10 +643,11 @@ export default function CheckoutPage() {
               </form>
             </div>
 
-            {/* 🚀 3D GLASSMORPHIC PAYMENT METHODS CARD */}
+            {/* 🚀 3D GLASSMORPHIC PAYMENT METHODS & SAVED CARDS CARD */}
             <div className="bg-[#1A1A1A] border border-[#D4AF37]/30 rounded-3xl p-6 sm:p-8 shadow-2xl hover:border-[#D4AF37]/50 transition-all duration-300 glass-3d-panel">
               <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase tracking-wide border-b border-[#D4AF37]/20 pb-4 gold-text-glow">Select Payment Method</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                 {safeSettings?.enableBkash !== false && (
                   <button type="button" onClick={() => setPaymentMethod('bKash')} className={`flex flex-col items-center justify-center p-5 rounded-2xl border transition-all duration-300 active:scale-95 glass-3d-card ${paymentMethod === 'bKash' ? 'border-[#D4AF37] bg-[#D4AF37]/15 text-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.3)] scale-[1.03]' : 'border-gray-800 text-gray-400 hover:border-[#D4AF37]/50 hover:text-white bg-[#111111]'}`}>
                     <Smartphone size={32} className="mb-2.5 text-[#D4AF37]" />
@@ -565,10 +667,119 @@ export default function CheckoutPage() {
                   </button>
                 )}
               </div>
+
+              {/* 🔒 USER SAVED CARDS SECTION */}
+              {paymentMethod === 'Card' && (
+                <div className="bg-[#111111] p-5 rounded-2xl border border-[#D4AF37]/30 space-y-4 animate-in fade-in duration-300">
+                  <div className="flex justify-between items-center border-b border-gray-800 pb-3">
+                    <span className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider flex items-center">
+                      <CreditCard size={16} className="mr-2" /> Saved Cards for {currentUser?.name || 'Your Account'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddCardModal(!showAddCardModal)}
+                      className="text-xs bg-[#D4AF37] text-black px-3 py-1.5 rounded-xl font-bold uppercase flex items-center space-x-1 hover:bg-white transition-all"
+                    >
+                      <Plus size={14} />
+                      <span>Add Card</span>
+                    </button>
+                  </div>
+
+                  {userSavedCards.length > 0 ? (
+                    <div className="space-y-3">
+                      {userSavedCards.map((card) => (
+                        <div
+                          key={card.id}
+                          onClick={() => setSelectedCardId(card.id)}
+                          className={`p-4 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
+                            selectedCardId === card.id 
+                              ? 'border-[#D4AF37] bg-[#D4AF37]/10 text-white shadow-md' 
+                              : 'border-gray-800 bg-[#1A1A1A] text-gray-400 hover:border-gray-700'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <CheckCircle2 size={18} className={selectedCardId === card.id ? 'text-[#D4AF37]' : 'text-gray-600'} />
+                            <div>
+                              <p className="font-mono font-bold text-sm text-white">{card.cardNumber}</p>
+                              <p className="text-[10px] text-gray-400 font-bold uppercase">{card.cardHolder} | Exp: {card.expiry}</p>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteCard(card.id);
+                            }}
+                            className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500 italic py-2">No saved cards for this account. Click "Add Card" above to save one securely.</p>
+                  )}
+
+                  {/* Add Card Form Dropdown */}
+                  {showAddCardModal && (
+                    <form onSubmit={handleSaveCardForUser} className="bg-[#1A1A1A] p-4 rounded-xl border border-gray-700 space-y-3 mt-3 animate-in slide-in-from-top-2">
+                      <p className="text-xs font-bold text-white uppercase">Add New Payment Card</p>
+                      
+                      <input
+                        type="text"
+                        placeholder="Card Number (16 Digits)"
+                        required
+                        maxLength={16}
+                        value={newCardForm.cardNumber}
+                        onChange={(e) => setNewCardForm({ ...newCardForm, cardNumber: e.target.value })}
+                        className="w-full bg-[#111111] border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:border-[#D4AF37] focus:outline-none"
+                      />
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <input
+                          type="text"
+                          placeholder="Cardholder Name"
+                          required
+                          value={newCardForm.cardHolder}
+                          onChange={(e) => setNewCardForm({ ...newCardForm, cardHolder: e.target.value })}
+                          className="w-full bg-[#111111] border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:border-[#D4AF37] focus:outline-none"
+                        />
+                        <input
+                          type="text"
+                          placeholder="MM/YY"
+                          required
+                          maxLength={5}
+                          value={newCardForm.expiry}
+                          onChange={(e) => setNewCardForm({ ...newCardForm, expiry: e.target.value })}
+                          className="w-full bg-[#111111] border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:border-[#D4AF37] focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="flex justify-end space-x-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowAddCardModal(false)}
+                          className="px-3 py-1.5 rounded-lg bg-gray-800 text-gray-300 text-xs font-bold"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-4 py-1.5 rounded-lg bg-[#D4AF37] text-black text-xs font-bold uppercase"
+                        >
+                          Save Card
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              )}
+
             </div>
           </div>
 
-          {/* Right Side: 3D Order Summary */}
           <div className="lg:w-1/3">
             <div className="bg-[#1A1A1A] border border-[#D4AF37]/30 rounded-3xl p-6 sm:p-8 shadow-2xl sticky top-24 transition-all duration-300 glass-3d-panel">
               <h2 className="text-xl font-serif font-bold text-[#D4AF37] mb-6 uppercase tracking-wide border-b border-[#D4AF37]/20 pb-4 gold-text-glow">Order Summary</h2>
@@ -622,7 +833,6 @@ export default function CheckoutPage() {
                 </span>
               </div>
 
-              {/* 🚀 3D METALLIC PLACE ORDER BUTTON */}
               <button 
                 type="submit"
                 form="checkout-form"

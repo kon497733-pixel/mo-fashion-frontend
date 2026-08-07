@@ -80,7 +80,7 @@ export default function Navbar() {
     loadNavbarData();
 
     const channel = supabase
-      .channel('public:navbar:live:sync:v121')
+      .channel('public:navbar:live:sync:v122')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'settings' },
@@ -259,14 +259,21 @@ export default function Navbar() {
               }`} />
             </Link>
 
-            <div className="relative py-2">
-              <button
-                onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
-                className={`flex items-center space-x-1 text-xs font-bold tracking-[0.2em] transition-all duration-300 group ${
+            <div className="relative py-2 flex items-center space-x-1">
+              <Link
+                to="/categories"
+                onClick={scrollToTop}
+                className={`text-xs font-bold tracking-[0.2em] transition-all duration-300 ${
                   location.pathname === '/categories' ? 'text-[#D4AF37]' : 'text-gray-300 hover:text-[#D4AF37]'
                 }`}
               >
-                <span>CATEGORIES</span>
+                CATEGORIES
+              </Link>
+              <button
+                onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
+                className="text-gray-400 hover:text-[#D4AF37] p-1 transition-transform"
+                title="Explore Category List"
+              >
                 <ChevronDown size={14} className={`transition-transform duration-300 ${isCategoriesOpen ? 'rotate-180 text-[#D4AF37]' : ''}`} />
               </button>
 
@@ -463,8 +470,9 @@ export default function Navbar() {
         )}
       </header>
 
-      <div className="lg:hidden fixed bottom-4 left-4 right-4 z-50 [perspective:1000px]">
-        <nav className="bg-[#1A1A1A]/90 backdrop-blur-2xl border border-[#D4AF37]/40 rounded-2xl p-2 shadow-[0_15px_35px_rgba(0,0,0,0.95),0_0_25px_rgba(212,175,55,0.25)] flex items-center justify-around [transform-style:preserve-3d] transition-all duration-300 [transform:translateZ(15px)]">
+      {/* 🚀 SINGLE LIQUID POP-UP MOBILE BOTTOM NAVIGATION BAR */}
+      <div className="lg:hidden fixed bottom-3 left-3 right-3 z-50">
+        <nav className="bg-[#141414]/95 backdrop-blur-2xl border border-[#D4AF37]/40 rounded-3xl p-1.5 shadow-[0_15px_35px_rgba(0,0,0,0.95)] flex items-center justify-around relative">
           {bottomNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -474,29 +482,32 @@ export default function Navbar() {
                 key={item.path}
                 to={item.path}
                 onClick={scrollToTop}
-                className={`relative flex flex-col items-center justify-center py-1.5 px-3 rounded-xl transition-all duration-300 active:scale-90 [transform-style:preserve-3d] ${
-                  isActive 
-                    ? 'text-[#D4AF37] scale-105 [transform:translateZ(10px)]' 
-                    : 'text-gray-400 hover:text-gray-200'
-                }`}
+                className="relative flex flex-col items-center justify-center w-full py-2 transition-all duration-300"
               >
-                {isActive && (
-                  <span className="absolute inset-0 bg-gradient-to-b from-[#D4AF37]/25 to-transparent rounded-xl border border-[#D4AF37]/50 shadow-[0_0_18px_rgba(212,175,55,0.45)] animate-pulse" />
-                )}
-
-                <div className="relative z-10 flex flex-col items-center [transform-style:preserve-3d]">
-                  <div className="relative">
-                    <Icon size={20} className={isActive ? 'text-[#D4AF37] drop-shadow-[0_0_10px_#D4AF37]' : ''} />
-                    {item.badge !== undefined && item.badge > 0 && (
-                      <span className="absolute -top-2 -right-2 bg-[#D4AF37] text-black font-bold text-[9px] w-4 h-4 rounded-full flex items-center justify-center border border-black shadow-md animate-bounce">
-                        {item.badge}
-                      </span>
-                    )}
+                {isActive ? (
+                  <div className="flex flex-col items-center -mt-6 animate-in zoom-in-75 duration-300">
+                    <div className="w-11 h-11 bg-[#D4AF37] rounded-full flex items-center justify-center shadow-[0_0_18px_#D4AF37] border-2 border-[#111111]">
+                      <Icon size={20} className="text-black stroke-[2.5]" />
+                    </div>
+                    <span className="text-[11px] font-bold text-[#D4AF37] mt-1 tracking-wide font-sans">
+                      {item.name}
+                    </span>
                   </div>
-                  <span className="text-[11px] font-bold tracking-wide mt-1 font-sans">
-                    {item.name}
-                  </span>
-                </div>
+                ) : (
+                  <div className="flex flex-col items-center opacity-70 hover:opacity-100 transition-opacity">
+                    <div className="relative">
+                      <Icon size={20} className="text-gray-300 stroke-[1.8]" />
+                      {item.badge !== undefined && item.badge > 0 && (
+                        <span className="absolute -top-1.5 -right-2 bg-[#D4AF37] text-black font-bold text-[9px] w-4 h-4 rounded-full flex items-center justify-center border border-black shadow-md">
+                          {item.badge}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[11px] font-medium text-gray-400 mt-1 tracking-wide font-sans">
+                      {item.name}
+                    </span>
+                  </div>
+                )}
               </Link>
             );
           })}

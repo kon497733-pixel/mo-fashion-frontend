@@ -14,7 +14,6 @@ export default function Settings() {
 
   const { settings, fetchSettings, updateSettings } = useSettingsStore();
 
-  // 🚀 জিরো ডিফল্ট স্ট্রাকচার (৩ডি কন্ট্রোল সহ সব ফিল্ড পারফেক্টলি যুক্ত করা হয়েছে)
   const emptySettings = {
     storeName: '',
     logoUrl: '', 
@@ -39,7 +38,7 @@ export default function Settings() {
     enableBkash: true,
     enableCard: true,
     enableCOD: true,
-    enable3DEffects: true, // 🚀 ৩ডি ক্যানভাস ও এনিমেশন টগল
+    enable3DEffects: true,
     enable3DParticles: true,
     enableScrollReveal: true,
     facebook: '',
@@ -52,7 +51,6 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState('General');
   const [loading, setLoading] = useState(true);
 
-  // 🚀 ১. সেন্ট্রাল ক্লাউড ডাটাবেস থেকে রিয়েল-টাইম সেটিংস সিঙ্ক করা
   useEffect(() => {
     const loadSettings = async () => {
       try {
@@ -71,7 +69,6 @@ export default function Settings() {
     loadSettings();
   }, []);
 
-  // ক্লাউড স্টোর চেঞ্জ হলে ফর্মে রিয়েল-টাইমে সিঙ্ক করা
   useEffect(() => {
     if (settings && Object.keys(settings).length > 0) {
       setLocalSettings((prev: any) => ({ ...emptySettings, ...prev, ...settings }));
@@ -83,7 +80,6 @@ export default function Settings() {
     setLocalSettings((prev: any) => ({ ...prev, [name]: value }));
   };
 
-  // 🚀 ২. হাই-কোয়ালিটি আল্ট্রা-লাইটওয়েট লোগো কমপ্রেশন
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -114,7 +110,6 @@ export default function Settings() {
     }
   };
 
-  // 🚀 ৩. এবাউট টিম ফটো কমপ্রেশন
   const handleAboutImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -170,7 +165,6 @@ export default function Settings() {
     setLocalSettings({ ...localSettings, faqs: updatedFaqs });
   };
 
-  // 🚀 ৪. ক্লাউড ডাটাবেসে সেভ করা (১০০% পার্মানেন্ট)
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -201,7 +195,6 @@ export default function Settings() {
     <div className="text-white pb-10 transition-all duration-300">
       <Helmet><title>Admin - Advanced Settings | MO FASHION</title></Helmet>
 
-      {/* 🌟 3D GLASSMORPHIC HEADER */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-3xl border border-[#D4AF37]/30 backdrop-blur-md shadow-2xl transition-all duration-300 hover:border-[#D4AF37]/50 glass-3d-panel">
         <div>
           <div className="flex items-center space-x-3">
@@ -219,7 +212,6 @@ export default function Settings() {
 
       <div className="flex flex-col lg:flex-row gap-8 [perspective:1200px]">
         
-        {/* Left Sidebar Menu */}
         <div className="lg:w-1/4">
           <div className="bg-[#1A1A1A] rounded-3xl border border-[#D4AF37]/30 p-4 sticky top-24 shadow-2xl backdrop-blur-md glass-3d-panel">
             <nav className="space-y-2">
@@ -246,7 +238,6 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Right Content Area */}
         <div className="lg:w-3/4">
           {loading ? (
             <div className="bg-[#1A1A1A] p-16 rounded-3xl text-center text-[#D4AF37] border border-[#D4AF37]/20 flex flex-col items-center justify-center space-y-3 shadow-2xl glass-3d-panel">
@@ -256,14 +247,12 @@ export default function Settings() {
           ) : (
             <form onSubmit={handleSaveSettings} className="bg-[#1A1A1A] p-6 sm:p-8 rounded-3xl border border-[#D4AF37]/30 shadow-2xl relative min-h-[400px] transition-all duration-300 glass-3d-panel">
               
-              {/* 1. General Settings */}
               {activeTab === 'General' && (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
                   <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center gold-text-glow">
                     <Sparkles size={20} className="mr-2 text-[#D4AF37]" /> General Information
                   </h2>
                   
-                  {/* ওয়েবসাইট লোগো সেকশন */}
                   <div className="bg-[#111111] p-5 rounded-2xl border border-[#D4AF37]/20 space-y-4 hover:border-[#D4AF37]/40 transition-colors glass-3d-card">
                     <label className="block text-[#D4AF37] font-bold text-sm">Website Logo Management</label>
 
@@ -317,7 +306,6 @@ export default function Settings() {
                     </div>
                   </div>
 
-                  {/* এবাউট পেজের টিম ছবি সেকশন */}
                   <div className="bg-[#111111] p-5 rounded-2xl border border-[#D4AF37]/20 space-y-4 hover:border-[#D4AF37]/40 transition-colors glass-3d-card">
                     <label className="block text-[#D4AF37] font-bold text-sm">About Page Image ("The Fashion Team" Box)</label>
 
@@ -371,7 +359,6 @@ export default function Settings() {
                     </div>
                   </div>
 
-                  {/* সাধারণ তথ্য ফিল্ডস */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
                     <div>
                       <label className="block text-gray-300 text-xs font-bold uppercase tracking-wider mb-2">Store Name</label>
@@ -423,7 +410,6 @@ export default function Settings() {
                 </div>
               )}
 
-              {/* 🚀 3D Visual Engine Controls */}
               {activeTab === '3D Visual Mode' && (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
                   <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center gold-text-glow">
@@ -458,7 +444,6 @@ export default function Settings() {
                 </div>
               )}
 
-              {/* Homepage 3D Controls */}
               {activeTab === 'Homepage 3D' && (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
                   <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center gold-text-glow">
@@ -580,7 +565,6 @@ export default function Settings() {
                 </div>
               )}
 
-              {/* Operations Settings */}
               {activeTab === 'Operations' && (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
                   <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center gold-text-glow">
@@ -621,7 +605,6 @@ export default function Settings() {
                 </div>
               )}
 
-              {/* Payment Settings */}
               {activeTab === 'Payment' && (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
                   <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center gold-text-glow">
@@ -644,7 +627,6 @@ export default function Settings() {
                 </div>
               )}
 
-              {/* Social Links */}
               {activeTab === 'Social Links' && (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
                   <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center gold-text-glow">
@@ -658,7 +640,6 @@ export default function Settings() {
                 </div>
               )}
 
-              {/* FAQs */}
               {activeTab === 'FAQs' && (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
                   <div className="flex justify-between items-center mb-6 border-b border-[#D4AF37]/20 pb-3">
@@ -679,7 +660,6 @@ export default function Settings() {
                 </div>
               )}
 
-              {/* 💾 Save All Settings Button */}
               <div className="mt-10 pt-6 border-t border-[#D4AF37]/20 flex justify-end">
                 <button 
                   type="submit"

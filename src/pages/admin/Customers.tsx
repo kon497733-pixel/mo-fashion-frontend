@@ -19,7 +19,7 @@ export default function Customers() {
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  // 🚀 ডুপ্লিকেট কাস্টমার মার্জ করার মার্জিং লজিক (Deduplication Logic)
+  // 🚀 ডুপ্লিকেট কাস্টমার মার্জ করার মার্জিং লজিক
   const mergeDuplicateCustomers = (list: any[]) => {
     if (!Array.isArray(list)) return [];
     const mergedMap = new Map<string, any>();
@@ -57,7 +57,7 @@ export default function Customers() {
     return Array.from(mergedMap.values());
   };
 
-  // 🚀 ১. সরাসরি Supabase Cloud Database থেকে রিয়েল-টাইম কাস্টমার ডাটা ফেচিং
+  // 🚀 ১. কাস্টমার ও অর্ডার ডাটা ফেচিং (ডিলিটেড কাস্টমার ফিল্টার সহ)
   const fetchCustomersAndOrders = async () => {
     setLoading(true);
 
@@ -66,6 +66,10 @@ export default function Customers() {
     if (savedLocal) {
       try { localCustomers = JSON.parse(savedLocal); } catch (e) {}
     }
+
+    // রিসাইকেল বিনে ডিলিট হওয়া আইডি ফিল্টার
+    const recycleBinCats = JSON.parse(localStorage.getItem('mo_fashion_recycle_bin_customers') || '[]');
+    const deletedIds = recycleBinCats.map((item: any) => String(item.id || item._id || item.itemId));
 
     try {
       const [cloudCustomers, cloudOrders] = await Promise.all([
@@ -77,7 +81,12 @@ export default function Customers() {
       const ordersArray = Array.isArray(cloudOrders) ? cloudOrders : [];
 
       if (customersArray.length > 0) {
-        const cleanMergedCustomers = mergeDuplicateCustomers(customersArray);
+        // ডিলিট হওয়া কাস্টমারদের বাদ দেওয়া
+        const activeCloudCustomers = customersArray.filter(
+          (c: any) => !deletedIds.includes(String(c.id || c._id))
+        );
+
+        const cleanMergedCustomers = mergeDuplicateCustomers(activeCloudCustomers);
 
         const enrichedList = cleanMergedCustomers.map((cust: any) => {
           const custEmail = (cust.email || '').toLowerCase().trim();
@@ -109,11 +118,13 @@ export default function Customers() {
         setCustomers(enrichedList);
         localStorage.setItem('mo_fashion_customers', JSON.stringify(enrichedList));
       } else {
-        setCustomers(localCustomers);
+        const activeLocal = localCustomers.filter((c: any) => !deletedIds.includes(String(c.id || c._id)));
+        setCustomers(activeLocal);
       }
     } catch (error) {
       console.warn("Supabase Customers Cloud fetch fallback, using local cache.");
-      setCustomers(localCustomers);
+      const activeLocal = localCustomers.filter((c: any) => !deletedIds.includes(String(c.id || c._id)));
+      setCustomers(activeLocal);
     } finally {
       setLoading(false);
     }
@@ -123,7 +134,7 @@ export default function Customers() {
     fetchCustomersAndOrders();
 
     const channel = supabase
-      .channel('public:customers:admin:live:guaranteed')
+      .channel('public:customers:admin:live:guaranteed:v2')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, () => {
         fetchCustomersAndOrders();
       })
@@ -143,7 +154,7 @@ export default function Customers() {
     };
   }, []);
 
-  // 🚀 ৩. কাস্টমার ব্লক / আনব্লক করার লজিক
+  // 🚀 ৩. কাস্টমার ব্লক / আনব্লক
   const handleToggleStatus = async (customer: any) => {
     const targetId = String(customer.id || customer._id);
     const isCurrentlyActive = customer.status === 'Active';
@@ -170,22 +181,27 @@ export default function Customers() {
     }
   };
 
-  // 🗑️ ৪. সিঙ্গেল কাস্টমার ডিলিট (রিসাইকেল বিনে প্রেরণ ও সুপাবেস ডাটাবেজ থেকে রিমুভ)
+  // 🗑️ ৪. পারমানেন্ট কাস্টমার ডিলিট (রিসাইকেল বিনে মুভ ও ক্লাউড ডাটাবেজ থেকে স্থায়ী অপসারণ)
   const handleDelete = async (customer: any) => {
     const targetId = String(customer.id || customer._id);
     const name = customer.name || 'Customer';
 
-    if (window.confirm(`Are you sure you want to move customer "${name}" to Recycle Bin?`)) {
+    if (window.confirm(`Are you sure you want to PERMANENTLY delete customer "${name}"?`)) {
+      // লোকাল স্টেট ও লোকাল স্টোরেজ থেকে রিমুভ
       const updated = customers.filter(c => String(c.id || c._id) !== targetId);
       setCustomers(updated);
       localStorage.setItem('mo_fashion_customers', JSON.stringify(updated));
 
+      // রিসাইকেল বিনে ব্যাকআপ রাখা
+      const deletedBin = JSON.parse(localStorage.getItem('mo_fashion_recycle_bin_customers') || '[]');
+      localStorage.setItem('mo_fashion_recycle_bin_customers', JSON.stringify([{ ...customer, itemId: targetId }, ...deletedBin]));
+
       try {
-        await moveToRecycleBin('customers' as any, customer);
         await supabase.from('customers').delete().eq('id', targetId);
+        await moveToRecycleBin('customers' as any, customer).catch(() => null);
         toast.success(`Customer "${name}" moved to Recycle Bin! 🗑️`);
       } catch (e) {
-        toast.success("Customer deleted locally.");
+        toast.success("Customer deleted.");
       }
     }
   };
@@ -199,7 +215,6 @@ export default function Customers() {
     );
   });
 
-  // 🚀 ৫. সিলেক্ট অল এবং বাল্ক একশন হ্যান্ডলার
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
       const allIds = filteredCustomers.map((c: any) => String(c.id || c._id));
@@ -218,7 +233,7 @@ export default function Customers() {
     }
   };
 
-  // 🗑️ বাল্ক কাস্টমার ডিলিট (রিসাইকেল বিনে প্রেরণ)
+  // 🗑️ বাল্ক কাস্টমার ডিলিট (রিসাইকেল বিনে প্রেরণ ও সুপাবেস থেকে স্থায়ী মুছে ফেলা)
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
 
@@ -229,13 +244,17 @@ export default function Customers() {
       setCustomers(remaining);
       localStorage.setItem('mo_fashion_customers', JSON.stringify(remaining));
 
+      const deletedBin = JSON.parse(localStorage.getItem('mo_fashion_recycle_bin_customers') || '[]');
+      const newlyDeletedBin = selectedCustomers.map(c => ({ ...c, itemId: String(c.id || c._id) }));
+      localStorage.setItem('mo_fashion_recycle_bin_customers', JSON.stringify([...newlyDeletedBin, ...deletedBin]));
+
       const toastId = toast.loading(`Moving ${selectedIds.length} customers to Recycle Bin...`);
 
       for (const custObj of selectedCustomers) {
         const id = String(custObj.id || custObj._id);
         try {
-          await moveToRecycleBin('customers' as any, custObj);
           await supabase.from('customers').delete().eq('id', id);
+          await moveToRecycleBin('customers' as any, custObj).catch(() => null);
         } catch (e) {}
       }
 
@@ -244,7 +263,6 @@ export default function Customers() {
     }
   };
 
-  // 🔒 বাল্ক কাস্টমার ব্লক / আনব্লক
   const handleBulkChangeStatus = async (newStatus: string) => {
     if (selectedIds.length === 0) return;
 
@@ -275,7 +293,6 @@ export default function Customers() {
         <title>Admin - Customers Management | MO FASHION</title>
       </Helmet>
 
-      {/* 🌟 3D GLASSMORPHIC HEADER SECTION */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-3xl border border-[#D4AF37]/30 backdrop-blur-md shadow-2xl transition-all duration-300 hover:border-[#D4AF37]/50 glass-3d-panel">
         <div>
           <div className="flex items-center space-x-3">
@@ -299,7 +316,6 @@ export default function Customers() {
         </button>
       </div>
 
-      {/* 🚀 3D Bulk Action Bar */}
       {selectedIds.length > 0 && (
         <div className="bg-[#D4AF37]/10 border border-[#D4AF37]/40 p-4 rounded-2xl mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md glass-3d-panel">
           <div className="flex items-center space-x-2 text-[#D4AF37] font-bold text-sm gold-text-glow">
@@ -335,7 +351,6 @@ export default function Customers() {
         </div>
       )}
 
-      {/* 🔎 3D Search Bar */}
       <div className="bg-[#1A1A1A] p-4 rounded-2xl border border-[#D4AF37]/20 mb-6 shadow-lg transition-all duration-300 glass-3d-panel">
         <div className="relative w-full max-w-md">
           <input 
@@ -349,7 +364,6 @@ export default function Customers() {
         </div>
       </div>
 
-      {/* 📦 3D Customers Table */}
       <div className="bg-[#1A1A1A] rounded-3xl border border-[#D4AF37]/20 overflow-hidden shadow-2xl transition-all duration-300 glass-3d-panel">
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left whitespace-nowrap">

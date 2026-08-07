@@ -15,7 +15,7 @@ import {
   getSupabaseReviews 
 } from '../../lib/supabase';
 
-// 🚀 প্রোডাক্ট কার্ডের ভেতরের অটোমেটিক ইমেজ স্লাইডার (Auto Product Image Slider)
+// 🚀 প্রোডাক্ট কার্ডের ভেতরের অটোমেটিক ইমেজ স্লাইডার
 function ProductCardImageSlider({ images, name }: { images: string[]; name: string }) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -94,6 +94,10 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('All');
   const [heroTilt, setHeroTilt] = useState({ x: 0, y: 0 });
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   useEffect(() => {
     const loadHomeData = async () => {
@@ -279,7 +283,7 @@ export default function Home() {
 
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-4 [transform-style:preserve-3d]">
                 <button
-                  onClick={() => navigate('/products')}
+                  onClick={() => { navigate('/products'); scrollToTop(); }}
                   className="px-8 py-4 bg-gradient-to-r from-[#D4AF37] via-[#f3e5ab] to-[#aa8c2c] text-black font-bold text-xs sm:text-sm tracking-[0.2em] uppercase rounded-xl shadow-[0_10px_30px_rgba(212,175,55,0.4)] hover:shadow-[0_15px_40px_rgba(212,175,55,0.7)] transition-all duration-300 hover:scale-105 active:scale-95 flex items-center space-x-2 [transform:translateZ(20px)]"
                 >
                   <span>SHOP COLLECTION</span>
@@ -287,7 +291,7 @@ export default function Home() {
                 </button>
 
                 <button
-                  onClick={() => navigate('/categories')}
+                  onClick={() => { navigate('/categories'); scrollToTop(); }}
                   className="px-8 py-4 bg-[#1A1A1A]/80 hover:bg-[#D4AF37]/20 text-white hover:text-[#D4AF37] font-bold text-xs sm:text-sm tracking-[0.2em] uppercase rounded-xl border border-gray-800 hover:border-[#D4AF37]/50 backdrop-blur-md transition-all duration-300 hover:scale-105 active:scale-95 [transform:translateZ(10px)] glass-3d-panel"
                 >
                   EXPLORE CATEGORIES
@@ -380,7 +384,6 @@ export default function Home() {
       <section className="py-16 px-4 bg-[#111111] relative">
         <div className="container mx-auto max-w-7xl space-y-8">
           
-          {/* SEARCH BAR */}
           <div className="bg-[#1A1A1A]/90 border border-[#D4AF37]/30 rounded-2xl p-4 shadow-xl backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-4 glass-3d-panel">
             <div className="relative w-full sm:w-96">
               <input
@@ -413,7 +416,6 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Category Filter Tabs & Slider Controls */}
             <div className="flex items-center space-x-3 overflow-x-auto custom-scrollbar pb-2 md:pb-0">
               <div className="flex items-center space-x-2">
                 <button
@@ -445,7 +447,6 @@ export default function Home() {
                 })}
               </div>
 
-              {/* Slider Arrows */}
               <div className="hidden sm:flex items-center space-x-2 shrink-0 pl-4 border-l border-gray-800">
                 <button
                   onClick={() => scrollSlider('left')}
@@ -465,7 +466,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* 🚀 SMOOTH HORIZONTAL 3D PRODUCT SLIDER */}
           {filteredProducts.length === 0 ? (
             <div className="text-center py-20 bg-[#1A1A1A]/60 rounded-3xl border border-gray-800 p-8 max-w-xl mx-auto glass-3d-panel">
               <ShoppingBag size={48} className="mx-auto text-gray-600 mb-4 opacity-50" />
@@ -504,10 +504,9 @@ export default function Home() {
                 return (
                   <div
                     key={pId}
-                    onClick={() => navigate(`/product/${pId}`)}
+                    onClick={() => { navigate(`/product/${pId}`); scrollToTop(); }}
                     className="w-[48%] sm:w-[48%] md:w-[30%] lg:w-[23%] shrink-0 snap-start group relative bg-[#1A1A1A] border border-gray-800 hover:border-[#D4AF37]/60 rounded-2xl overflow-hidden cursor-pointer shadow-xl transition-all duration-500 hover:-translate-y-2 [perspective:1000px] [transform-style:preserve-3d] glass-3d-card"
                   >
-                    {/* 3D Image Box */}
                     <div className="relative aspect-square w-full bg-[#111111] overflow-hidden">
                       <ProductCardImageSlider images={productImagesList} name={pName} />
 
@@ -542,6 +541,7 @@ export default function Home() {
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/product/${pId}`);
+                            scrollToTop();
                           }}
                           className="p-3 bg-[#111111]/80 text-white hover:text-[#D4AF37] border border-gray-700 rounded-xl hover:scale-110 transition-transform shadow-lg"
                           title="View Product Details"
@@ -619,7 +619,7 @@ export default function Home() {
                 {settings?.offerDescription || 'Upgrade your wardrobe today with our exclusive premium collection. Fast nationwide delivery available.'}
               </p>
               <button
-                onClick={() => navigate('/products')}
+                onClick={() => { navigate('/products'); scrollToTop(); }}
                 className="px-8 py-3.5 bg-gradient-to-r from-[#D4AF37] to-[#f3e5ab] text-black font-bold text-xs uppercase tracking-widest rounded-xl hover:scale-105 transition-all shadow-lg shadow-[#D4AF37]/20"
               >
                 EXPLORE OFFER
