@@ -67,6 +67,27 @@ function CategoryCardImageSlider({ images, name }: { images: string[]; name: str
 export default function CategoriesPage() {
   const navigate = useNavigate();
 
+  // 🚀১. পুরনো স্যাম্পল/ডামি ক্যাটাগরি (Mens Collection, Womens, Accessories ইত্যাদি) স্থায়ীভাবে ফিল্টার করার স্যানিটাইজার
+  const sanitizeCategories = (catList: any[]) => {
+    if (!Array.isArray(catList)) return [];
+    return catList.filter((cat: any) => {
+      if (!cat) return false;
+      const nameLower = String(cat.name || cat.title || '').toLowerCase().trim();
+      if (!nameLower || nameLower === 'undefined' || nameLower === 'null') return false;
+
+      const isOldDummy = nameLower.includes('mens collection') || 
+                         nameLower.includes("men's collection") ||
+                         nameLower.includes('womens collection') || 
+                         nameLower.includes("women's collection") ||
+                         nameLower.includes('accessories') ||
+                         nameLower.includes('luxury golden watch') || 
+                         nameLower.includes('sample category') || 
+                         nameLower.includes('dummy') ||
+                         nameLower.includes('exercise');
+      return !isOldDummy;
+    });
+  };
+
   const [categories, setCategories] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -82,7 +103,13 @@ export default function CategoriesPage() {
       setLoading(true);
 
       const cachedCats = localStorage.getItem('mo_fashion_categories');
-      if (cachedCats) { try { setCategories(JSON.parse(cachedCats)); } catch (e) {} }
+      if (cachedCats) { 
+        try { 
+          const cleanCached = sanitizeCategories(JSON.parse(cachedCats));
+          setCategories(cleanCached);
+          localStorage.setItem('mo_fashion_categories', JSON.stringify(cleanCached));
+        } catch (e) {} 
+      }
 
       const cachedProds = localStorage.getItem('mo_fashion_products');
       if (cachedProds) { try { setProducts(JSON.parse(cachedProds)); } catch (e) {} }
@@ -97,7 +124,12 @@ export default function CategoriesPage() {
           getSupabaseSettings().catch(() => null)
         ]);
 
-        if (Array.isArray(cloudCats) && cloudCats.length > 0) setCategories(cloudCats);
+        if (Array.isArray(cloudCats) && cloudCats.length > 0) {
+          const cleanCloud = sanitizeCategories(cloudCats);
+          setCategories(cleanCloud);
+          localStorage.setItem('mo_fashion_categories', JSON.stringify(cleanCloud));
+        }
+
         if (Array.isArray(cloudProds) && cloudProds.length > 0) setProducts(cloudProds);
         if (cloudSet) setSettings((prev: any) => ({ ...prev, ...cloudSet }));
       } catch (e) {
@@ -125,7 +157,9 @@ export default function CategoriesPage() {
   const cleanRealCategories = () => {
     const map = new Map<string, any>();
 
-    categories.forEach((cat: any) => {
+    const activeCleanCats = sanitizeCategories(categories);
+
+    activeCleanCats.forEach((cat: any) => {
       const name = String(cat.name || cat.title || '').trim();
       if (name && name !== 'undefined' && name !== 'null') {
         const key = name.toLowerCase();
@@ -147,19 +181,30 @@ export default function CategoriesPage() {
     products.forEach((prod: any) => {
       const catName = String(prod.category || '').trim();
       if (catName && catName !== 'undefined' && catName !== 'null') {
-        const key = catName.toLowerCase();
-        let prodImg = '';
-        if (prod.images && prod.images[0]) prodImg = prod.images[0];
-        else if (prod.imageUrl) prodImg = prod.imageUrl;
-        else if (prod.image) prodImg = prod.image;
+        const nameLower = catName.toLowerCase();
+        const isOldDummy = nameLower.includes('mens collection') || 
+                           nameLower.includes("men's collection") ||
+                           nameLower.includes('womens collection') || 
+                           nameLower.includes("women's collection") ||
+                           nameLower.includes('accessories') ||
+                           nameLower.includes('dummy') ||
+                           nameLower.includes('exercise');
 
-        if (!map.has(key)) {
-          map.set(key, {
-            id: `PROD-CAT-${key}`,
-            name: catName,
-            images: prodImg ? [prodImg] : [],
-            description: 'Curated luxury products'
-          });
+        if (!isOldDummy) {
+          const key = nameLower;
+          let prodImg = '';
+          if (prod.images && prod.images[0]) prodImg = prod.images[0];
+          else if (prod.imageUrl) prodImg = prod.imageUrl;
+          else if (prod.image) prodImg = prod.image;
+
+          if (!map.has(key)) {
+            map.set(key, {
+              id: `PROD-CAT-${key}`,
+              name: catName,
+              images: prodImg ? [prodImg] : [],
+              description: 'Curated luxury products'
+            });
+          }
         }
       }
     });

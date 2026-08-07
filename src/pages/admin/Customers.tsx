@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Search, Mail, Phone, Ban, CheckCircle, Trash2, User, RefreshCw } from 'lucide-react';
+import { Search, Mail, Phone, Ban, CheckCircle, Trash2, User, RefreshCw, CheckSquare } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
 import { 
   supabase, 
   getSupabaseCustomers, 
   saveSupabaseCustomer, 
-  getSupabaseOrders 
+  getSupabaseOrders,
+  moveToRecycleBin
 } from '../../lib/supabase';
 
 export default function Customers() {
@@ -16,6 +17,7 @@ export default function Customers() {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // 🚀 ডুপ্লিকেট কাস্টমার মার্জ করার মার্জিং লজিক (Deduplication Logic)
   const mergeDuplicateCustomers = (list: any[]) => {
@@ -168,17 +170,20 @@ export default function Customers() {
     }
   };
 
-  // 🚀 ৪. ডাটাবেস থেকে কাস্টমার মুছে ফেলার লজিক
-  const handleDelete = async (id: string, name: string) => {
-    const targetId = String(id);
-    if (window.confirm(`Are you sure you want to delete customer "${name}"? This action cannot be undone.`)) {
+  // 🗑️ ৪. সিঙ্গেল কাস্টমার ডিলিট (রিসাইকেল বিনে প্রেরণ ও সুপাবেস ডাটাবেজ থেকে রিমুভ)
+  const handleDelete = async (customer: any) => {
+    const targetId = String(customer.id || customer._id);
+    const name = customer.name || 'Customer';
+
+    if (window.confirm(`Are you sure you want to move customer "${name}" to Recycle Bin?`)) {
       const updated = customers.filter(c => String(c.id || c._id) !== targetId);
       setCustomers(updated);
       localStorage.setItem('mo_fashion_customers', JSON.stringify(updated));
 
       try {
+        await moveToRecycleBin('customers' as any, customer);
         await supabase.from('customers').delete().eq('id', targetId);
-        toast.success(`Customer "${name}" deleted permanently!`);
+        toast.success(`Customer "${name}" moved to Recycle Bin! 🗑️`);
       } catch (e) {
         toast.success("Customer deleted locally.");
       }
@@ -193,6 +198,76 @@ export default function Customers() {
       (customer.phone || '').includes(searchQuery)
     );
   });
+
+  // 🚀 ৫. সিলেক্ট অল এবং বাল্ক একশন হ্যান্ডলার
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      const allIds = filteredCustomers.map((c: any) => String(c.id || c._id));
+      setSelectedIds(allIds);
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleToggleSelectOne = (id: string) => {
+    const targetId = String(id);
+    if (selectedIds.includes(targetId)) {
+      setSelectedIds(selectedIds.filter(i => i !== targetId));
+    } else {
+      setSelectedIds([...selectedIds, targetId]);
+    }
+  };
+
+  // 🗑️ বাল্ক কাস্টমার ডিলিট (রিসাইকেল বিনে প্রেরণ)
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+
+    if (window.confirm(`Are you sure you want to move ${selectedIds.length} selected customer(s) to Recycle Bin?`)) {
+      const selectedCustomers = customers.filter((c: any) => selectedIds.includes(String(c.id || c._id)));
+      const remaining = customers.filter((c: any) => !selectedIds.includes(String(c.id || c._id)));
+
+      setCustomers(remaining);
+      localStorage.setItem('mo_fashion_customers', JSON.stringify(remaining));
+
+      const toastId = toast.loading(`Moving ${selectedIds.length} customers to Recycle Bin...`);
+
+      for (const custObj of selectedCustomers) {
+        const id = String(custObj.id || custObj._id);
+        try {
+          await moveToRecycleBin('customers' as any, custObj);
+          await supabase.from('customers').delete().eq('id', id);
+        } catch (e) {}
+      }
+
+      setSelectedIds([]);
+      toast.success(`${selectedCustomers.length} customer(s) moved to Recycle Bin! 🗑️`, { id: toastId });
+    }
+  };
+
+  // 🔒 বাল্ক কাস্টমার ব্লক / আনব্লক
+  const handleBulkChangeStatus = async (newStatus: string) => {
+    if (selectedIds.length === 0) return;
+
+    const updatedList = customers.map((c: any) => {
+      const id = String(c.id || c._id);
+      return selectedIds.includes(id) ? { ...c, status: newStatus } : c;
+    });
+
+    setCustomers(updatedList);
+    localStorage.setItem('mo_fashion_customers', JSON.stringify(updatedList));
+
+    const toastId = toast.loading(`Updating status to "${newStatus}"...`);
+
+    for (const id of selectedIds) {
+      const found = customers.find((c: any) => String(c.id || c._id) === id);
+      if (found) {
+        await saveSupabaseCustomer({ ...found, status: newStatus }).catch(() => null);
+      }
+    }
+
+    setSelectedIds([]);
+    toast.success(`Updated ${selectedIds.length} customer(s) to "${newStatus}" LIVE! 🎉`, { id: toastId });
+  };
 
   return (
     <div className="text-white pb-10 transition-all duration-300">
@@ -224,6 +299,42 @@ export default function Customers() {
         </button>
       </div>
 
+      {/* 🚀 3D Bulk Action Bar */}
+      {selectedIds.length > 0 && (
+        <div className="bg-[#D4AF37]/10 border border-[#D4AF37]/40 p-4 rounded-2xl mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md glass-3d-panel">
+          <div className="flex items-center space-x-2 text-[#D4AF37] font-bold text-sm gold-text-glow">
+            <CheckSquare size={18} />
+            <span>{selectedIds.length} Customer(s) Selected</span>
+          </div>
+
+          <div className="flex items-center space-x-3 w-full sm:w-auto justify-end">
+            <button
+              onClick={() => handleBulkChangeStatus('Active')}
+              className="bg-green-500/20 hover:bg-green-500 text-green-400 hover:text-black border border-green-500/40 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center space-x-1 active:scale-95"
+            >
+              <CheckCircle size={14} />
+              <span>Unblock Selected</span>
+            </button>
+
+            <button
+              onClick={() => handleBulkChangeStatus('Blocked')}
+              className="bg-yellow-500/20 hover:bg-yellow-500 text-yellow-400 hover:text-black border border-yellow-500/40 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center space-x-1 active:scale-95"
+            >
+              <Ban size={14} />
+              <span>Block Selected</span>
+            </button>
+
+            <button
+              onClick={handleBulkDelete}
+              className="bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/40 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center space-x-1 active:scale-95 shadow-md"
+            >
+              <Trash2 size={14} />
+              <span>Move Selected to Recycle Bin</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 🔎 3D Search Bar */}
       <div className="bg-[#1A1A1A] p-4 rounded-2xl border border-[#D4AF37]/20 mb-6 shadow-lg transition-all duration-300 glass-3d-panel">
         <div className="relative w-full max-w-md">
@@ -244,6 +355,15 @@ export default function Customers() {
           <table className="w-full text-left whitespace-nowrap">
             <thead className="bg-[#111111] border-b border-[#D4AF37]/20">
               <tr>
+                <th className="px-4 py-4 w-10 text-center">
+                  <input 
+                    type="checkbox" 
+                    checked={filteredCustomers.length > 0 && selectedIds.length === filteredCustomers.length}
+                    onChange={handleSelectAll}
+                    className="w-4 h-4 accent-[#D4AF37] rounded cursor-pointer"
+                    title="Select All Customers"
+                  />
+                </th>
                 <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Customer Info</th>
                 <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider">Contact</th>
                 <th className="px-6 py-4 font-bold text-gray-300 uppercase text-xs tracking-wider text-center">Total Orders</th>
@@ -255,7 +375,7 @@ export default function Customers() {
             <tbody className="divide-y divide-gray-800">
               {loading && customers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-[#D4AF37]">
+                  <td colSpan={7} className="px-6 py-12 text-center text-[#D4AF37]">
                     <div className="flex flex-col items-center justify-center space-y-3">
                       <RefreshCw className="animate-spin w-8 h-8 text-[#D4AF37]" />
                       <p className="font-medium animate-pulse">Syncing customer profiles live from Supabase Cloud DB...</p>
@@ -263,78 +383,91 @@ export default function Customers() {
                   </td>
                 </tr>
               ) : (
-                filteredCustomers.map((customer: any) => (
-                  <tr key={customer.id || customer._id || Math.random()} className="hover:bg-[#111111] transition-all duration-200 group">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37] font-bold uppercase group-hover:scale-110 transition-transform duration-300 shadow-sm">
-                          {customer.name ? customer.name.charAt(0) : '?'}
+                filteredCustomers.map((customer: any) => {
+                  const displayId = String(customer.id || customer._id);
+                  const isChecked = selectedIds.includes(displayId);
+
+                  return (
+                    <tr key={displayId || Math.random()} className={`hover:bg-[#111111] transition-all duration-200 group ${isChecked ? 'bg-[#D4AF37]/5' : ''}`}>
+                      <td className="px-4 py-4 text-center">
+                        <input 
+                          type="checkbox" 
+                          checked={isChecked}
+                          onChange={() => handleToggleSelectOne(displayId)}
+                          className="w-4 h-4 accent-[#D4AF37] rounded cursor-pointer"
+                        />
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37] font-bold uppercase group-hover:scale-110 transition-transform duration-300 shadow-sm">
+                            {customer.name ? customer.name.charAt(0) : '?'}
+                          </div>
+                          <div>
+                            <p className="font-bold text-white group-hover:text-[#D4AF37] transition-colors">{customer.name}</p>
+                            <p className="text-xs text-gray-500 font-light">Joined: {customer.joinDate}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-bold text-white group-hover:text-[#D4AF37] transition-colors">{customer.name}</p>
-                          <p className="text-xs text-gray-500 font-light">Joined: {customer.joinDate}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center text-xs text-gray-300 font-light">
+                            <Mail size={13} className="text-[#D4AF37] mr-2 shrink-0" />
+                            <span>{customer.email || 'N/A'}</span>
+                          </div>
+                          <div className="flex items-center text-xs text-gray-300 font-light">
+                            <Phone size={13} className="text-[#D4AF37] mr-2 shrink-0" />
+                            <span>{customer.phone || 'N/A'}</span>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center text-xs text-gray-300 font-light">
-                          <Mail size={13} className="text-[#D4AF37] mr-2 shrink-0" />
-                          <span>{customer.email || 'N/A'}</span>
+                      </td>
+                      <td className="px-6 py-4 font-medium text-white text-center">
+                        <span className="bg-[#111111] px-3 py-1 rounded-full border border-gray-800 text-xs font-bold shadow-inner">
+                          {customer.orders}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 font-bold text-[#D4AF37] gold-text-glow">
+                        ৳{Number(customer.spent || 0).toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold border inline-block transition-all duration-300 ${
+                          customer.status === 'Active' 
+                          ? 'text-green-400 bg-green-500/10 border-green-500/30 shadow-sm shadow-green-500/20 animate-pulse' 
+                          : 'text-red-400 bg-red-500/10 border-red-500/30 shadow-sm shadow-red-500/20'
+                        }`}>
+                          {customer.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end space-x-2">
+                          <button 
+                            onClick={() => handleToggleStatus(customer)}
+                            className={`p-2.5 rounded-xl transition-all duration-200 border active:scale-95 ${
+                              customer.status === 'Active' 
+                              ? 'text-yellow-500 border-yellow-500/20 hover:border-yellow-500 hover:bg-yellow-500/10' 
+                              : 'text-green-400 border-green-500/20 hover:border-green-500 hover:bg-green-500/10'
+                            }`}
+                            title={customer.status === 'Active' ? 'Block Customer' : 'Unblock Customer'}
+                          >
+                            {customer.status === 'Active' ? <Ban size={16} /> : <CheckCircle size={16} />}
+                          </button>
+                          
+                          <button 
+                            onClick={() => handleDelete(customer)}
+                            className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-all duration-200 bg-[#111111] border border-gray-800 hover:border-red-500/50 rounded-xl active:scale-95"
+                            title="Move to Recycle Bin"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </div>
-                        <div className="flex items-center text-xs text-gray-300 font-light">
-                          <Phone size={13} className="text-[#D4AF37] mr-2 shrink-0" />
-                          <span>{customer.phone || 'N/A'}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 font-medium text-white text-center">
-                      <span className="bg-[#111111] px-3 py-1 rounded-full border border-gray-800 text-xs font-bold shadow-inner">
-                        {customer.orders}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 font-bold text-[#D4AF37] gold-text-glow">
-                      ৳{Number(customer.spent || 0).toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold border inline-block transition-all duration-300 ${
-                        customer.status === 'Active' 
-                        ? 'text-green-400 bg-green-500/10 border-green-500/30 shadow-sm shadow-green-500/20 animate-pulse' 
-                        : 'text-red-400 bg-red-500/10 border-red-500/30 shadow-sm shadow-red-500/20'
-                      }`}>
-                        {customer.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-end space-x-2">
-                        <button 
-                          onClick={() => handleToggleStatus(customer)}
-                          className={`p-2.5 rounded-xl transition-all duration-200 border active:scale-95 ${
-                            customer.status === 'Active' 
-                            ? 'text-yellow-500 border-yellow-500/20 hover:border-yellow-500 hover:bg-yellow-500/10' 
-                            : 'text-green-400 border-green-500/20 hover:border-green-500 hover:bg-green-500/10'
-                          }`}
-                          title={customer.status === 'Active' ? 'Block Customer' : 'Unblock Customer'}
-                        >
-                          {customer.status === 'Active' ? <Ban size={16} /> : <CheckCircle size={16} />}
-                        </button>
-                        
-                        <button 
-                          onClick={() => handleDelete(customer.id || customer._id, customer.name)}
-                          className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-all duration-200 bg-[#111111] border border-gray-800 hover:border-red-500/50 rounded-xl active:scale-95"
-                          title="Delete Customer"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                    </tr>
+                  );
+                })
               )}
 
               {filteredCustomers.length === 0 && !loading && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <User size={36} className="text-gray-600 opacity-40" />
                       <p className="text-base font-semibold text-gray-400">No customers found!</p>

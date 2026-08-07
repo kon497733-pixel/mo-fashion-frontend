@@ -10,7 +10,8 @@ import {
   supabase, 
   getSupabaseOrders, 
   saveSupabaseOrder, 
-  deleteSupabaseOrder 
+  deleteSupabaseOrder,
+  moveToRecycleBin
 } from '../../lib/supabase';
 
 export default function Orders() {
@@ -276,17 +277,21 @@ export default function Orders() {
     }
   };
 
+  // 🗑️ ৪.১ সিঙ্গেল অর্ডার ডিলিট (রিসাইকেল বিনে প্রেরণ ও সুপাবেস ডাটাবেজ থেকে রিমুভ)
   const handleDeleteOrder = async (id: string) => {
     const targetId = String(id);
-    if (window.confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
+    const foundOrder = orders.find((o: any) => String(o._id || o.id || o.orderId) === targetId);
+
+    if (window.confirm("Are you sure you want to move this order to Recycle Bin?")) {
       const remainingOrders = orders.filter((o: any) => String(o._id || o.id || o.orderId) !== targetId);
       setOrders(remainingOrders);
       localStorage.setItem('mo_fashion_orders', JSON.stringify(remainingOrders));
       setIsModalOpen(false);
 
       try {
+        if (foundOrder) await moveToRecycleBin('orders', foundOrder);
         await deleteSupabaseOrder(targetId);
-        toast.success("Order deleted successfully!");
+        toast.success("Order moved to Recycle Bin! 🗑️");
         window.dispatchEvent(new Event('orderUpdated'));
       } catch (error) {
         toast.success("Order deleted locally.");
@@ -329,22 +334,27 @@ export default function Orders() {
     }
   };
 
+  // 🗑️ ৪.২ বাল্ক অর্ডার ডিলিট (রিসাইকেল বিনে স্থানান্তর)
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
 
-    if (window.confirm(`Are you sure you want to PERMANENTLY delete ${selectedIds.length} selected order(s)?`)) {
+    if (window.confirm(`Are you sure you want to move ${selectedIds.length} selected order(s) to Recycle Bin?`)) {
+      const selectedOrders = orders.filter((o: any) => selectedIds.includes(String(o.orderId || o.id || o._id)));
       const remaining = orders.filter((o: any) => !selectedIds.includes(String(o.orderId || o.id || o._id)));
+      
       setOrders(remaining);
       localStorage.setItem('mo_fashion_orders', JSON.stringify(remaining));
 
-      const toastId = toast.loading(`Deleting ${selectedIds.length} orders...`);
+      const toastId = toast.loading(`Moving ${selectedIds.length} orders to Recycle Bin...`);
 
-      for (const id of selectedIds) {
+      for (const orderObj of selectedOrders) {
+        const id = String(orderObj.orderId || orderObj.id || orderObj._id);
+        await moveToRecycleBin('orders', orderObj).catch(() => null);
         await deleteSupabaseOrder(id).catch(() => null);
       }
 
       setSelectedIds([]);
-      toast.success(`${selectedIds.length} orders deleted LIVE! 🎉`, { id: toastId });
+      toast.success(`${selectedOrders.length} order(s) moved to Recycle Bin! 🗑️`, { id: toastId });
       window.dispatchEvent(new Event('orderUpdated'));
     }
   };
@@ -433,7 +443,7 @@ export default function Orders() {
               className="bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/40 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center space-x-1.5 active:scale-95 shadow-md"
             >
               <Trash2 size={14} />
-              <span>Delete Selected</span>
+              <span>Move Selected to Recycle Bin</span>
             </button>
           </div>
         </div>
@@ -560,7 +570,7 @@ export default function Orders() {
                           <button 
                             onClick={() => handleDeleteOrder(displayOrderId)}
                             className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-all duration-200 bg-[#111111] rounded-xl border border-gray-800 hover:border-red-500/50 active:scale-95"
-                            title="Delete Order"
+                            title="Move to Recycle Bin"
                           >
                             <Trash2 size={16} />
                           </button>

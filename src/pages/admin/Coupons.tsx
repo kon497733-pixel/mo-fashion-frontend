@@ -6,7 +6,8 @@ import {
   supabase, 
   getSupabaseCoupons, 
   saveSupabaseCoupon, 
-  deleteSupabaseCoupon 
+  deleteSupabaseCoupon,
+  moveToRecycleBin
 } from '../../lib/supabase';
 
 export default function Coupons() {
@@ -131,19 +132,24 @@ export default function Coupons() {
     setIsModalOpen(true);
   };
 
-  // 🚀 ৩. কুপন ডিলিট লজিক
-  const handleDelete = async (id: string, code: string) => {
-    const targetId = String(id);
-    if (window.confirm(`Are you sure you want to delete the coupon "${code}"?`)) {
+  // 🗑️ ৩. কুপন ডিলিট লজিক (রিসাইকেল বিনে স্থানান্তর ও সুপাবেস ডাটাবেজ থেকে রিমুভ)
+  const handleDelete = async (coupon: any) => {
+    const targetId = String(coupon.id || coupon._id);
+    const code = coupon.code || 'Coupon';
+
+    if (window.confirm(`Are you sure you want to move the coupon "${code}" to Recycle Bin?`)) {
       const updated = coupons.filter(c => String(c.id || c._id) !== targetId);
       setCoupons(updated);
       localStorage.setItem('mo_fashion_coupons', JSON.stringify(updated));
 
       try {
+        await moveToRecycleBin('coupons', coupon);
         await deleteSupabaseCoupon(targetId);
+
         window.dispatchEvent(new Event('storage'));
         window.dispatchEvent(new Event('couponUpdated'));
-        toast.success(`Coupon "${code}" deleted permanently! 🗑️`);
+
+        toast.success(`Coupon "${code}" moved to Recycle Bin! 🗑️`);
       } catch (e) {
         toast.success(`Coupon "${code}" deleted locally.`);
       }
@@ -361,9 +367,9 @@ export default function Coupons() {
                             <Edit size={16} />
                           </button>
                           <button 
-                            onClick={() => handleDelete(coupon.id || coupon._id, coupon.code)}
+                            onClick={() => handleDelete(coupon)}
                             className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-all duration-200 bg-[#111111] rounded-xl border border-gray-800 hover:border-red-500/50 active:scale-95"
-                            title="Delete Coupon"
+                            title="Move to Recycle Bin"
                           >
                             <Trash2 size={16} />
                           </button>
