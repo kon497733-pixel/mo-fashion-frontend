@@ -1,13 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  ShoppingBag, Eye, Star, ChevronRight, ChevronLeft, 
-  ShieldCheck, Truck, RotateCcw, Award, RefreshCw, Search, Filter 
+  ShoppingBag, Search, Filter, PhoneCall, Mail, MapPin, 
+  History, Trash2, X, Sparkles, Folder, Package, ArrowRight,
+  ShieldCheck, Truck, RotateCcw, Award, Star, Eye, ChevronLeft, ChevronRight, RefreshCw, Check
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
 
+import Hero from '../../components/home/Hero';
+import Categories from '../../components/home/Categories';
+import FeaturedProducts from '../../components/home/FeaturedProducts';
+import Offer3DCanvas from '../../components/home/Offer3DCanvas';
 import { useCartStore } from '../../store/useCartStore';
+
 import { 
   getSupabaseProducts, 
   getSupabaseCategories, 
@@ -15,7 +21,7 @@ import {
   getSupabaseReviews 
 } from '../../lib/supabase';
 
-// 🚀 প্রোডাক্ট কার্ডের ভেতরের অটোমেটিক ইমেজ স্লাইডার
+// 🚀 প্রোডাক্ট কার্ডের ভেতরের ৩ডি গ্যালারি অটো স্লাইডার Component
 function ProductCardImageSlider({ images, name }: { images: string[]; name: string }) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -44,14 +50,14 @@ function ProductCardImageSlider({ images, name }: { images: string[]; name: stri
           key={idx}
           src={img}
           alt={`${name} slide ${idx + 1}`}
-          className={`absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-all duration-1000 ease-out ${
+          className={`absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-all duration-1000 ease-out [transform:translateZ(35px)] ${
             idx === currentIndex ? 'opacity-100 scale-105' : 'opacity-0 scale-100 pointer-events-none'
           }`}
         />
       ))}
 
       {validImages.length > 1 && (
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex space-x-1 z-10 bg-black/60 px-2 py-0.5 rounded-full backdrop-blur-md border border-white/10">
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex space-x-1 z-20 bg-black/60 px-2 py-0.5 rounded-full backdrop-blur-md border border-white/10">
           {validImages.map((_, i) => (
             <div
               key={i}
@@ -69,12 +75,12 @@ function ProductCardImageSlider({ images, name }: { images: string[]; name: stri
 export default function Home() {
   const navigate = useNavigate();
   const cartStore = useCartStore();
+  const searchRef = useRef<HTMLDivElement>(null);
   const productSliderRef = useRef<HTMLDivElement>(null);
 
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
-  const [sectionSearchQuery, setSectionSearchQuery] = useState('');
   const [settings, setSettings] = useState<any>({
     storeName: 'MO FASHION',
     tagline: 'LUXURY COLLECTION',
@@ -93,11 +99,38 @@ export default function Home() {
 
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('All');
-  const [heroTilt, setHeroTilt] = useState({ x: 0, y: 0 });
+  const [sectionSearchQuery, setSectionSearchQuery] = useState('');
+
+  // 🚀 SUPER AESTHETIC SEARCH BAR STATES (VIDEO MATCHING)
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+
+  // 🚀 কাস্টমার লগইন স্ট্যাটাস
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    try {
+      const savedUser = localStorage.getItem('currentUser') || localStorage.getItem('user');
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch (e) {
+      return null;
+    }
+  });
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // ইউজারের নিজস্ব সার্চ হিস্ট্রি লোড
+  useEffect(() => {
+    if (currentUser) {
+      const userEmail = currentUser.email || currentUser.uid || currentUser.id;
+      const historyKey = `mo_fashion_search_history_${userEmail}`;
+      const saved = JSON.parse(localStorage.getItem(historyKey) || '[]');
+      setSearchHistory(saved);
+    } else {
+      setSearchHistory([]);
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     const loadHomeData = async () => {
@@ -143,23 +176,92 @@ export default function Home() {
     window.addEventListener('settingsUpdated', handleStorageUpdate);
     window.addEventListener('reviewUpdated', handleStorageUpdate);
 
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setIsSearchExpanded(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+
     return () => {
       window.removeEventListener('storage', handleStorageUpdate);
       window.removeEventListener('productUpdated', handleStorageUpdate);
       window.removeEventListener('categoryUpdated', handleStorageUpdate);
       window.removeEventListener('settingsUpdated', handleStorageUpdate);
       window.removeEventListener('reviewUpdated', handleStorageUpdate);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
-  const handleHeroMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width - 0.5;
-    const y = (e.clientY - rect.top) / rect.height - 0.5;
-    setHeroTilt({ x: y * 18, y: -x * 18 });
+  // 🚀 লাইভ সার্চ রেজাল্ট জেনারেটর
+  const searchResults = (() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+
+    const matchedCats = categories
+      .filter(c => String(c.name || '').toLowerCase().includes(q))
+      .map(c => ({
+        type: 'Category',
+        id: String(c.id || c._id),
+        name: c.name,
+        image: c.image || c.imageUrl || '',
+        url: `/products?category=${encodeURIComponent(c.name)}`
+      }));
+
+    const matchedProds = products
+      .filter(p => String(p.name || '').toLowerCase().includes(q) || String(p.category || '').toLowerCase().includes(q))
+      .map(p => ({
+        type: 'Product',
+        id: String(p.id || p._id),
+        name: p.name,
+        price: p.price,
+        category: p.category,
+        image: p.images?.[0] || p.imageUrl || p.image || '',
+        url: `/product/${p.id || p._id}`
+      }));
+
+    return [...matchedCats, ...matchedProds].slice(0, 6);
+  })();
+
+  // 🚀 ভিডিওর স্টাইল অনুযায়ী ডাইনামিক স্ট্যাটাস মেসেজ
+  const searchStatusLabel = (() => {
+    if (!isSearchExpanded) return 'ready';
+    if (!searchQuery) return 'type to search...';
+    if (searchResults.length === 0) return 'no results 😞';
+    if (searchResults.length === 1) return 'Found it! 🎉';
+    if (searchResults.length <= 3) return `is it one of these ${searchResults.length}?`;
+    return 'searching...';
+  })();
+
+  const handleSelectSearchResult = (url: string, term: string) => {
+    if (currentUser && term.trim()) {
+      const userEmail = currentUser.email || currentUser.uid || currentUser.id;
+      const historyKey = `mo_fashion_search_history_${userEmail}`;
+      const filtered = searchHistory.filter(item => item.toLowerCase() !== term.trim().toLowerCase());
+      const updatedHistory = [term.trim(), ...filtered].slice(0, 6);
+
+      setSearchHistory(updatedHistory);
+      localStorage.setItem(historyKey, JSON.stringify(updatedHistory));
+    }
+
+    navigate(url);
+    scrollToTop();
+    setSearchQuery('');
+    setIsSearchExpanded(false);
   };
 
-  const handleHeroMouseLeave = () => setHeroTilt({ x: 0, y: 0 });
+  const handleClearHistoryItem = (e: React.MouseEvent, itemToDelete: string) => {
+    e.stopPropagation();
+    if (!currentUser) return;
+    const userEmail = currentUser.email || currentUser.uid || currentUser.id;
+    const historyKey = `mo_fashion_search_history_${userEmail}`;
+    const updated = searchHistory.filter(item => item !== itemToDelete);
+
+    setSearchHistory(updated);
+    localStorage.setItem(historyKey, JSON.stringify(updated));
+    toast.success("Search history item removed!");
+  };
 
   const scrollSlider = (direction: 'left' | 'right') => {
     if (productSliderRef.current) {
@@ -194,18 +296,8 @@ export default function Home() {
 
     if (typeof (cartStore as any).addToCart === 'function') {
       (cartStore as any).addToCart(cartPayload);
-    } else if (typeof (cartStore as any).addItem === 'function') {
-      (cartStore as any).addItem(cartPayload);
     } else {
-      useCartStore.setState((state: any) => {
-        const existingItem = state.items.find((i: any) => String(i.id) === cartPayload.id);
-        if (existingItem) {
-          return {
-            items: state.items.map((i: any) => String(i.id) === cartPayload.id ? { ...i, quantity: i.quantity + 1 } : i)
-          };
-        }
-        return { items: [...state.items, cartPayload] };
-      });
+      useCartStore.setState((state: any) => ({ items: [...state.items, cartPayload] }));
     }
 
     toast.success(`${product.name} added to cart! 🛒`);
@@ -241,99 +333,159 @@ export default function Home() {
   const storeBrandTitle = settings?.storeName || 'MO FASHION';
 
   return (
-    <div className="min-h-screen text-white bg-[#111111] overflow-x-hidden pt-20 transition-all duration-300">
+    <div className="min-h-screen text-white bg-[#111111] overflow-x-hidden pt-16 transition-all duration-300">
       <Helmet>
-        <title>{storeBrandTitle} | Luxury Fashion Store</title>
+        <title>{storeBrandTitle} | Premium Luxury Store</title>
       </Helmet>
 
-      {/* 🚀 1. PURE 3D HERO BANNER SECTION WITH PARALLAX TILT */}
-      <section 
-        className="relative min-h-[85vh] flex items-center justify-center py-16 px-4 [perspective:1200px]"
-        onMouseMove={handleHeroMouseMove}
-        onMouseLeave={handleHeroMouseLeave}
-      >
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-[#D4AF37]/15 rounded-full blur-[150px] pointer-events-none animate-pulse" />
-        
-        <div 
-          className="container mx-auto max-w-7xl relative z-10 transition-transform duration-300 ease-out [transform-style:preserve-3d] will-change-transform"
-          style={{
-            transform: `rotateX(${heroTilt.x}deg) rotateY(${heroTilt.y}deg)`
-          }}
-        >
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            
-            <div className="space-y-6 text-center lg:text-left [transform:translateZ(30px)]">
-              
-              <div className="inline-flex items-center space-x-2 bg-[#1A1A1A]/90 border border-[#D4AF37]/40 px-4 py-2 rounded-full backdrop-blur-md shadow-[0_0_20px_rgba(212,175,55,0.25)] glass-3d-panel">
-                {storeLogoImage ? (
-                  <img src={storeLogoImage} alt={storeBrandTitle} className="w-4 h-4 object-cover rounded-full" />
-                ) : null}
-                <span className="text-xs font-bold tracking-[0.25em] text-[#D4AF37] uppercase">
-                  {settings?.heroBadge || 'EXCLUSIVE LUXURY COLLECTION'}
-                </span>
-              </div>
+      {/* 🚀 1. SUPER AESTHETIC EXPANDING SEARCH BAR WITH GLOWING CONIC RING (VIDEO MATCHING) */}
+      <div className="container mx-auto px-4 max-w-7xl pt-4">
+        <div ref={searchRef} className="relative flex flex-col items-center justify-center z-40">
+          
+          {/* Animated Aesthetic Capsule Container */}
+          <div className={`relative transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] flex items-center p-1 rounded-full shadow-2xl backdrop-blur-2xl ${
+            isSearchExpanded 
+              ? 'w-full max-w-2xl bg-[#111111]/90 shadow-[0_0_35px_rgba(212,175,55,0.4)] border border-[#D4AF37]' 
+              : 'w-14 h-14 bg-[#1A1A1A] border border-[#D4AF37]/50 hover:border-[#D4AF37] hover:scale-110 cursor-pointer justify-center'
+          }`}>
 
-              <h1 className="text-4xl sm:text-6xl md:text-7xl font-serif font-bold leading-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-[#f3e5ab] to-[#D4AF37] drop-shadow-[0_10px_25px_rgba(212,175,55,0.35)] uppercase gold-text-glow">
-                {settings?.heroTitle || 'ELEVATE YOUR SIGNATURE STYLE'}
-              </h1>
+            {/* Glowing Conic Gradient Ring Border Animation */}
+            {isSearchExpanded && (
+              <div className="absolute -inset-[2px] bg-gradient-to-r from-[#D4AF37] via-[#fff5c0] to-[#aa8c2c] rounded-full blur-sm opacity-60 animate-pulse pointer-events-none" />
+            )}
 
-              <p className="text-gray-400 text-sm sm:text-base max-w-xl mx-auto lg:mx-0 leading-relaxed font-light">
-                {settings?.heroDescription || 'Discover handcrafted luxury apparel and accessories designed to redefine modern elegance. Premium quality tailored for perfection.'}
-              </p>
+            {!isSearchExpanded ? (
+              <button 
+                onClick={() => setIsSearchExpanded(true)}
+                className="w-full h-full flex items-center justify-center text-[#D4AF37]"
+                title="Open Aesthetic Search"
+              >
+                <Search size={22} className="animate-bounce" />
+              </button>
+            ) : (
+              <div className="relative z-10 flex items-center w-full px-3 py-1">
+                <Search size={18} className="text-[#D4AF37] mr-2 shrink-0" />
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Search products, apparel, or categories..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && searchQuery.trim()) {
+                      handleSelectSearchResult(`/products?search=${encodeURIComponent(searchQuery)}`, searchQuery);
+                    }
+                  }}
+                  className="w-full bg-transparent text-xs sm:text-sm text-white placeholder-gray-500 focus:outline-none font-medium"
+                />
 
-              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-4 [transform-style:preserve-3d]">
-                <button
-                  onClick={() => { navigate('/products'); scrollToTop(); }}
-                  className="px-8 py-4 bg-gradient-to-r from-[#D4AF37] via-[#f3e5ab] to-[#aa8c2c] text-black font-bold text-xs sm:text-sm tracking-[0.2em] uppercase rounded-xl shadow-[0_10px_30px_rgba(212,175,55,0.4)] hover:shadow-[0_15px_40px_rgba(212,175,55,0.7)] transition-all duration-300 hover:scale-105 active:scale-95 flex items-center space-x-2 [transform:translateZ(20px)]"
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} className="p-1 text-gray-400 hover:text-white mr-1">
+                    <X size={16} />
+                  </button>
+                )}
+
+                <button 
+                  onClick={() => setIsSearchExpanded(false)}
+                  className="p-1.5 bg-[#111111] border border-gray-700 hover:border-[#D4AF37] rounded-full text-gray-400 hover:text-white transition-colors"
                 >
-                  <span>SHOP COLLECTION</span>
-                  <ChevronRight size={18} />
-                </button>
-
-                <button
-                  onClick={() => { navigate('/categories'); scrollToTop(); }}
-                  className="px-8 py-4 bg-[#1A1A1A]/80 hover:bg-[#D4AF37]/20 text-white hover:text-[#D4AF37] font-bold text-xs sm:text-sm tracking-[0.2em] uppercase rounded-xl border border-gray-800 hover:border-[#D4AF37]/50 backdrop-blur-md transition-all duration-300 hover:scale-105 active:scale-95 [transform:translateZ(10px)] glass-3d-panel"
-                >
-                  EXPLORE CATEGORIES
+                  <X size={14} />
                 </button>
               </div>
-            </div>
-
-            {/* 🚀 3D FLOATING HERO CARD */}
-            <div className="relative flex justify-center items-center [transform-style:preserve-3d]">
-              <div className="relative w-72 h-72 sm:w-96 sm:h-96 rounded-3xl bg-gradient-to-tr from-[#1A1A1A] via-[#111111] to-[#1A1A1A] border border-[#D4AF37]/40 shadow-[0_25px_60px_rgba(0,0,0,0.95),0_0_40px_rgba(212,175,55,0.2)] p-6 flex flex-col justify-between overflow-hidden group [transform:translateZ(45px)] glass-3d-card animate-float-3d">
-                
-                <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full border-4 border-[#D4AF37]/30 group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
-                <div className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full border-4 border-[#D4AF37]/20 group-hover:scale-110 transition-transform duration-700 pointer-events-none" />
-
-                <div className="flex justify-between items-start z-10">
-                  <span className="text-xs font-serif font-bold text-[#D4AF37] tracking-widest uppercase">
-                    {settings?.heroCardEst || 'EST. 2026'}
-                  </span>
-                  <Award size={28} className="text-[#D4AF37] animate-pulse" />
-                </div>
-
-                <div className="text-center z-10 py-6">
-                  <span className="font-serif text-2xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#ffffff] uppercase gold-text-glow">
-                    {settings?.heroCardTitle || '100% AUTHENTIC'}
-                  </span>
-                  <p className="text-xs text-gray-400 mt-2 uppercase tracking-widest font-semibold">
-                    {settings?.heroCardSubtitle || 'PREMIUM FASHION GUARANTEED'}
-                  </p>
-                </div>
-
-                <div className="flex justify-between items-center z-10 border-t border-gray-800/80 pt-4 text-xs text-gray-400">
-                  <span className="flex items-center"><ShieldCheck size={14} className="mr-1 text-[#D4AF37]" /> Verified Store</span>
-                  <span className="text-[#D4AF37] font-bold uppercase">{storeBrandTitle}</span>
-                </div>
-              </div>
-            </div>
-
+            )}
           </div>
-        </div>
-      </section>
 
-      {/* 🚀 2. TRUST FEATURES BAR WITH 3D CARDS */}
+          {/* Video-style Status Label Below Search Bar */}
+          <span className="text-[10px] font-mono tracking-widest text-[#D4AF37] mt-2 font-bold uppercase gold-text-glow">
+            {searchStatusLabel}
+          </span>
+
+          {/* 🚀 VIDEO-STYLE EXPANDED RESULTS CARD LIST */}
+          {isSearchExpanded && (
+            <div className="absolute top-full left-1/2 -translate-x-1/2 w-full max-w-2xl mt-3 bg-[#1A1A1A]/95 border border-[#D4AF37]/40 rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.95)] p-4 backdrop-blur-2xl z-50 animate-in fade-in zoom-in-95 duration-200 glass-3d-panel">
+              
+              {/* Saved Search History Chips for Logged-In User */}
+              {!searchQuery && currentUser && searchHistory.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  <div className="flex justify-between items-center px-2 text-[10px] font-bold text-[#D4AF37] uppercase tracking-wider border-b border-gray-800 pb-1">
+                    <span className="flex items-center"><History size={12} className="mr-1" /> Your Saved Search History</span>
+                    <span>Account: {currentUser.name}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {searchHistory.map((item, idx) => (
+                      <span
+                        key={idx}
+                        onClick={() => {
+                          setSearchQuery(item);
+                          handleSelectSearchResult(`/products?search=${encodeURIComponent(item)}`, item);
+                        }}
+                        className="bg-[#111111] hover:bg-[#D4AF37]/20 border border-gray-800 hover:border-[#D4AF37] px-3 py-1.5 rounded-xl text-xs text-gray-300 hover:text-[#D4AF37] cursor-pointer transition-all flex items-center space-x-2"
+                      >
+                        <span>{item}</span>
+                        <Trash2 
+                          size={12} 
+                          onClick={(e) => handleClearHistoryItem(e, item)}
+                          className="text-gray-500 hover:text-red-400" 
+                        />
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Live Search Suggestions Matching Video Design */}
+              {searchQuery && searchResults.length > 0 ? (
+                <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar pr-1">
+                  {searchResults.map((res: any, idx: number) => (
+                    <div
+                      key={idx}
+                      onClick={() => handleSelectSearchResult(res.url, res.name)}
+                      className="flex items-center justify-between p-3 rounded-2xl bg-[#111111] border border-gray-800 hover:border-[#D4AF37] transition-all cursor-pointer group shadow-md hover:scale-[1.01]"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-xl bg-[#1A1A1A] border border-gray-800 overflow-hidden shrink-0 flex items-center justify-center">
+                          {res.image ? (
+                            <img src={res.image} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                          ) : res.type === 'Category' ? (
+                            <Folder size={18} className="text-[#D4AF37]" />
+                          ) : (
+                            <Package size={18} className="text-gray-500" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs sm:text-sm font-bold text-white group-hover:text-[#D4AF37] transition-colors line-clamp-1">
+                            {res.name}
+                          </p>
+                          <p className="text-[10px] text-gray-500 uppercase">{res.type}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        {res.price && (
+                          <span className="text-xs font-bold text-[#D4AF37]">
+                            ৳{Number(res.price || 0).toFixed(0)}
+                          </span>
+                        )}
+                        <ArrowRight size={14} className="text-gray-500 group-hover:text-[#D4AF37] group-hover:translate-x-1 transition-all" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : searchQuery ? (
+                <div className="text-center py-8 space-y-2">
+                  <p className="text-sm font-bold text-gray-400">No titles or categories found 😞</p>
+                  <p className="text-xs text-gray-600">Try searching with a different fashion keyword.</p>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 🚀 2. THREE.JS 3D HERO SECTION WITH MULTI-ANIMATION */}
+      <Hero products={products} settings={settings} />
+
+      {/* 🚀 3. TRUST FEATURES BAR WITH 3D CARDS */}
       <section className="py-10 border-y border-gray-800/80 bg-[#161616]/60 backdrop-blur-md">
         <div className="container mx-auto px-4 max-w-7xl">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
@@ -380,252 +532,73 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 🚀 3. NEW ARRIVALS & PRODUCTS SECTION WITH SEARCH BAR */}
-      <section className="py-16 px-4 bg-[#111111] relative">
-        <div className="container mx-auto max-w-7xl space-y-8">
-          
-          <div className="bg-[#1A1A1A]/90 border border-[#D4AF37]/30 rounded-2xl p-4 shadow-xl backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-4 glass-3d-panel">
-            <div className="relative w-full sm:w-96">
-              <input
-                type="text"
-                placeholder="Search products or categories..."
-                value={sectionSearchQuery}
-                onChange={(e) => setSectionSearchQuery(e.target.value)}
-                className="w-full bg-[#111111] border border-gray-700 focus:border-[#D4AF37] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#D4AF37]/50 transition-all"
-              />
-              <Search className="absolute left-3.5 top-3 text-gray-400" size={16} />
-            </div>
+      {/* 🚀 4. 3D CATEGORIES SECTION */}
+      <Categories categories={categories} products={products} settings={settings} />
 
-            <div className="flex items-center space-x-2 text-xs text-[#D4AF37] font-bold">
-              <Filter size={14} />
-              <span>Filtering {filteredProducts.length} Items</span>
-            </div>
-          </div>
+      {/* 🚀 5. NEW ARRIVALS & 3D DEPTH PRODUCTS */}
+      <FeaturedProducts products={products} categories={categories} reviews={reviews} settings={settings} />
 
-          <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-[#D4AF37]/20 pb-4 gap-4">
-            <div>
-              <h2 className="text-2xl sm:text-4xl font-serif font-bold text-[#D4AF37] uppercase tracking-wider flex items-center gold-text-glow">
-                {storeLogoImage ? (
-                  <img src={storeLogoImage} alt="" className="w-8 h-8 mr-3 object-cover rounded-full border border-[#D4AF37]/40" />
-                ) : null}
-                NEW ARRIVALS
-              </h2>
-              <p className="text-xs sm:text-sm text-gray-400 mt-1 flex items-center">
-                SHOWING {filteredProducts.length} REAL PRODUCTS AVAILABLE
-                {loading && <RefreshCw size={12} className="ml-2 animate-spin text-[#D4AF37]" />}
-              </p>
-            </div>
-
-            <div className="flex items-center space-x-3 overflow-x-auto custom-scrollbar pb-2 md:pb-0">
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setActiveCategory('All')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                    activeCategory === 'All'
-                      ? 'bg-[#D4AF37] text-black shadow-lg shadow-[#D4AF37]/20'
-                      : 'bg-[#1A1A1A] text-gray-400 border border-gray-800 hover:border-[#D4AF37]/40'
-                  }`}
-                >
-                  ALL PRODUCTS
-                </button>
-
-                {availableCategoryList.slice(0, 5).map((cat: any, idx: number) => {
-                  const cName = cat.name || cat;
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => setActiveCategory(cName)}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                        activeCategory.toLowerCase() === cName.toLowerCase()
-                          ? 'bg-[#D4AF37] text-black shadow-lg shadow-[#D4AF37]/20'
-                          : 'bg-[#1A1A1A] text-gray-400 border border-gray-800 hover:border-[#D4AF37]/40'
-                      }`}
-                    >
-                      {String(cName).toUpperCase()}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="hidden sm:flex items-center space-x-2 shrink-0 pl-4 border-l border-gray-800">
-                <button
-                  onClick={() => scrollSlider('left')}
-                  className="p-2.5 bg-[#1A1A1A] hover:bg-[#D4AF37] text-gray-300 hover:text-black rounded-xl border border-gray-800 hover:border-[#D4AF37] transition-all active:scale-95 shadow-md"
-                  title="Previous Products"
-                >
-                  <ChevronLeft size={18} />
-                </button>
-                <button
-                  onClick={() => scrollSlider('right')}
-                  className="p-2.5 bg-[#1A1A1A] hover:bg-[#D4AF37] text-gray-300 hover:text-black rounded-xl border border-gray-800 hover:border-[#D4AF37] transition-all active:scale-95 shadow-md"
-                  title="Next Products"
-                >
-                  <ChevronRight size={18} />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {filteredProducts.length === 0 ? (
-            <div className="text-center py-20 bg-[#1A1A1A]/60 rounded-3xl border border-gray-800 p-8 max-w-xl mx-auto glass-3d-panel">
-              <ShoppingBag size={48} className="mx-auto text-gray-600 mb-4 opacity-50" />
-              <h3 className="text-lg font-serif font-bold text-white mb-2">No products matched your search or category!</h3>
-              <p className="text-xs text-gray-400 mb-6">Try searching for a different keyword or reset filters.</p>
-              <button
-                onClick={() => { setActiveCategory('All'); setSectionSearchQuery(''); }}
-                className="px-6 py-2.5 bg-[#D4AF37] text-black font-bold text-xs uppercase rounded-xl hover:scale-105 transition-all"
-              >
-                Reset Filters
-              </button>
-            </div>
-          ) : (
-            <div 
-              ref={productSliderRef}
-              className="flex space-x-3 sm:space-x-6 overflow-x-auto custom-scrollbar pb-6 pt-2 scroll-smooth snap-x snap-mandatory"
-            >
-              {filteredProducts.map((product: any) => {
-                const pId = String(product.id || product._id);
-                const pName = product.name || 'Luxury Fashion Item';
-                const origPrice = Number(product.price) || 0;
-                const discountPercent = Number(product.discount) || 0;
-                const finalPrice = discountPercent > 0 ? origPrice - (origPrice * discountPercent) / 100 : origPrice;
-
-                const stockCount = Number(product.stock) || 0;
-                const soldCount = Number(product.sold) || 0;
-                const isOutOfStock = stockCount <= 0 || product.status === 'Out of Stock';
-                const isLowStock = stockCount > 0 && stockCount <= 3;
-
-                const productImagesList = Array.isArray(product.images) && product.images.length > 0 
-                  ? product.images 
-                  : (product.imageUrl || product.image ? [product.imageUrl || product.image] : []);
-
-                const ratingStats = getProductRatingStats(pId);
-
-                return (
-                  <div
-                    key={pId}
-                    onClick={() => { navigate(`/product/${pId}`); scrollToTop(); }}
-                    className="w-[48%] sm:w-[48%] md:w-[30%] lg:w-[23%] shrink-0 snap-start group relative bg-[#1A1A1A] border border-gray-800 hover:border-[#D4AF37]/60 rounded-2xl overflow-hidden cursor-pointer shadow-xl transition-all duration-500 hover:-translate-y-2 [perspective:1000px] [transform-style:preserve-3d] glass-3d-card"
-                  >
-                    <div className="relative aspect-square w-full bg-[#111111] overflow-hidden">
-                      <ProductCardImageSlider images={productImagesList} name={pName} />
-
-                      <div className="absolute top-2.5 left-2.5 right-2.5 flex justify-between items-start z-10">
-                        {discountPercent > 0 ? (
-                          <span className="bg-gradient-to-r from-red-600 via-orange-500 to-[#D4AF37] text-white font-bold text-[10px] sm:text-xs px-2.5 py-1 rounded-lg shadow-[0_4px_12px_rgba(220,38,38,0.4)] border border-red-400/40">
-                            -{discountPercent}% OFF
-                          </span>
-                        ) : <span />}
-
-                        <span className={`font-bold text-[9px] sm:text-[10px] px-2.5 py-1 rounded-full uppercase border backdrop-blur-md shadow-md ${
-                          isOutOfStock 
-                            ? 'bg-red-500/30 text-red-300 border-red-500 shadow-red-500/30' 
-                            : isLowStock
-                            ? 'bg-amber-500/30 text-amber-200 border-amber-500 shadow-amber-500/30 animate-pulse'
-                            : 'bg-emerald-500/30 text-emerald-200 border-emerald-500 shadow-emerald-500/30'
-                        }`}>
-                          {isOutOfStock ? 'OUT OF STOCK' : isLowStock ? 'LOW STOCK' : 'IN STOCK'}
-                        </span>
-                      </div>
-
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center space-x-3 p-4">
-                        <button
-                          onClick={(e) => handleQuickAddToCart(e, product)}
-                          disabled={isOutOfStock}
-                          className="p-3 bg-[#D4AF37] text-black rounded-xl hover:scale-110 transition-transform shadow-lg disabled:opacity-50 font-bold"
-                          title="Quick Add to Cart"
-                        >
-                          <ShoppingBag size={18} />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/product/${pId}`);
-                            scrollToTop();
-                          }}
-                          className="p-3 bg-[#111111]/80 text-white hover:text-[#D4AF37] border border-gray-700 rounded-xl hover:scale-110 transition-transform shadow-lg"
-                          title="View Product Details"
-                        >
-                          <Eye size={18} />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="p-3.5 sm:p-5 space-y-2">
-                      <div className="flex items-center justify-between text-[10px] sm:text-xs text-gray-400">
-                        <span className="uppercase tracking-wider font-semibold text-[#D4AF37]">
-                          {product.category || 'Luxury'}
-                        </span>
-                        
-                        <span className="flex items-center text-yellow-400 font-bold bg-[#111111] px-2 py-0.5 rounded-full border border-gray-800">
-                          <Star size={12} className="fill-yellow-400 mr-1" />
-                          {ratingStats.rating > '0.0' ? `${ratingStats.rating} (${ratingStats.count})` : 'New'}
-                        </span>
-                      </div>
-
-                      <h3 className="font-serif font-bold text-xs sm:text-sm text-white line-clamp-1 group-hover:text-[#D4AF37] transition-colors uppercase tracking-wide">
-                        {pName}
-                      </h3>
-
-                      <div className="flex flex-col space-y-1.5 pt-1">
-                        <div className="flex items-baseline justify-between">
-                          <div className="flex items-baseline space-x-1.5">
-                            <span className="font-bold text-sm sm:text-base text-[#D4AF37]">
-                              {settings?.currency || '৳'} {finalPrice.toFixed(2)}
-                            </span>
-                            {discountPercent > 0 && (
-                              <span className="text-[10px] sm:text-xs text-gray-500 line-through">
-                                {settings?.currency || '৳'} {origPrice.toFixed(2)}
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="flex items-center space-x-1">
-                            {soldCount > 0 && (
-                              <span className="bg-gradient-to-r from-[#D4AF37] to-[#aa8c2c] text-black border border-[#D4AF37] px-2 py-0.5 rounded-lg text-[9px] font-bold shadow-md shadow-[#D4AF37]/20 uppercase">
-                                {soldCount} Sold
-                              </span>
-                            )}
-                            <span className="bg-[#111111] text-[#D4AF37] border border-gray-800 px-2 py-0.5 rounded-lg text-[9px] font-bold">
-                              {isOutOfStock ? '0 Left' : `${stockCount} Left`}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
+      {/* 🚀 6. THREE.JS 3D SPECIAL OFFER BANNER */}
+      <section className="py-12 px-4">
+        <div className="container mx-auto max-w-7xl">
+          <Offer3DCanvas settings={settings} />
         </div>
       </section>
 
-      {/* 🚀 4. SPECIAL OFFER BANNER */}
-      <section className="py-16 px-4">
-        <div className="container mx-auto max-w-7xl">
-          <div className="relative rounded-3xl bg-gradient-to-r from-[#1A1A1A] via-[#111111] to-[#1A1A1A] border border-[#D4AF37]/40 p-8 sm:p-12 overflow-hidden shadow-2xl [perspective:1000px] glass-3d-panel">
-            <div className="absolute top-0 right-0 w-80 h-80 bg-[#D4AF37]/10 rounded-full blur-[100px] pointer-events-none" />
-
-            <div className="relative z-10 max-w-2xl space-y-4">
-              <span className="bg-[#D4AF37]/20 text-[#D4AF37] text-xs font-bold px-3.5 py-1.5 rounded-full border border-[#D4AF37]/40 inline-block uppercase tracking-widest">
-                {settings?.offerBadge || 'LIMITED TIME OFFER'}
-              </span>
-              <h2 className="text-3xl sm:text-5xl font-serif font-bold text-white leading-tight uppercase gold-text-glow">
-                {settings?.offerTitle || 'SPECIAL LUXURY DISCOUNT UP TO 30% OFF'}
-              </h2>
-              <p className="text-xs sm:text-sm text-gray-400">
-                {settings?.offerDescription || 'Upgrade your wardrobe today with our exclusive premium collection. Fast nationwide delivery available.'}
-              </p>
-              <button
-                onClick={() => { navigate('/products'); scrollToTop(); }}
-                className="px-8 py-3.5 bg-gradient-to-r from-[#D4AF37] to-[#f3e5ab] text-black font-bold text-xs uppercase tracking-widest rounded-xl hover:scale-105 transition-all shadow-lg shadow-[#D4AF37]/20"
-              >
-                EXPLORE OFFER
-              </button>
-            </div>
+      {/* 🚀 7. DEDICATED STYLISH 3D CONTACT SECTION */}
+      <section className="py-16 px-4 bg-[#0D0D0D] border-t border-[#D4AF37]/20 relative [perspective:1200px]">
+        <div className="container mx-auto max-w-7xl space-y-10">
+          
+          <div className="text-center max-w-2xl mx-auto space-y-2">
+            <span className="bg-[#D4AF37]/10 text-[#D4AF37] text-xs font-bold px-3.5 py-1.5 rounded-full border border-[#D4AF37]/30 inline-flex items-center space-x-1.5 uppercase tracking-widest">
+              <Sparkles size={14} className="text-[#D4AF37] animate-pulse" />
+              <span>STAY CONNECTED WITH US</span>
+            </span>
+            <h2 className="text-3xl sm:text-5xl font-serif font-bold text-[#D4AF37] uppercase tracking-wider gold-text-glow">
+              CONTACT & ASSISTANCE
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-400 font-light">
+              Reach out to our 24/7 dedicated luxury customer care team
+            </p>
           </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <div className="bg-[#1A1A1A] p-6 rounded-3xl border border-gray-800 hover:border-[#D4AF37] transition-all duration-300 shadow-xl hover:-translate-y-2 glass-3d-card flex flex-col items-center text-center space-y-3">
+              <div className="w-14 h-14 rounded-2xl bg-[#D4AF37]/10 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] shadow-lg shadow-[#D4AF37]/20">
+                <PhoneCall size={26} />
+              </div>
+              <h3 className="font-serif font-bold text-lg text-white uppercase">Call Us Directly</h3>
+              <p className="text-xs text-gray-400 font-light">Available 24/7 for order support</p>
+              <a href={`tel:${settings?.phoneNumber || '+880 1707697445'}`} className="text-sm font-bold text-[#D4AF37] hover:underline">
+                {settings?.phoneNumber || '+880 1707697445'}
+              </a>
+            </div>
+
+            <div className="bg-[#1A1A1A] p-6 rounded-3xl border border-gray-800 hover:border-[#D4AF37] transition-all duration-300 shadow-xl hover:-translate-y-2 glass-3d-card flex flex-col items-center text-center space-y-3">
+              <div className="w-14 h-14 rounded-2xl bg-[#D4AF37]/10 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] shadow-lg shadow-[#D4AF37]/20">
+                <Mail size={26} />
+              </div>
+              <h3 className="font-serif font-bold text-lg text-white uppercase">Email Support</h3>
+              <p className="text-xs text-gray-400 font-light">Instant response for queries</p>
+              <a href={`mailto:${settings?.contactEmail || 'kon497733@gmail.com'}`} className="text-sm font-bold text-[#D4AF37] hover:underline">
+                {settings?.contactEmail || 'kon497733@gmail.com'}
+              </a>
+            </div>
+
+            <div className="bg-[#1A1A1A] p-6 rounded-3xl border border-gray-800 hover:border-[#D4AF37] transition-all duration-300 shadow-xl hover:-translate-y-2 glass-3d-card flex flex-col items-center text-center space-y-3">
+              <div className="w-14 h-14 rounded-2xl bg-[#D4AF37]/10 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] shadow-lg shadow-[#D4AF37]/20">
+                <MapPin size={26} />
+              </div>
+              <h3 className="font-serif font-bold text-lg text-white uppercase">Visit Showroom</h3>
+              <p className="text-xs text-gray-400 font-light">Flagship store location</p>
+              <p className="text-xs font-bold text-[#D4AF37] leading-relaxed">
+                {settings?.address || 'CDA Agrabad, Chattogram, Bangladesh'}
+              </p>
+            </div>
+
+          </div>
+
         </div>
       </section>
 

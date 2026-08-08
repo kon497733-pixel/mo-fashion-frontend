@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  ShoppingBag, Search, Menu, X, Home, Grid, Info, User, 
+  ShoppingBag, Search, Menu, X, Home, Grid, User, 
   ShieldCheck, ChevronDown, Package, Folder, ArrowRight
 } from 'lucide-react';
 import { useCartStore } from '../../store/useCartStore';
@@ -24,6 +24,9 @@ export default function Navbar() {
   const [searchDropdownOpen, setSearchQueryOpen] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
   const [logoTilt, setLogoTilt] = useState({ x: 0, y: 0 });
+
+  // 🚀 মোবাইল সার্চ বার এক্সপ্যান্ড স্টেট
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
   const [isCustomerLoggedIn, setIsCustomerLoggedIn] = useState<boolean>(() => {
     try {
@@ -80,7 +83,7 @@ export default function Navbar() {
     loadNavbarData();
 
     const channel = supabase
-      .channel('public:navbar:live:sync:v122')
+      .channel('public:navbar:live:sync:v126')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'settings' },
@@ -174,21 +177,21 @@ export default function Navbar() {
     scrollToTop();
     setSearchQuery('');
     setSearchQueryOpen(false);
+    setIsMobileSearchOpen(false);
   };
 
   const customerProfilePath = isCustomerLoggedIn ? '/profile' : '/login';
+  const storeLogoImage = settings?.logoUrl || settings?.logo || settings?.storeLogo || '';
+  const storeBrandTitle = settings?.storeName || 'MO FASHION';
+  const storeTaglineText = settings?.tagline || settings?.storeTagline || 'LUXURY COLLECTION';
 
   const bottomNavItems = [
     { name: 'Home', path: '/', icon: Home },
     { name: 'Categories', path: '/categories', icon: Grid },
     { name: 'Cart', path: '/cart', icon: ShoppingBag, badge: totalCartCount },
-    { name: 'About', path: '/about', icon: Info },
+    { name: 'About', path: '/about', isLogoIcon: true },
     { name: isCustomerLoggedIn ? 'Profile' : 'Sign In', path: customerProfilePath, icon: User },
   ];
-
-  const storeLogoImage = settings?.logoUrl || settings?.logo || settings?.storeLogo || '';
-  const storeBrandTitle = settings?.storeName || 'MO FASHION';
-  const storeTaglineText = settings?.tagline || settings?.storeTagline || 'LUXURY COLLECTION';
 
   return (
     <>
@@ -390,7 +393,7 @@ export default function Navbar() {
               className="relative p-2.5 bg-[#1A1A1A]/90 hover:bg-[#D4AF37]/20 text-white hover:text-[#D4AF37] border border-[#D4AF37]/30 rounded-xl transition-all duration-300 group shadow-[0_5px_15px_rgba(0,0,0,0.5)] hover:scale-105 active:scale-95 flex items-center justify-center [transform-style:preserve-3d]"
               aria-label="View Shopping Cart"
             >
-              <ShoppingBag size={20} className="group-hover:rotate-12 transition-transform" />
+              <ShoppingBag size={20} className="group-hover:rotate-12 transition-transform text-[#D4AF37]" />
               {totalCartCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 bg-gradient-to-r from-[#D4AF37] to-[#e6c662] text-black font-bold text-[10px] w-5 h-5 rounded-full flex items-center justify-center border-2 border-[#111111] shadow-[0_0_12px_rgba(212,175,55,0.9)] animate-bounce">
                   {totalCartCount}
@@ -470,9 +473,49 @@ export default function Navbar() {
         )}
       </header>
 
-      {/* 🚀 SINGLE LIQUID POP-UP MOBILE BOTTOM NAVIGATION BAR */}
+      {/* 🚀 100% BLACK & GOLD THEME LIQUID MOBILE BOTTOM NAVIGATION DOCK */}
       <div className="lg:hidden fixed bottom-3 left-3 right-3 z-50">
-        <nav className="bg-[#141414]/95 backdrop-blur-2xl border border-[#D4AF37]/40 rounded-3xl p-1.5 shadow-[0_15px_35px_rgba(0,0,0,0.95)] flex items-center justify-around relative">
+        
+        {/* Mobile Search Bar Popup Below Nav */}
+        {isMobileSearchOpen && (
+          <div className="mb-2 bg-[#111111]/95 border border-[#D4AF37]/50 rounded-3xl p-3 shadow-[0_0_25px_rgba(212,175,55,0.3)] backdrop-blur-2xl animate-in slide-in-from-bottom-2 duration-300">
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                placeholder="Search products or categories..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-[#1A1A1A] border border-[#D4AF37]/40 focus:border-[#D4AF37] rounded-xl pl-9 pr-8 py-2 text-xs text-white focus:outline-none"
+              />
+              <Search className="absolute left-3 text-[#D4AF37]" size={14} />
+              <button 
+                onClick={() => setIsMobileSearchOpen(false)}
+                className="absolute right-2 text-gray-400 hover:text-white"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {searchQuery && searchResults.length > 0 && (
+              <div className="mt-2 space-y-1 max-h-40 overflow-y-auto custom-scrollbar">
+                {searchResults.map((res: any, idx: number) => (
+                  <div
+                    key={idx}
+                    onClick={() => handleSelectSearchResult(res.url)}
+                    className="p-2 bg-[#1A1A1A] hover:bg-[#D4AF37]/20 rounded-lg flex justify-between items-center text-xs text-white font-bold cursor-pointer"
+                  >
+                    <span className="line-clamp-1">{res.name}</span>
+                    <span className="text-[9px] text-[#D4AF37]">[{res.type}]</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 🚀 SINGLE BLACK & METALLIC GOLD LIQUID DOCK BAR */}
+        <nav className="bg-[#111111]/95 backdrop-blur-2xl border border-[#D4AF37]/50 rounded-3xl p-1.5 shadow-[0_15px_35px_rgba(0,0,0,0.95),0_0_20px_rgba(212,175,55,0.2)] flex items-center justify-around relative">
+          
           {bottomNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -482,21 +525,32 @@ export default function Navbar() {
                 key={item.path}
                 to={item.path}
                 onClick={scrollToTop}
-                className="relative flex flex-col items-center justify-center w-full py-2 transition-all duration-300"
+                className="relative flex flex-col items-center justify-center w-full py-1.5 transition-all duration-300"
               >
                 {isActive ? (
-                  <div className="flex flex-col items-center -mt-6 animate-in zoom-in-75 duration-300">
-                    <div className="w-11 h-11 bg-[#D4AF37] rounded-full flex items-center justify-center shadow-[0_0_18px_#D4AF37] border-2 border-[#111111]">
-                      <Icon size={20} className="text-black stroke-[2.5]" />
+                  /* ELEVATED ACTIVE GOLDEN BUBBLE (Elevates Upward as in Video) */
+                  <div className="flex flex-col items-center -mt-7 animate-in zoom-in-75 duration-300">
+                    <div className="w-12 h-12 bg-gradient-to-br from-[#D4AF37] via-[#fff5c0] to-[#aa8c2c] rounded-full flex items-center justify-center shadow-[0_0_25px_rgba(212,175,55,0.8)] border-4 border-[#111111] transition-all">
+                      {item.isLogoIcon && storeLogoImage ? (
+                        <img src={storeLogoImage} alt="MO Logo" className="w-7 h-7 object-cover rounded-full border border-black" />
+                      ) : Icon ? (
+                        <Icon size={20} className="text-black stroke-[2.5]" />
+                      ) : null}
                     </div>
-                    <span className="text-[11px] font-bold text-[#D4AF37] mt-1 tracking-wide font-sans">
+                    <span className="text-[11px] font-extrabold text-[#D4AF37] mt-1 tracking-wide font-sans gold-text-glow">
                       {item.name}
                     </span>
                   </div>
                 ) : (
+                  /* INACTIVE GOLD & OBSIDIAN DOCK ITEM */
                   <div className="flex flex-col items-center opacity-70 hover:opacity-100 transition-opacity">
                     <div className="relative">
-                      <Icon size={20} className="text-gray-300 stroke-[1.8]" />
+                      {item.isLogoIcon && storeLogoImage ? (
+                        <img src={storeLogoImage} alt="MO Logo" className="w-5 h-5 object-cover rounded-full border border-[#D4AF37]/40" />
+                      ) : Icon ? (
+                        <Icon size={20} className="text-[#D4AF37]/70 stroke-[1.8]" />
+                      ) : null}
+
                       {item.badge !== undefined && item.badge > 0 && (
                         <span className="absolute -top-1.5 -right-2 bg-[#D4AF37] text-black font-bold text-[9px] w-4 h-4 rounded-full flex items-center justify-center border border-black shadow-md">
                           {item.badge}
@@ -511,7 +565,17 @@ export default function Navbar() {
               </Link>
             );
           })}
+
+          {/* Quick Mobile Search Toggle Button */}
+          <button
+            onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
+            className="p-2 text-[#D4AF37]/80 hover:text-[#D4AF37] transition-colors"
+            title="Search Products"
+          >
+            <Search size={18} />
+          </button>
         </nav>
+
       </div>
     </>
   );

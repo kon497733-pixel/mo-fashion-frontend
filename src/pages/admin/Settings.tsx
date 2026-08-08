@@ -14,6 +14,7 @@ export default function Settings() {
 
   const { settings, fetchSettings, updateSettings } = useSettingsStore();
 
+  // 🚀 জিরো ডিফল্ট—সকল ৩ডি ও হোমপেইজ অ্যানিমেশন কন্ট্রোল ফিল্ড
   const emptySettings = {
     storeName: '',
     logoUrl: '', 
@@ -41,6 +42,11 @@ export default function Settings() {
     enable3DEffects: true,
     enable3DParticles: true,
     enableScrollReveal: true,
+    stagePosX: 0,
+    stagePosY: 0,
+    stagePosZ: 0,
+    stageScale: 1,
+    stageRotY: 0,
     facebook: '',
     instagram: '',
     twitter: '',
@@ -51,6 +57,7 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState('General');
   const [loading, setLoading] = useState(true);
 
+  // 🚀 ১. ক্লাউড ডাটাবেস থেকে রিয়েল-টাইম সেটিংস সিঙ্ক করা
   useEffect(() => {
     const loadSettings = async () => {
       try {
@@ -69,6 +76,7 @@ export default function Settings() {
     loadSettings();
   }, []);
 
+  // ক্লাউড স্টোর চেঞ্জ হলে ফর্মে রিয়েল-টাইমে লাইভ সিঙ্ক
   useEffect(() => {
     if (settings && Object.keys(settings).length > 0) {
       setLocalSettings((prev: any) => ({ ...emptySettings, ...prev, ...settings }));
@@ -80,6 +88,7 @@ export default function Settings() {
     setLocalSettings((prev: any) => ({ ...prev, [name]: value }));
   };
 
+  // 🚀 ২. আল্ট্রা-কোয়ালিটি ওয়েবলোগো কমপ্রেশন
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -102,7 +111,7 @@ export default function Settings() {
 
           const compressedLogo = canvas.toDataURL('image/webp', 0.85);
           setLocalSettings((prev: any) => ({ ...prev, logoUrl: compressedLogo }));
-          toast.success('Logo compressed & ready! Click "Save All Settings" below.');
+          toast.success('Logo compressed & ready! Click "Save All Settings to Cloud" below.');
         };
         img.src = event.target?.result as string;
       };
@@ -110,6 +119,7 @@ export default function Settings() {
     }
   };
 
+  // 🚀 ৩. এবাউট ফটো কমপ্রেশন
   const handleAboutImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -132,7 +142,7 @@ export default function Settings() {
 
           const compressedImg = canvas.toDataURL('image/jpeg', 0.75);
           setLocalSettings((prev: any) => ({ ...prev, aboutImageUrl: compressedImg }));
-          toast.success('About photo compressed & ready! Click "Save All Settings" below.');
+          toast.success('About photo compressed & ready! Click "Save All Settings to Cloud" below.');
         };
         img.src = event.target?.result as string;
       };
@@ -165,16 +175,19 @@ export default function Settings() {
     setLocalSettings({ ...localSettings, faqs: updatedFaqs });
   };
 
+  // 🚀 ৪. বিশ্বব্যাপী সকল ডিভাইসে পারমানেন্ট লাইভ সেভ (Supabase Cloud DB)
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const toastId = toast.loading("Saving settings LIVE to Cloud Database...");
+    const toastId = toast.loading("Broadcasting live settings to all devices worldwide...");
 
     try {
       await updateSettings(localSettings);
+      
       window.dispatchEvent(new Event('settingsUpdated'));
       window.dispatchEvent(new Event('storage'));
-      toast.success('Settings saved LIVE in Cloud Database! 🎉', { id: toastId });
+
+      toast.success('Settings saved PERMANENTLY in Cloud DB & updated LIVE on all devices! 🎉', { id: toastId });
     } catch (err) {
       console.error("Cloud Sync Error:", err);
       toast.error('Failed to save settings to Cloud Database!', { id: toastId });
@@ -183,7 +196,7 @@ export default function Settings() {
 
   const menuItems = [
     { name: 'General', icon: Store },
-    { name: '3D Visual Mode', icon: Box },
+    { name: '3D Spatial Editor', icon: Box },
     { name: 'Homepage 3D', icon: Layout },
     { name: 'Operations', icon: Truck },
     { name: 'Payment', icon: CreditCard },
@@ -195,6 +208,7 @@ export default function Settings() {
     <div className="text-white pb-10 transition-all duration-300">
       <Helmet><title>Admin - Advanced Settings | MO FASHION</title></Helmet>
 
+      {/* 🌟 3D GLASSMORPHIC HEADER */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 bg-[#1A1A1A]/80 p-6 rounded-3xl border border-[#D4AF37]/30 backdrop-blur-md shadow-2xl transition-all duration-300 hover:border-[#D4AF37]/50 glass-3d-panel">
         <div>
           <div className="flex items-center space-x-3">
@@ -206,12 +220,13 @@ export default function Settings() {
               Global Cloud Hub
             </span>
           </div>
-          <p className="text-sm text-gray-400 mt-1 font-light">Manage global store settings, logo, tagline, 3D controls, and live cloud database</p>
+          <p className="text-sm text-gray-400 mt-1 font-light">Manage global store settings, logo, tagline, 3D spatial controls, and live cloud database</p>
         </div>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8 [perspective:1200px]">
         
+        {/* Left Sidebar Menu */}
         <div className="lg:w-1/4">
           <div className="bg-[#1A1A1A] rounded-3xl border border-[#D4AF37]/30 p-4 sticky top-24 shadow-2xl backdrop-blur-md glass-3d-panel">
             <nav className="space-y-2">
@@ -238,6 +253,7 @@ export default function Settings() {
           </div>
         </div>
 
+        {/* Right Content Area */}
         <div className="lg:w-3/4">
           {loading ? (
             <div className="bg-[#1A1A1A] p-16 rounded-3xl text-center text-[#D4AF37] border border-[#D4AF37]/20 flex flex-col items-center justify-center space-y-3 shadow-2xl glass-3d-panel">
@@ -247,6 +263,7 @@ export default function Settings() {
           ) : (
             <form onSubmit={handleSaveSettings} className="bg-[#1A1A1A] p-6 sm:p-8 rounded-3xl border border-[#D4AF37]/30 shadow-2xl relative min-h-[400px] transition-all duration-300 glass-3d-panel">
               
+              {/* 1. General Settings */}
               {activeTab === 'General' && (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
                   <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center gold-text-glow">
@@ -410,16 +427,81 @@ export default function Settings() {
                 </div>
               )}
 
-              {activeTab === '3D Visual Mode' && (
+              {/* 🚀 2. 3D Spatial Editor Controls (Position X, Y, Z, Scale, Rotation) */}
+              {activeTab === '3D Spatial Editor' && (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
                   <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center gold-text-glow">
-                    <Box size={20} className="mr-2 text-[#D4AF37]" /> 3D Engine & Motion Controls
+                    <Box size={20} className="mr-2 text-[#D4AF37]" /> Interactive 3D Spatial Coordinates & Motion Engine
                   </h2>
 
-                  <div className="space-y-4">
+                  <div className="bg-[#111111] p-5 rounded-2xl border border-[#D4AF37]/30 space-y-5 glass-3d-card">
+                    <h3 className="text-xs font-bold text-[#D4AF37] uppercase tracking-widest border-b border-gray-800 pb-2">
+                      3D Stage Pedestal Coordinates (Front, Back, Up, Down, Scale)
+                    </h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                      <div>
+                        <label className="block text-gray-400 text-xs font-bold uppercase mb-1">Stage Position X (Left / Right)</label>
+                        <input 
+                          type="number" 
+                          name="stagePosX" 
+                          value={localSettings.stagePosX ?? 0} 
+                          onChange={handleChange} 
+                          className="w-full bg-[#1A1A1A] border border-gray-700 rounded-xl px-4 py-2.5 text-white text-xs focus:border-[#D4AF37] focus:outline-none font-mono" 
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-gray-400 text-xs font-bold uppercase mb-1">Stage Position Y (Up / Down)</label>
+                        <input 
+                          type="number" 
+                          name="stagePosY" 
+                          value={localSettings.stagePosY ?? 0} 
+                          onChange={handleChange} 
+                          className="w-full bg-[#1A1A1A] border border-gray-700 rounded-xl px-4 py-2.5 text-white text-xs focus:border-[#D4AF37] focus:outline-none font-mono" 
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-gray-400 text-xs font-bold uppercase mb-1">Stage Position Z (Front / Back Depth)</label>
+                        <input 
+                          type="number" 
+                          name="stagePosZ" 
+                          value={localSettings.stagePosZ ?? 0} 
+                          onChange={handleChange} 
+                          className="w-full bg-[#1A1A1A] border border-gray-700 rounded-xl px-4 py-2.5 text-white text-xs focus:border-[#D4AF37] focus:outline-none font-mono" 
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-gray-400 text-xs font-bold uppercase mb-1">3D Stage Scale Factor</label>
+                        <input 
+                          type="number" 
+                          step="0.1"
+                          name="stageScale" 
+                          value={localSettings.stageScale ?? 1} 
+                          onChange={handleChange} 
+                          className="w-full bg-[#1A1A1A] border border-gray-700 rounded-xl px-4 py-2.5 text-[#D4AF37] text-xs focus:border-[#D4AF37] focus:outline-none font-bold font-mono" 
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-gray-400 text-xs font-bold uppercase mb-1">3D Rotation Angle Y</label>
+                        <input 
+                          type="number" 
+                          name="stageRotY" 
+                          value={localSettings.stageRotY ?? 0} 
+                          onChange={handleChange} 
+                          className="w-full bg-[#1A1A1A] border border-gray-700 rounded-xl px-4 py-2.5 text-white text-xs focus:border-[#D4AF37] focus:outline-none font-mono" 
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 pt-2">
                     <label className="flex items-center justify-between p-4 bg-[#111111] border border-[#D4AF37]/20 rounded-2xl cursor-pointer hover:border-[#D4AF37]/50 transition-colors glass-3d-card">
                       <div className="space-y-0.5">
-                        <span className="text-white font-bold text-sm block">Enable 3D Perspective Effects</span>
+                        <span className="text-white font-bold text-sm block">Enable 3D Depth Perspective Effects</span>
                         <span className="text-gray-400 text-xs font-light">Applies 3D perspective depth tilt and GPU acceleration across cards</span>
                       </div>
                       <input type="checkbox" checked={localSettings.enable3DEffects ?? true} onChange={() => handleToggle('enable3DEffects')} className="w-5 h-5 accent-[#D4AF37] rounded cursor-pointer" />
@@ -428,22 +510,15 @@ export default function Settings() {
                     <label className="flex items-center justify-between p-4 bg-[#111111] border border-[#D4AF37]/20 rounded-2xl cursor-pointer hover:border-[#D4AF37]/50 transition-colors glass-3d-card">
                       <div className="space-y-0.5">
                         <span className="text-white font-bold text-sm block">Enable 3D Ambient Background Particles</span>
-                        <span className="text-gray-400 text-xs font-light">Renders golden 3D particles on layout background canvas</span>
+                        <span className="text-gray-400 text-xs font-light">Renders golden 3D WebGL particles on layout background canvas</span>
                       </div>
                       <input type="checkbox" checked={localSettings.enable3DParticles ?? true} onChange={() => handleToggle('enable3DParticles')} className="w-5 h-5 accent-[#D4AF37] rounded cursor-pointer" />
-                    </label>
-
-                    <label className="flex items-center justify-between p-4 bg-[#111111] border border-[#D4AF37]/20 rounded-2xl cursor-pointer hover:border-[#D4AF37]/50 transition-colors glass-3d-card">
-                      <div className="space-y-0.5">
-                        <span className="text-white font-bold text-sm block">Enable Apple-Style 3D Scroll Reveal</span>
-                        <span className="text-gray-400 text-xs font-light">Triggers perspective tilt and scale reveal when scrolling pages</span>
-                      </div>
-                      <input type="checkbox" checked={localSettings.enableScrollReveal ?? true} onChange={() => handleToggle('enableScrollReveal')} className="w-5 h-5 accent-[#D4AF37] rounded cursor-pointer" />
                     </label>
                   </div>
                 </div>
               )}
 
+              {/* 3. Homepage 3D Controls */}
               {activeTab === 'Homepage 3D' && (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
                   <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center gold-text-glow">
@@ -476,7 +551,7 @@ export default function Settings() {
                           value={localSettings.heroTitle || ''}
                           onChange={handleChange}
                           placeholder="e.g. ELEVATE YOUR SIGNATURE STYLE"
-                          className="w-full bg-[#1A1A1A] border border-gray-700 rounded-xl px-4 py-2.5 text-white text-xs focus:border-[#D4AF37] focus:outline-none font-bold"
+                          className="w-full bg-[#1A1A1A] border border-gray-700 rounded-xl px-4 py-2.5 text-white text-xs focus:border-[#D4AF37] focus:outline-none font-bold text-[#D4AF37]"
                         />
                       </div>
 
@@ -565,6 +640,7 @@ export default function Settings() {
                 </div>
               )}
 
+              {/* Operations Settings */}
               {activeTab === 'Operations' && (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
                   <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center gold-text-glow">
@@ -605,6 +681,7 @@ export default function Settings() {
                 </div>
               )}
 
+              {/* Payment Settings */}
               {activeTab === 'Payment' && (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
                   <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center gold-text-glow">
@@ -627,6 +704,7 @@ export default function Settings() {
                 </div>
               )}
 
+              {/* Social Links */}
               {activeTab === 'Social Links' && (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
                   <h2 className="text-xl font-bold text-[#D4AF37] mb-6 uppercase border-b border-[#D4AF37]/20 pb-3 flex items-center gold-text-glow">
@@ -640,6 +718,7 @@ export default function Settings() {
                 </div>
               )}
 
+              {/* FAQs */}
               {activeTab === 'FAQs' && (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
                   <div className="flex justify-between items-center mb-6 border-b border-[#D4AF37]/20 pb-3">
@@ -660,6 +739,7 @@ export default function Settings() {
                 </div>
               )}
 
+              {/* 💾 Save All Settings Button */}
               <div className="mt-10 pt-6 border-t border-[#D4AF37]/20 flex justify-end">
                 <button 
                   type="submit"
